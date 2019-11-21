@@ -633,6 +633,3 @@ catch
 write-log -Function "Disconnect - ExecutionPolicy" -Step $CurrentProperty -Description $CurrentDescription
 Read-Host -Prompt "Please press [Enter] to exit"
 }
-
-
-
