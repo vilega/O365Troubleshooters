@@ -395,7 +395,7 @@ Function Set-GlobalVariables {
 
 
 #???
-Function Create-XMLObject {
+Function New-XMLObject {
     param ( 
         $CmdletsNeeded
         )
@@ -409,7 +409,7 @@ $InitialErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = "Stop"
         
         #Log-Write -ScriptName 
-        write-log -Function "Create-XMLObject" -step "Started"
+        write-log -Function "New-XMLObject" -step "Started"
             
     $Global:Obj = New-Object Object | Select-Object -Property $CmdletsNeeded 
         
@@ -424,7 +424,7 @@ $ErrorActionPreference = "Stop"
             $CurrentProperty = $_.name
             $Obj.$CurrentProperty = Invoke-Expression $CurrentProperty
             $CurrentDescription = $_
-            write-host "Function Create-XmlObject, current step: $CurrentProperty"
+            write-host "Function New-XMLObject, current step: $CurrentProperty"
             
             
             }
@@ -437,7 +437,7 @@ $ErrorActionPreference = "Stop"
             $CurrentDescription = "`""+$CurrentDescription+"`"" 
                 
             }
-            write-log -Function "Create-XMLObject" -Step $CurrentProperty -Description $CurrentDescription
+            write-log -Function "New-XMLObject" -Step $CurrentProperty -Description $CurrentDescription
         
             $myerror=$null
        }
@@ -505,10 +505,10 @@ Function Open-URL {
         return
     } 
 
-Function Check-Net45 {
+Function Test-DotNet {
     # Function to check if .net 4.5 is installed
     $Global:Error.Clear()
-    write-log -Function "Check-Net45" -step "Started"
+    write-log -Function "Test-DotNet" -step "Started"
     
     $ndpDirectory = 'hklm:\SOFTWARE\Microsoft\NET Framework Setup\NDP\'
     $v4Directory = "$ndpDirectory\v4\Full"
@@ -537,7 +537,7 @@ Function Check-Net45 {
         {
             Write-Host "Your .net version is less than 4.5. Please update the .NET Framework version" -foregroundcolor "red"
             Open-URL ("http://go.microsoft.com/fwlink/?LinkId=671744")
-            write-log -Function "Check-Net45" -step "Check .net version" -Description "less than 4.5"
+            write-log -Function "Test-DotNet" -step "Check .net version" -Description "less than 4.5"
             Write-Host "`nThe Collection script will now stop" -foregroundcolor "red"
             exit
         }
@@ -545,10 +545,10 @@ Function Check-Net45 {
  }
 
 
-Function Check-PSVers {
+Function Test-PSVers {
     # Function to check PS version
     $Global:Error.Clear()
-    write-log -Function "Check-PSVers" -step "Started"
+    write-log -Function "Test-PSVers" -step "Started"
     Write-Host "`nWe are trying to determine the Operating System"
     # Display Operating System as it might help to identify what pack should be downloaded
     $op_ver = Get-WmiObject Win32_OperatingSystem | select Caption, OSArchitecture
@@ -558,19 +558,19 @@ Function Check-PSVers {
    
     # Check if the PoweShell version is 5
     Write-Host "`nWe are trying to determine which PowerShell version is installed"
-    write-log -Function "Check-PSVers" -step "Check Powershell version" -Description $PSVersionTable.PSVersion.Major
+    write-log -Function "Test-PSVers" -step "Check Powershell version" -Description $PSVersionTable.PSVersion.Major
     If ($PSVersionTable.PSVersion.Major -le 2)
     {
         If ($op_ver_srv)
          {
              Write-Host "`nYou have a Server Operating System !" -foregroundcolor "red"
-             write-log -Function "Check-PSVers" -step "Check Powershell version" -Description $PSVersionTable.PSVersion.Major
+             write-log -Function "Test-PSVers" -step "Check Powershell version" -Description $PSVersionTable.PSVersion.Major
              Write-Host "`nThe Collection script will now stop" -foregroundcolor "red"
              exit
             }
         else
         {
-        Check-Net45
+        Test-DotNet
         Write-Host "`nYou have the following Powershell version:" $PSVersionTable.PSVersion.Major
         Write-Host "`nYour Powershell version is less than 5. Please update your Powershell by installing Windows Management Framework 5.0 !" -foregroundcolor "magenta"
         Open-URL ("https://www.microsoft.com/en-us/download/details.aspx?id=50395")
