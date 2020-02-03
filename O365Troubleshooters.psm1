@@ -57,7 +57,6 @@ Function Request-Credential {
      &$Global:UserCredential
 }
 
-# LN
 Function Connect-O365PS { # Function to connecto to O365 services
 
     # Parameter request and validation
@@ -634,5 +633,61 @@ function disconnect-all {
     Read-Host -Prompt "Please press [Enter] to exit"
     }
 
+Function Start-AP_OfficeMessageEncryption {
+    # Required function to set Global Variables
+    Set-GlobalVariables
+        
+    # Connect Workloads (split workloads by comma): "msol","exo","eop","sco","spo","sfb","aadrm"
+    $Workloads = "exo", "sco", "aadrm"
+    Connect-O365PS $Workloads
+        
+    $CurrentProperty = "Connecting to: $Workloads"
+    $CurrentDescription = "Success"
+    write-log -Function "Connecting to O365 workloads" -Step $CurrentProperty -Description $CurrentDescription 
+        
+    # Main Function
+        
+    # Disconnecting
+    disconnect-all  
+}
+
+Function Start-O365Troubleshooters {
+    $menu=@"
+    1 Office Message Encryption General Troubleshooting
+    2 Analyze compromise account/tenant
+    3 Tools: Convert 
+    Q Quit
+     
+    Select a task by number or Q to quit
+"@
+
+Write-Host "My Menu" -ForegroundColor Cyan
+$r = Read-Host $menu
+
+Switch ($r) {
+    "1" {
+        Write-Host "Getting system information" -ForegroundColor Green
+        #insert your code here
+    }
+     
+    "2" {
+        Write-Host "Getting mailbox information" -ForegroundColor Green
+        #insert your code here
+    }
+     
+    "3" {
+        Write-Host "Restarting the print spooler" -ForegroundColor Green
+        #insert your code here
+    }
+     
+    "Q" {
+        Write-Host "Quitting" -ForegroundColor Green
+    }
+     
+    default {
+        Write-Host "I don't understand what you want to do." -ForegroundColor Yellow
+     }
+    } 
 
 
+}
