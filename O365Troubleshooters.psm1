@@ -124,7 +124,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
     $Global:proxy = get-choice "Yes", "No"
     
     $Global:PSsettings = New-PSSessionOption -SkipRevocationCheck 
-    if ($Global:proxy -eq "1") {
+    if ($Global:proxy -eq "n") {
                 $Global:PSsettings = New-PSSessionOption -ProxyAccessType IEConfig -SkipRevocationCheck 
     }
 
@@ -369,7 +369,7 @@ Function Set-GlobalVariables {
  $Global:Path += "\PowerShellOutputs"
  $global:WSPath = "$Path\PowerShellOutputs_$ts"
  $global:starline = New-Object String '*',5
- $Global:ExtractXML_XML = "Get-MigrationUserStatistics ", "Get-ImapSubscription "
+ #$Global:ExtractXML_XML = "Get-MigrationUserStatistics ", "Get-ImapSubscription "
  
 
  if (!(Test-Path $Path)) 
@@ -388,7 +388,7 @@ Function Set-GlobalVariables {
  $global:columnLabels = "Time, Function, Step, Description"
  Out-File -FilePath $outputFile -InputObject $columnLabels -Encoding UTF8 |Out-Null
 
- cd $WSPath
+ Set-Location $WSPath
  
 }
 
@@ -445,7 +445,6 @@ $ErrorActionPreference = "Stop"
     
 }
 
-# CD
 
 function Write-Log {
     <# Example to use/call this function
@@ -473,19 +472,32 @@ Function Get-Choice {
     param ( 
         $OptionsList
         )
-
-     DO
+    
+    [int]$i=0
+    do
     {
-    $no=0
-    $OptionsList | 
-        foreach {
-        write-host "Press $no for '$_'"
-        $no=$no+1
-                }
-     [int]$Global:Option=read-host "Select option number please" 
+        
+        $OptionsList | ForEach-Object  {
+                write-host "Press $($_[0]) for '$_'"
+        }
+        [string]$Option=read-host "Please answer by typing first letter of the option" 
+        [bool]$validAnswer=$false
+        $OptionsList | ForEach-Object  {
+            if ($_.ToLower()[0] -eq $Option.ToLower()[0]) 
+            {
+                $validAnswer = $true
+            }
+        }
+        $i++
+    }
+     while (($validAnswer -eq $false) -and ($i -le 2))
+     if ($validAnswer -eq $false)
+     {
+        Write-Log "Get-Choice" -step "provide one of the expected choices"    -Description "function received 3 consecutive unexpected answers, so will exit"
+        Write-Host "You provided unexpected answers 3 consecutive times so the script will close" -ForegroundColor Red
+        disconnect-all
+        exit
      }
-     while ($option -gt ($no-1))
-     
      return $Global:Option
     
 }
@@ -655,7 +667,11 @@ Function Start-O365Troubleshooters {
     $menu=@"
     1 Office Message Encryption General Troubleshooting
     2 Analyze compromise account/tenant
-    3 Tools: Convert 
+    3 SMTP Relay Test
+    4 Tools: Exchange Online Audit Search
+    5 Tools: Unified Logging Audit Search
+    6 Tools: Find all users with a specific RBAC Role
+    7 Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox
     Q Quit
      
     Select a task by number or Q to quit
@@ -666,32 +682,144 @@ $r = Read-Host $menu
 
 Switch ($r) {
     "1" {
-        Write-Host "Getting system information" -ForegroundColor Green
-        #insert your code here
+        Write-Host "Running: Office Message Encryption General Troubleshooting" -ForegroundColor Green
+        Start-AP_OfficeMessageEncryption 
     }
      
     "2" {
-        Write-Host "Getting mailbox information" -ForegroundColor Green
+        Write-Host "Analyze compromise account/tenant" -ForegroundColor Green
         #insert your code here
     }
      
     "3" {
-        Write-Host "Restarting the print spooler" -ForegroundColor Green
+        Write-Host "SMTP Relay Test" -ForegroundColor Green
         #insert your code here
+    }
+    "4" {
+        Write-Host "Tools: Exchange Online Audit Search" -ForegroundColor Green
+        #insert your code here
+    }
+    "5" {
+        Write-Host "Tools: Unified Logging Audit Search" -ForegroundColor Green
+        #insert your code here
+    }
+    "6" {
+        Write-Host "Find all users with a specific RBAC Role" -ForegroundColor Green
+        #insert your code here
+    }
+    "7" {
+        Write-Host "Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox" -ForegroundColor Green
+        Start-AP_MailboxDiagnosticLogs
     }
      
     "Q" {
         Write-Host "Quitting" -ForegroundColor Green
+        exit
     }
      
     default {
-        Write-Host "I don't understand what you want to do." -ForegroundColor Yellow
+        Write-Host "I don't understand what you want to do. Will reload the menu!" -ForegroundColor Yellow
+        Start-O365Troubleshooters 
      }
     } 
 
 
 }
 
-#region test
+Function Start-AP_MailboxDiagnosticLogs {
+    
+    # Required function to set Global Variables
+    Set-GlobalVariables
+        
+    # Connect Workloads (split workloads by comma): "msol","exo","eop","sco","spo","sfb","aadrm"
+    $Workloads = "exo"
+    Connect-O365PS $Workloads
+        
+    $CurrentProperty = "Connecting to: $Workloads"
+    $CurrentDescription = "Success"
+    write-log -Function "Connecting to O365 workloads" -Step $CurrentProperty -Description $CurrentDescription 
+        
+    # Main Function
+    $Ts= get-date -Format yyyyMMdd_HHmmss
 
-#endregion
+    Write-Host "`nPlease input the path were the files will be saved" -ForegroundColor Green
+    $ExportPath = Read-Host
+
+    if ($ExportPath[-1] -eq "\") {
+        $ExportPath = $ExportPath.Substring(0,$ExportPath.Length-1)
+    }
+
+    If (Test-Path -Path $ExportPath) {
+        #Write-Host "`nThe path exist!" -ForegroundColor Green
+    }
+    else {
+        Write-Host "`nThe output folder doesn't exist or is not valid! Please create or use an existing one and re-run the script. Press [Enter] to exit" -ForegroundColor Red
+        Read-Host
+        Exit
+    }
+
+    #endregion
+
+    #region MbxDiagLogs
+
+    Write-Host "`nPlease input the mailbox for which you want to see MailboxDiagnosticLogs: " -ForegroundColor Green
+    $mbx = Read-Host
+
+    # Check if mailbox exist
+    $previousErrorActionPreference = $global:ErrorActionPreference
+    $global:ErrorActionPreference = 'Stop'
+    try{
+        Get-Mailbox $mbx | Out-Null
+    }
+    Catch{
+        Write-Host "`nThe mailbox $mbx doesn't exist. Press [Enter] to exit"
+        Read-Host
+        $ErrorActionPreference = $previousErrorActionPreference
+        Exit
+    }
+    $global:ErrorActionPreference = $previousErrorActionPreference
+
+
+    # Getting available components that can be exported 
+    $previousErrorActionPreference = $global:ErrorActionPreference
+    $global:ErrorActionPreference = 'Stop'
+    $global:error.Clear()
+    Try {
+        Export-MailboxDiagnosticLogs $mbx -ComponentName TEST 
+    }
+    Catch {
+        #Write-Host "in catch"
+        $global:MbxDiagLogs = ((($global:error[0].Exception.Message -Split "Available logs: ")[1] -replace "'") -split ",") -replace " "
+    }
+
+    $global:ErrorActionPreference = $previousErrorActionPreference
+
+     # Export-MailboxDiagnosticLogs with ComponentName
+    $option = ( $global:MbxDiagLogs + "ALL")|Out-GridView -PassThru -Title "Choose a specific ComponentName or the last one for ALL"
+    if ($option -ne "ALL") {
+        Write-Host "`nGetting $option logs" -ForegroundColor Yellow 
+        $option | ForEach-Object {
+            Export-MailboxDiagnosticLogs $mbx -ComponentName  $_ | Tee-Object $ExportPath\$($Ts)_$_.txt
+        } 
+    }
+    else {
+        $MbxDiagLogs |ForEach-Object{
+            Write-Host "`nGetting $_ logs" -ForegroundColor Yellow 
+            Export-MailboxDiagnosticLogs $mbx -ComponentName  $_ | Tee-Object $ExportPath\$($Ts)_$_.txt
+        }
+    }
+
+
+    # Export-MailboxDiagnosticLogs with ExtendedProperties
+    Write-Host "You can view & filter ExtendedProperties in the Grid View window." -ForegroundColor Yellow
+    $extendLogs = Export-MailboxDiagnosticLogs $mbx -ExtendedProperties
+    $ExtendedProps = [XML]$extendLogs.MailboxLog
+    $ExtendedProps.Properties.MailboxTable.Property | Select-Object name,value | Out-GridView -Title "All ExtendedProperties with values (you can filter here to find what is interesting for you; e.g: use `"ELC`" for MRM properties)"
+    $ExtendedProps.Properties.MailboxTable.Property | Select-Object name,value |Out-File $ExportPath\$($Ts)_ExtendedProperties.txt
+
+    Write-Host "`nOutput was exported in the following location: $ExportPath" -ForegroundColor Yellow 
+
+     # Disconnecting
+     disconnect-all  
+
+}
