@@ -839,7 +839,9 @@ Function Start-AP_DecodeSafeLinksURL {
     try
     {
         $decodedURL = [System.Web.HttpUtility]::UrlDecode($encodedURL)
-        $decodedURL = (($decodedURL -Split "url=")[1] -split "&amp;")[0]
+        #$decodedURL = (($decodedURL -Split "url=")[1] -split "&data=;")[0]
+        $decodedURL -match "url=(\S+)&data=\S+"
+        $decodedURL = $Matches[1]
     }
     catch
     {
