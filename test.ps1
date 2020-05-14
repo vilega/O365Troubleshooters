@@ -1,4 +1,5 @@
-Import-Module "C:\Users\vilega\Documents\GitHub\O365Troubleshooters\O365Troubleshooters.psm1"
+Import-Module "C:\Users\vilega\Documents\GitHub\O365Troubleshooters\O365Troubleshooters.psm1" -Force
+Import-Module "C:\Users\alnita\Documents\GitHub\O365Troubleshooters\O365Troubleshooters.psm1" -Force
 
 Set-GlobalVariables
 
