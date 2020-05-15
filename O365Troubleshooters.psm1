@@ -672,6 +672,7 @@ Function Start-O365Troubleshooters {
     5 Tools: Unified Logging Audit Search
     6 Tools: Find all users with a specific RBAC Role
     7 Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox
+    8 Tools: Decode SafeLinks URL
     Q Quit
      
     Select a task by number or Q to quit
@@ -712,6 +713,11 @@ Switch ($r) {
         Start-AP_MailboxDiagnosticLogs
     }
      
+    "8" {
+        Write-Host "Tools: Decode SafeLinks URL" -ForegroundColor Green
+        Start-AP_DecodeSafeLinksURL
+    }
+
     "Q" {
         Write-Host "Quitting" -ForegroundColor Green
         exit
@@ -824,6 +830,7 @@ Function Start-AP_MailboxDiagnosticLogs {
 
 }
 
+<<<<<<< HEAD
 #region Office365RelayDependencies
 <#
 Office 365 Relay Script Simulates a local application attempting to perform one of "SMTP Client Submission"/"SMTP Relay"/"Direct Send".
@@ -1598,4 +1605,32 @@ See https://aka.ms/SendMailMessage for more information.`r`n"
     $RuntimeChoiceCounter = 1
     $Office365RelayErrorList = @()
     Get-MainMenu
+=======
+Function Start-AP_DecodeSafeLinksURL {
+    # Required function to set Global Variables
+    Set-GlobalVariables
+
+    $encodedURL  = Read-Host("Please provide the ATP SafeLinks URL that you want to decode to original URL")
+    
+    try
+    {
+        $decodedURL = [System.Web.HttpUtility]::UrlDecode($encodedURL)
+        #$decodedURL = (($decodedURL -Split "url=")[1] -split "&data=;")[0]
+        $decodedURL -match "url=(\S+)&data=\S+"
+        $decodedURL = $Matches[1]
+    }
+    catch
+    {
+        Write-Log -function "Start-AP_DecodeSafeLinksURL" -step  "Decoding URL" -Description "Couldn't decode and parse URL: $encodedURL"
+        Write-Host "Couldn't decode and parse URL: $encodedURL"
+        Read-Host "Press any key and then to reload main menu [Enter]"
+        Start-O365Troubleshooters
+    }
+
+    Write-Host "The decoded URL is:" -ForegroundColor Green
+    Write-Host $decodedURL
+    Write-Log -function "Start-AP_DecodeSafeLinksURL" -step  "Decoding URL" -Description "Decoded and Parse URL is: $decodedURL"
+    Read-Host "Press any key and then to reload main menu [Enter]"
+    Start-O365Troubleshooters
+>>>>>>> master
 }
