@@ -830,7 +830,6 @@ Function Start-AP_MailboxDiagnosticLogs {
 
 }
 
-<<<<<<< HEAD
 #region Office365RelayDependencies
 <#
 Office 365 Relay Script Simulates a local application attempting to perform one of "SMTP Client Submission"/"SMTP Relay"/"Direct Send".
@@ -1475,8 +1474,8 @@ function Exit-ScriptAndSaveLogs()
     [string] $logFileLocation = "`r`nAll logs have been saved to the following location: $path `r`n"
     Stop-Transcript
     Write-Host $logFileLocation -ForegroundColor Green
-    Read-Host "Press Any Key to finalize Exit"
-    Exit
+    Read-Host "Press Any Key to finalize Exit Office365Relay Script and return to O365Troubleshooters MainMenu"
+    Start-O365Troubleshooters
 }
 
 <#
@@ -1605,7 +1604,8 @@ See https://aka.ms/SendMailMessage for more information.`r`n"
     $RuntimeChoiceCounter = 1
     $Office365RelayErrorList = @()
     Get-MainMenu
-=======
+}
+
 Function Start-AP_DecodeSafeLinksURL {
     # Required function to set Global Variables
     Set-GlobalVariables
@@ -1632,5 +1632,4 @@ Function Start-AP_DecodeSafeLinksURL {
     Write-Log -function "Start-AP_DecodeSafeLinksURL" -step  "Decoding URL" -Description "Decoded and Parse URL is: $decodedURL"
     Read-Host "Press any key and then to reload main menu [Enter]"
     Start-O365Troubleshooters
->>>>>>> master
 }
