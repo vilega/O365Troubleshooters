@@ -1,6 +1,8 @@
 Import-Module "C:\Users\vilega\Documents\GitHub\O365Troubleshooters\O365Troubleshooters.psm1" -Force
 Import-Module "C:\Users\alnita\Documents\GitHub\O365Troubleshooters\O365Troubleshooters.psm1" -Force
 
+Start-O365Troubleshooters
+
 Set-GlobalVariables
 
 $error.Clear()
