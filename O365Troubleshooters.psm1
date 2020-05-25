@@ -173,36 +173,59 @@ Function Connect-O365PS { # Function to connecto to O365 services
     # Connect to Exchange Online PowerShell
     "EXO"  {    
                 $Global:Error.Clear();
-                If ($null -eq $Global:O365Cred) {
-                        &$Global:UserCredential
-                }
+
                 # The loop for re-entering credentials in case they are wrong and for re-connecting
                 $CurrentProperty = "Connect EXO"
                 
                 Do {
                         # Defining the banner variable and clear the errors
                         $Global:Error.Clear();
-                        $Global:banner = "Exchange Online POwerShell"
+                        $Global:banner = "Exchange Online PowerShell"
                         $try++
-                        #TRy & Catch
+                        
+                        Write-Host "`nDo you connect to Exchange Online with MFA?" -ForegroundColor Cyan
+                        $Global:mfa = get-choice "Yes", "No"
+                        if ($mfa -eq "y")
+                        {
+                            "MFA"
+                            Write-Host "When you use the Exchange Online Remote PowerShell Module, your session will end after one hour, which can be problematic for long-running scripts or processes. To avoid this issue, use Trusted IPs to bypass MFA for connections from your intranet." -ForegroundColor Yellow
+                            if ($null -eq ((Get-ChildItem -Path $($env:LOCALAPPDATA + "\Apps\2.0\") -Filter Microsoft.Exchange.Management.ExoPowershellModule.dll -Recurse).FullName | `
+                                Where-Object { $_ -notmatch "_none_" })) 
+                            {
+                                Write-Host "You requested to connect to Exchange Online with MFA but you don't have Exchange Online Remote PowerShell Module installed" -ForegroundColor Red
+                                Write-Host "Please check the article https://docs.microsoft.com/en-us/powershell/exchange/exchange-online/connect-to-exchange-online-powershell/mfa-connect-to-exchange-online-powershell?view=exchange-ps" -ForegroundColor Red
+                                Read-Host "The script will now exit. Press any key then [Enter] to exit"
+                                Disconnect-All
+                                Exit
+                            }
+                            Import-Module $((Get-ChildItem -Path $($env:LOCALAPPDATA + "\Apps\2.0\") -Filter Microsoft.Exchange.Management.ExoPowershellModule.dll -Recurse).FullName | `
+                                Where-Object { $_ -notmatch "_none_" } | Select-Object -First 1)
+                            $EXOSession = New-ExoPSSession  -PSSessionOption $PSsettings -ErrorVariable errordescr -ErrorAction Stop
+                            $CurrentError = $errordescr.exception 
+                            Import-Module (Import-PSSession $EXOSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue
+                            $CurrentDescription = "Success"
+                        }
+                        else 
+                        {
+                            "Without MFA"
+                            If ($null -eq $Global:O365Cred) {
+                                &$Global:UserCredential
+                        }
+                            try {
 
-                        try {
-
-                        $Global:EXOSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://outlook.office365.com/powershell-liveid/" -Credential $O365Cred -Authentication "Basic" -AllowRedirection -SessionOption $PSsettings -ErrorVariable errordescr -ErrorAction Stop 
-                        $CurrentError = $errordescr.exception  
-                        Import-Module (Import-PSSession $EXOSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue
-                        $CurrentDescription = "Success"
-                        $Global:Domain = Get-AcceptedDomain | Where-Object{$_.name -like "*.onmicrosoft.com" } | Where-Object {$_.name -notlike "*mail.onmicrosoft.com"}  
-       
-               }
-      catch {
-              
-        $CurrentDescription = "`""+$CurrentError.ErrorRecord.Exception +"`""
-
-               
-            } 
-            
-            write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
+                            $Global:EXOSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://outlook.office365.com/powershell-liveid/" -Credential $O365Cred -Authentication "Basic" -AllowRedirection -SessionOption $PSsettings -ErrorVariable errordescr -ErrorAction Stop 
+                            $CurrentError = $errordescr.exception  
+                            Import-Module (Import-PSSession $EXOSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue
+                            $CurrentDescription = "Success"
+                            $Global:Domain = Get-AcceptedDomain | Where-Object{$_.name -like "*.onmicrosoft.com" } | Where-Object {$_.name -notlike "*mail.onmicrosoft.com"}  
+        
+                            }
+                            catch 
+                            {
+                                $CurrentDescription = "`""+$CurrentError.ErrorRecord.Exception +"`""
+                            } 
+                        }
+                        write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
 
                         #Creating EXO PS Session
                         #$Global:EXOSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://outlook.office365.com/powershell-liveid/" -Credential $O365Cred -Authentication "Basic" -AllowRedirection -SessionOption $PSsettings -ErrorVariable errordescr -ErrorAction SilentlyContinue | Out-Null
@@ -244,22 +267,22 @@ Function Connect-O365PS { # Function to connecto to O365 services
     }
 
     # Connect to Compliance Center Online
-    "SCO"  {
+    "SCC"  {
                 $Global:Error.Clear();
                 If ($null -eq $Global:O365Cred) {
                         &$Global:UserCredential
                 }
                 # The loop for re-entering credentials in case they are wrong and for re-connecting
                 
-                $CurrentProperty = "Connect SCO"
+                $CurrentProperty = "Connect SCC"
                 Do {
                         # Defining the banner variable and clear the errors
                         $Global:Error.Clear();
                         $Global:banner = "Security and Compliance Center Powershell"
                         $try++ 
-                        $Global:SCOSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://ps.compliance.protection.outlook.com/powershell-liveid/" -Credential $O365Cred -Authentication "Basic" -AllowRedirection -SessionOption $PSsettings -ErrorVariable errordescr -ErrorAction SilentlyContinue
+                        $Global:SCCSession = New-PSSession -ConfigurationName Microsoft.Compliance -ConnectionUri "https://ps.compliance.protection.outlook.com/powershell-liveid/" -Credential $O365Cred -Authentication "Basic" -AllowRedirection -SessionOption $PSsettings -ErrorVariable errordescr -ErrorAction SilentlyContinue
                         $CurrentError = $errordescr.exception
-                        Import-Module (Import-PSSession $SCOSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -Prefix SCO -ErrorAction SilentlyContinue
+                        Import-Module (Import-PSSession $SCCSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -Prefix CC -ErrorAction SilentlyContinue
                         #Credentials check
                         &$Global:CredentialValidation
                 }
@@ -524,7 +547,7 @@ Function Get-Choice {
         disconnect-all
         exit
      }
-     return $Global:Option
+     return $Option
     
 }
 
@@ -623,7 +646,7 @@ Function Test-PSVers {
 }
 
 
-function Disconnect-all {
+function Disconnect-All {
     
     $CurrentDescription = "Disconnect is successful!"
 
@@ -637,7 +660,7 @@ function Disconnect-all {
                 Remove-PSSession $Global:EOPSession}
 
             # Check and remove SCO session
-            if($Global:SCOSession){
+            if($Global:SCCSession){
                 Remove-PSSession $Global:SCOSession}
             
             # Check and remove S4B session
@@ -686,9 +709,10 @@ Function Start-O365TroubleshootersMenu {
     3 SMTP Relay Test
     4 Tools: Exchange Online Audit Search
     5 Tools: Unified Logging Audit Search
-    6 Tools: Find all users with a specific RBAC Role
-    7 Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox
-    8 Tools: Decode SafeLinks URL
+    6 Tools: Azure AD Audit Log Search
+    7 Tools: Find all users with a specific RBAC Role
+    8 Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox
+    9 Tools: Decode SafeLinks URL
     Q Quit
      
     Select a task by number or Q to quit

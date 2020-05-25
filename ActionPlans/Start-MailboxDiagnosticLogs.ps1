@@ -8,28 +8,9 @@ $CurrentProperty = "Connecting to: $Workloads"
 $CurrentDescription = "Success"
 write-log -Function "Connecting to O365 workloads" -Step $CurrentProperty -Description $CurrentDescription 
     
-# Main Function
-$Ts= get-date -Format yyyyMMdd_HHmmss
-
-Write-Host "`nPlease input the path were the files will be saved" -ForegroundColor Green
-$ExportPath = Read-Host
-
-if ($ExportPath[-1] -eq "\") {
-    $ExportPath = $ExportPath.Substring(0,$ExportPath.Length-1)
-}
-
-If (Test-Path -Path $ExportPath) {
-    #Write-Host "`nThe path exist!" -ForegroundColor Green
-}
-else {
-    Write-Host "`nThe output folder doesn't exist or is not valid! Please create or use an existing one and re-run the script. Press [Enter] to exit" -ForegroundColor Red
-    Read-Host
-    Exit
-}
-
-#endregion
-
-#region MbxDiagLogs
+$ts= get-date -Format yyyyMMdd_HHmmss
+$ExportPath = "$global:WSPath\MailboxDiagnosticLogs_$ts"
+mkdir $ExportPath -Force
 
 Write-Host "`nPlease input the mailbox for which you want to see MailboxDiagnosticLogs: " -ForegroundColor Green
 $mbx = Read-Host
@@ -52,13 +33,16 @@ $global:ErrorActionPreference = $previousErrorActionPreference
 # Getting available components that can be exported 
 $previousErrorActionPreference = $global:ErrorActionPreference
 $global:ErrorActionPreference = 'Stop'
-$global:error.Clear()
+# $global:error.Clear()
+$myerror = $null
 Try {
     Export-MailboxDiagnosticLogs $mbx -ComponentName TEST 
 }
 Catch {
+    $myerror = $_
     #Write-Host "in catch"
-    $global:MbxDiagLogs = ((($global:error[0].Exception.Message -Split "Available logs: ")[1] -replace "'") -split ",") -replace " "
+    #$global:MbxDiagLogs = ((($global:error[0].Exception.Message -Split "Available logs: ")[1] -replace "'") -split ",") -replace " "
+    $global:MbxDiagLogs = ((($myerror.Exception.Message -Split "Available logs: ")[1] -replace "'") -split ",") -replace " "
 }
 
 $global:ErrorActionPreference = $previousErrorActionPreference
