@@ -60,7 +60,7 @@ Function Request-Credential {
 Function Connect-O365PS { # Function to connecto to O365 services
 
     # Parameter request and validation
-    param ([ValidateSet("msol","exo","eop","sco","spo","sfb","aadrm")][Parameter(Mandatory=$true)] 
+    param ([ValidateSet("msol","exo","eop","sco","spo","sfb","AIPService")][Parameter(Mandatory=$true)] 
             $O365Service 
     )
     $Try = 0
@@ -70,7 +70,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
 #region Module Checks
     # $O365Service = "MSOL", "EXO" - Checking if the Azure Active Directory Module for Windows PowerShell (64-bit version) modules are installed on the machine
     If ( $O365Service -match "MSOL") {
-            If ((get-module -ListAvailable -Name *MSOnline*).count -ne 2 ) {
+            If ((get-module -ListAvailable -Name *MSOnline*).count -eq 0 ) {
                 $CurrentProperty = "CheckingMSOL Module"
                 Write-Host "`nAzure Active Directory Module for Windows PowerShell is not installed. Please go to 'https://technet.microsoft.com/en-us/library/jj151815.aspx' in order to install is and and after that re-run the script" -ForegroundColor Yellow
                 $CurrentDescription = "Azure Active Directory Module for Windows PowerShell is not installed. Please go to 'https://technet.microsoft.com/en-us/library/jj151815.aspx' in order to install is and and after that re-run the script"
@@ -83,7 +83,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
 
     # Checking if the Sharepoint Online PowerShell Module is installed on the machine
     If ( $O365Service -match "SPO") {
-            If ((Get-Module -ListAvailable -Name Microsoft.Online.SharePoint.PowerShell).count -ne 1) {
+            If ((Get-Module -ListAvailable -Name Microsoft.Online.SharePoint.PowerShell).count -eq 0) {
                 $CurrentProperty = "CheckingSPO Module"
                 Write-Host "`nSharePoint Online Management Shell module is not installed. Please access 'https://www.microsoft.com/en-us/download/details.aspx?id=35588' in order to download and install the module" -ForegroundColor Yellow
                 $CurrentDescription = "SharePoint Online Management Shell module is not installed. Please access 'https://www.microsoft.com/en-us/download/details.aspx?id=35588' in order to download and install the module. !!! Please restart your computer after the installtion finishes !!!"
@@ -96,7 +96,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
 
     # Checking if the Skype for Business Online, Windows PowerShell Module is installed on the machine
     If ( $O365Service -match "SFB") {
-            If ((Get-Module -ListAvailable -Name LyncOnlineConnector).count -ne 1) {
+            If ((Get-Module -ListAvailable -Name LyncOnlineConnector).count -eq 0) {
                 $CurrentProperty = "CheckingSFB Module"
                 Write-Host "`nSkype for Business Online, Windows PowerShell module is not installed. Please access 'https://www.microsoft.com/en-us/download/details.aspx?id=39366' in order to download and install the module" -ForegroundColor Yellow
                 $CurrentDescription = "Skype for Business Online, Windows PowerShell module is not installed. Please access 'https://www.microsoft.com/en-us/download/details.aspx?id=39366' in order to download and install the module"
@@ -107,16 +107,28 @@ Function Connect-O365PS { # Function to connecto to O365 services
             } 
     }
 
-    If ( $O365Service -match "AADRM") {
-            If ((Get-Module -ListAvailable -Name AADRM).count -ne 1) {
-                $CurrentProperty = "CheckingAADRM Module"
-                Write-Host "`nAzure Active Directory Right Management PowerShell module is not installed. Please access 'https://www.microsoft.com/en-us/download/details.aspx?id=30339' in order to download and install the module" -ForegroundColor Yellow
+    If ( $O365Service -match "AIPService") {
+            If ((Get-Module -ListAvailable -Name AIPService).count -eq 0) {
+                $CurrentProperty = "Checking AIPService Module"
+                
+                Write-Host "AIPService needs to be updated or you have just updated without restarting the PC/laptop" -ForegroundColor Red
+                Write-Host "We will try to install the AIPService module" -ForegroundColor Cyan
+                Install-Module -Name AIPService -Force -Confirm:$false
+                Write-Host "Installed the AADRM module"
+                Import-Module AIPService -Force
+
+                #TODO: check if AADRM Module was succesfully installed
+                <# 
                 $CurrentDescription = "Azure Active Directory Right Management PowerShell module is not installed. Please access 'https://www.microsoft.com/en-us/download/details.aspx?id=30339' in order to download and install the module"
                 Write-Host "`nNow the script will stop." -ForegroundColor Red
                 write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
                 Read-Host
                 Exit
+                #>
+                #TODO: if AADRM module was installed, that needs to be uninstalled
+
             } 
+
     }
    
     #$Global:proxy = Read-Host
@@ -330,24 +342,24 @@ Function Connect-O365PS { # Function to connecto to O365 services
                 &$Global:DisplayConnect
     }
 
-    # Connect to AADRM Service PowerShell
-    "AADRM" {
+    # Connect to AIPService PowerShell
+    "AIPService" {
                  $Global:Error.Clear();
                  If ($null -eq $Global:O365Cred) {
                         &$Global:UserCredential
                  }
                  # The loop for re-entering credentials in case they are wrong and for re-connecting
-                 $CurrentProperty = "Connect AADRM"
+                 $CurrentProperty = "Connect AIPService"
                  
                  Do {
                         # Defining the banner variable and clear the errors
                         $Global:Error.Clear();
-                        $Global:banner = "Azure AD Right Management Online PowerShell"
+                        $Global:banner = "AIPService PowerShell"
                         $try++
-                        # Import AADRM module
-                        Import-Module AADRM
-                        # Creating a new AADRM PS Session
-                        Connect-AadrmService -Credential $O365Cred -ErrorVariable errordescr
+                        # Import AIPService module
+                        Import-Module AIPService
+                        # Creating a new AIPService PS Session
+                        Connect-AIPService -Credential $O365Cred -ErrorVariable errordescr
                         $CurrentError = $errordescr.exception
                         # Credentials check
                         &$Global:CredentialValidation
@@ -360,6 +372,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
 }
 
 Function Set-GlobalVariables {
+ Clear-Host
  Write-Host 
  $global:FormatEnumerationLimit = -1
  $script:PSModule = $ExecutionContext.SessionState.Module
@@ -370,6 +383,21 @@ Function Set-GlobalVariables {
  $global:WSPath = "$Path\PowerShellOutputs_$ts"
  $global:starline = New-Object String '*',5
  #$Global:ExtractXML_XML = "Get-MigrationUserStatistics ", "Get-ImapSubscription "
+ $global:Disclaimer ='Note: Before you run the script: 
+
+The sample scripts are not supported under any Microsoft standard support program or service. 
+The sample scripts are provided AS IS without warranty of any kind. Microsoft further disclaims 
+all implied warranties including, without limitation, any implied warranties of merchantability 
+or of fitness for a particular purpose. The entire risk arising out of the use or performance of 
+the sample scripts and documentation remains with you. In no event shall Microsoft, its authors, 
+or anyone else involved in the creation, production, or delivery of the scripts be liable for any 
+damages whatsoever (including, without limitation, damages for loss of business profits, business 
+interruption, loss of business information, or other pecuniary loss) arising out of the use of or 
+inability to use the sample scripts or documentation, even if Microsoft has been advised of the 
+possibility of such damages.
+'
+Write-Host $global:Disclaimer -ForegroundColor Red
+Start-Sleep -Seconds 3
  
  if (!(Test-Path $Path)) 
  {
@@ -388,7 +416,7 @@ Function Set-GlobalVariables {
  Out-File -FilePath $outputFile -InputObject $columnLabels -Encoding UTF8 |Out-Null
 
  Set-Location $WSPath
- 
+ Write-Host "`n"
 }
 
 
@@ -602,8 +630,8 @@ function Disconnect-all {
     try {
             # Check and remove EXO session
             if($Global:O365Session){
-                Remove-PSSession $Global:O365Session}
-            
+                Remove-PSSession $Global:EXOSession}
+                            
             # Check and remove EOP session
             if($Global:EOPSession){
                 Remove-PSSession $Global:EOPSession}
@@ -712,12 +740,13 @@ Switch ($r) {
 
     "Q" {
         Write-Host "Quitting" -ForegroundColor Green
+        Disconnect-all 
         exit
     }
      
     default {
         Write-Host "I don't understand what you want to do. Will reload the menu!" -ForegroundColor Yellow
-        Start-O365Troubleshooters 
+        Start-O365TroubleshootersMenu 
      }
     } 
 

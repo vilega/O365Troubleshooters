@@ -21,4 +21,5 @@ Write-Host "The decoded URL is:" -ForegroundColor Green
 Write-Host $decodedURL
 Write-Log -function "Start-AP_DecodeSafeLinksURL" -step  "Decoding URL" -Description "Decoded and Parse URL is: $decodedURL"
 Read-Host "Press any key and then to reload main menu [Enter]"
+Clear-Host
 Start-O365TroubleshootersMenu
