@@ -214,15 +214,15 @@ Answer"
 
         E
         {
-            $Path=[Environment]::GetFolderPath("Desktop")
+            $global:WSPath=[Environment]::GetFolderPath("Desktop")
             [string] $MessageBodyFile = Read-Host "Enter the target EML file full name with extension
 for example : EmlFile.eml
 Note: Only eml file format can be parsed`r`n
 Full File Name"
-            [bool]$isPathValid = Test-Office365RelayScriptItemPath([string] "$Path\$MessageBodyFile")
+            [bool]$isPathValid = Test-Office365RelayScriptItemPath([string] "$global:WSPath\$MessageBodyFile")
             if($isPathValid)
             {   
-                $emlContent = Get-Content "$Path\$MessageBodyFile" -Encoding utf8
+                $emlContent = Get-Content "$global:WSPath\$MessageBodyFile" -Encoding utf8
                 [int] $startOfEmlContent = ($emlContent | Select-String '<!DOCTYPE html>').LineNumber - 1
                 [int] $endOfEmlContent = ($emlContent | Select-String '</html>').LineNumber - 1
 
@@ -267,14 +267,14 @@ function Get-MessageAttachment()
         {
             A
             {
-                $Path=[Environment]::GetFolderPath("Desktop")
+                $global:WSPath=[Environment]::GetFolderPath("Desktop")
                 [string] $MessageAttachmentFile = Read-Host "Enter the target htm file full name with extension
 for example : attachmentfile.csv`r`n
 Answer"         
-                $isPathValid = Test-Office365RelayScriptItemPath([string] "$Path\$MessageAttachmentFile")
+                $isPathValid = Test-Office365RelayScriptItemPath([string] "$global:WSPath\$MessageAttachmentFile")
                 if($isPathValid)
                 {   
-                    return "$Path\$MessageAttachmentFile"
+                    return "$global:WSPath\$MessageAttachmentFile"
                 }
 
                 else 
@@ -405,7 +405,7 @@ function Write-ScriptLog([string] $ErrorType)
 {
     $d = Get-Date
     $TimeZone = [System.TimeZone]::CurrentTimeZone.StandardName
-    "`r`n$FailedAction at $d $TimeZone generated Error:`r`n" + $Office365RelayErrorList | Out-File -Append $path\Logs\$ErrorType.txt
+    "`r`n$FailedAction at $d $TimeZone generated Error:`r`n" + $Office365RelayErrorList | Out-File -Append $global:WSPath\Logs\$ErrorType.txt
 }
 function Get-ActionPlan([string]$ErrorType)
 {
@@ -639,7 +639,7 @@ Exit-ScriptAndSaveLogs:
 #>
 function Exit-ScriptAndSaveLogs() 
 {
-    [string] $logFileLocation = "`r`nAll logs have been saved to the following location: $path `r`n"
+    [string] $logFileLocation = "`r`nAll logs have been saved to the following location: $global:WSPath `r`n"
     Stop-Transcript
     Write-Host $logFileLocation -ForegroundColor Green
     Read-Host "Press Any Key to finalize Exit Office365Relay Script and return to O365Troubleshooters MainMenu"
@@ -711,7 +711,7 @@ Q : Quit Script`r`n
 
 Answer"
 
-    "RuntimeRelayMethodInput#$RuntimeRelayMethodCounter $RelayMethod"|Out-File -Append $path\Logs\ChoicesAtRuntime.txt
+    "RuntimeRelayMethodInput#$RuntimeRelayMethodCounter $RelayMethod"|Out-File -Append $global:WSPath\Logs\ChoicesAtRuntime.txt
     $RuntimeChoiceCounter++
 
     switch($RelayMethod.ToUpper())
@@ -760,16 +760,16 @@ See https://aka.ms/SendMailMessage for more information.`r`n"
     Clear-Host
     
     $ts = Get-Date -Format yyyyMMdd_HHmm
-    $path=[Environment]::GetFolderPath("Desktop")+"\$($ts)_RelayOptions"
+    $global:WSPath=[Environment]::GetFolderPath("Desktop")+"\$($ts)_RelayOptions"
 
     #Implement check if Log Folder already exists and provide alternative
     Write-Host "Created Directories on Desktop:"
-    mkdir "$path"
-    mkdir "$path\Logs"
+    mkdir "$global:WSPath"
+    mkdir "$global:WSPath\Logs"
 
     Write-Host "`r`n"
 
-    Start-transcript -Path "$path\RelayTranscript_$ts.txt"
+    Start-transcript -Path "$global:WSPath\RelayTranscript_$ts.txt"
 
     Read-Host "`r`nPress any key to Continue, Ctrl+C to quit the script"
 
