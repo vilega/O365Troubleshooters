@@ -214,15 +214,15 @@ Answer"
 
         E
         {
-            $global:WSPath=[Environment]::GetFolderPath("Desktop")
+            $MessageBodyPath=[Environment]::GetFolderPath("Desktop")
             [string] $MessageBodyFile = Read-Host "Enter the target EML file full name with extension
 for example : EmlFile.eml
 Note: Only eml file format can be parsed`r`n
 Full File Name"
-            [bool]$isPathValid = Test-Office365RelayScriptItemPath([string] "$global:WSPath\$MessageBodyFile")
+            [bool]$isPathValid = Test-Office365RelayScriptItemPath([string] "$MessageBodyPath\$MessageBodyFile")
             if($isPathValid)
             {   
-                $emlContent = Get-Content "$global:WSPath\$MessageBodyFile" -Encoding utf8
+                $emlContent = Get-Content "$MessageBodyPath\$MessageBodyFile" -Encoding utf8
                 [int] $startOfEmlContent = ($emlContent | Select-String '<!DOCTYPE html>').LineNumber - 1
                 [int] $endOfEmlContent = ($emlContent | Select-String '</html>').LineNumber - 1
 
@@ -267,14 +267,14 @@ function Get-MessageAttachment()
         {
             A
             {
-                $global:WSPath=[Environment]::GetFolderPath("Desktop")
+                $MessageAttachmentPath=[Environment]::GetFolderPath("Desktop")
                 [string] $MessageAttachmentFile = Read-Host "Enter the target htm file full name with extension
 for example : attachmentfile.csv`r`n
 Answer"         
-                $isPathValid = Test-Office365RelayScriptItemPath([string] "$global:WSPath\$MessageAttachmentFile")
+                $isPathValid = Test-Office365RelayScriptItemPath([string] "$MessageAttachmentPath\$MessageAttachmentFile")
                 if($isPathValid)
                 {   
-                    return "$global:WSPath\$MessageAttachmentFile"
+                    return "$MessageAttachmentPath\$MessageAttachmentFile"
                 }
 
                 else 
