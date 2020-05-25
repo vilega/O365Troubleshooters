@@ -60,7 +60,7 @@ Function Request-Credential {
 Function Connect-O365PS { # Function to connecto to O365 services
 
     # Parameter request and validation
-    param ([ValidateSet("msol","exo","eop","sco","spo","sfb","AIPService")][Parameter(Mandatory=$true)] 
+    param ([ValidateSet("msol","exo","exo2","eop","sco","spo","sfb","AIPService")][Parameter(Mandatory=$true)] 
             $O365Service 
     )
     $Try = 0
@@ -108,28 +108,38 @@ Function Connect-O365PS { # Function to connecto to O365 services
     }
 
     If ( $O365Service -match "AIPService") {
-            If ((Get-Module -ListAvailable -Name AIPService).count -eq 0) {
-                $CurrentProperty = "Checking AIPService Module"
-                
-                Write-Host "AIPService needs to be updated or you have just updated without restarting the PC/laptop" -ForegroundColor Red
-                Write-Host "We will try to install the AIPService module" -ForegroundColor Cyan
-                Install-Module -Name AIPService -Force -Confirm:$false
-                Write-Host "Installed the AADRM module"
-                Import-Module AIPService -Force
+        If ((Get-Module -ListAvailable -Name AIPService).count -eq 0) {
+            $CurrentProperty = "Checking AIPService Module"
+            
+            Write-Host "AIPService needs to be updated or you have just updated without restarting the PC/laptop" -ForegroundColor Red
+            Write-Host "We will try to install the AIPService module" -ForegroundColor Cyan
+            Install-Module -Name AIPService -Force -Confirm:$false
+            Write-Host "Installed the AADRM module"
+            #Import-Module AIPService -Force
 
-                #TODO: check if AADRM Module was succesfully installed
-                <# 
-                $CurrentDescription = "Azure Active Directory Right Management PowerShell module is not installed. Please access 'https://www.microsoft.com/en-us/download/details.aspx?id=30339' in order to download and install the module"
-                Write-Host "`nNow the script will stop." -ForegroundColor Red
-                write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
-                Read-Host
-                Exit
-                #>
-                #TODO: if AADRM module was installed, that needs to be uninstalled
+            #TODO: check if AADRM Module was succesfully installed
+            <# 
+            $CurrentDescription = "Azure Active Directory Right Management PowerShell module is not installed. Please access 'https://www.microsoft.com/en-us/download/details.aspx?id=30339' in order to download and install the module"
+            Write-Host "`nNow the script will stop." -ForegroundColor Red
+            write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
+            Read-Host
+            Exit
+            #>
+            #TODO: if AADRM module was installed, that needs to be uninstalled
 
-            } 
-
+        }
     }
+    
+    if ( $O365Service -match "exo2") 
+    {
+        If ((Get-Module -ListAvailable -Name ExchangeOnlineManagement).count -eq 0) 
+        {
+            $CurrentProperty = "Checking AIPService Module"
+            write-host "ExchangeOnlineManagement module is not installed. We'll install it to support connectin to Exchange Online Module v2" -ForegroundColor Red
+            Install-Module -Name ExchangeOnlineManagement -Force -Confirm:$false
+        }
+    }
+
    
     #$Global:proxy = Read-Host
     Write-Host "`nAre you able to access Internet from this location without a Proxy?" -ForegroundColor Cyan
@@ -238,6 +248,31 @@ Function Connect-O365PS { # Function to connecto to O365 services
                 while (($Try -le 2) -and ($Global:Error)) 
                 &$Global:DisplayConnect
     }
+
+    # Connect to EXO2
+    "EXO2"  {
+        $Global:Error.Clear();
+        If ($null -eq $Global:O365Cred) {
+                &$Global:UserCredential
+        }
+        # The loop for re-entering credentials in case they are wrong and for re-connecting
+        
+        $CurrentProperty = "Connect EXO2"
+        Do {
+                # Defining the banner variable and clear the errors
+                $Global:Error.Clear();
+                $Global:banner = "Exchange Online v2 PowerShell"
+                $try++
+                $CurrentError = $errordescr.exception
+                Import-Module ExchangeOnlineManagement -Global -DisableNameChecking  -ErrorAction SilentlyContinue
+                Connect-ExchangeOnline -Credential $O365Cred -PSSessionOption $PSsettings -ErrorVariable errordescr -ErrorAction Stop 
+                # Connection Errors check (mostly for wrong credentials reasons)
+                &$Global:CredentialValidation
+    }
+    while (($Try -le 2) -and ($Global:Error)) 
+    
+    &$Global:DisplayConnect
+}
 
     # Connect to EOP
     "EOP"  {
