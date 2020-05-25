@@ -405,7 +405,7 @@ function Write-ScriptLog([string] $ErrorType)
 {
     $d = Get-Date
     $TimeZone = [System.TimeZone]::CurrentTimeZone.StandardName
-    "`r`n$FailedAction at $d $TimeZone generated Error:`r`n" + $Office365RelayErrorList | Out-File -Append $global:WSPath\Logs\$ErrorType.txt
+    "`r`n$FailedAction at $d $TimeZone generated Error:`r`n" + $Office365RelayErrorList | Out-File -Append $global:WSPath\Office365RelayLogs\$ErrorType.txt
 }
 function Get-ActionPlan([string]$ErrorType)
 {
@@ -639,9 +639,9 @@ Exit-ScriptAndSaveLogs:
 #>
 function Exit-ScriptAndSaveLogs() 
 {
-    [string] $logFileLocation = "`r`nAll logs have been saved to the following location: $global:WSPath `r`n"
+    [string] $logFileLocationNotification = "`r`nAll logs have been saved to the following location: $global:WSPath\Office365RelayLogs `r`n"
     Stop-Transcript
-    Write-Host $logFileLocation -ForegroundColor Green
+    Write-Host $logFileLocationNotification -ForegroundColor Green
     Read-Host "Press Any Key to finalize Exit Office365Relay Script and return to O365Troubleshooters MainMenu"
     Clear-Host
     Start-O365TroubleshootersMenu
@@ -711,7 +711,7 @@ Q : Quit Script`r`n
 
 Answer"
 
-    "RuntimeRelayMethodInput#$RuntimeRelayMethodCounter $RelayMethod"|Out-File -Append $global:WSPath\Logs\ChoicesAtRuntime.txt
+    "RuntimeRelayMethodInput#$RuntimeRelayMethodCounter $RelayMethod"|Out-File -Append $global:WSPath\Office365RelayLogs\ChoicesAtRuntime.txt
     $RuntimeChoiceCounter++
 
     switch($RelayMethod.ToUpper())
@@ -760,16 +760,14 @@ See https://aka.ms/SendMailMessage for more information.`r`n"
     Clear-Host
     
     $ts = Get-Date -Format yyyyMMdd_HHmm
-    $global:WSPath=[Environment]::GetFolderPath("Desktop")+"\$($ts)_RelayOptions"
 
     #Implement check if Log Folder already exists and provide alternative
     Write-Host "Created Directories on Desktop:"
-    mkdir "$global:WSPath"
-    mkdir "$global:WSPath\Logs"
+    mkdir "$global:WSPath\Office365RelayLogs"
 
     Write-Host "`r`n"
 
-    Start-transcript -Path "$global:WSPath\RelayTranscript_$ts.txt"
+    Start-transcript -Path "$global:WSPath\Office365RelayLogs\RelayTranscript_$ts.txt"
 
     Read-Host "`r`nPress any key to Continue, Ctrl+C to quit the script"
 
