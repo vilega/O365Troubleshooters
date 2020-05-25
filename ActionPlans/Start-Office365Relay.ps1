@@ -642,7 +642,7 @@ function Exit-ScriptAndSaveLogs()
     [string] $logFileLocation = "`r`nAll logs have been saved to the following location: $path `r`n"
     Stop-Transcript
     Write-Host $logFileLocation -ForegroundColor Green
-    Read-Host "Press Any Key to finalize Exit Office365Relay Script and return to O365TroubleshootersMenu MainMenu"
+    Read-Host "Press Any Key to finalize Exit Office365Relay Script and return to O365Troubleshooters MainMenu"
     Clear-Host
     Start-O365TroubleshootersMenu
 }
