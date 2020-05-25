@@ -92,4 +92,5 @@ Write-Host "`nOutput was exported in the following location: $ExportPath" -Foreg
 Disconnect-all  
 
 # Go back to the main menu
+Clear-Host
 Start-O365TroubleshootersMenu
