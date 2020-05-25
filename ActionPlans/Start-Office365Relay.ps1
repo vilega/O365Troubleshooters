@@ -643,6 +643,7 @@ function Exit-ScriptAndSaveLogs()
     Stop-Transcript
     Write-Host $logFileLocation -ForegroundColor Green
     Read-Host "Press Any Key to finalize Exit Office365Relay Script and return to O365TroubleshootersMenu MainMenu"
+    Clear-Host
     Start-O365TroubleshootersMenu
 }
 
