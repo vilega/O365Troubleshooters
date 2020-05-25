@@ -643,7 +643,8 @@ function Exit-ScriptAndSaveLogs()
     Stop-Transcript
     Write-Host $logFileLocation -ForegroundColor Green
     Read-Host "Press Any Key to finalize Exit Office365Relay Script and return to O365Troubleshooters MainMenu"
-    Start-O365Troubleshooters
+    Clear-Host
+    Start-O365TroubleshootersMenu
 }
 
 <#
@@ -742,6 +743,8 @@ Answer"
 #endregion Office365RelayDependencies
 
 #region Office365Relay main script
+    Clear-Host
+
     $SendMailMessageDisclaimer ="
 Warning : This Script is only recommended for testing purposes as it uses 'Send-MailMessage' cmdlet, 
 which is currently considered obsolete.
