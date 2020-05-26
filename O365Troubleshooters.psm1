@@ -797,6 +797,11 @@ Switch ($r) {
         . $script:modulePath\ActionPlans\Start-DecodeSafeLinksURL.ps1
     }
 
+    "10" {
+        Write-Host "Tools: Export Quarantine Message" -ForegroundColor Green
+        . $script:modulePath\ActionPlans\Export-ExoQuarantineMessages.ps1
+    }
+
     "Q" {
         Write-Host "Quitting" -ForegroundColor Green
         Disconnect-all 
