@@ -687,7 +687,7 @@ function Disconnect-All {
 
     try {
             # Check and remove EXO session
-            if($Global:O365Session){
+            if($Global:EXOSession){
                 Remove-PSSession $Global:EXOSession}
                             
             # Check and remove EOP session

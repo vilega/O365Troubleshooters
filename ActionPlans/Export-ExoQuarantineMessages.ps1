@@ -4,11 +4,15 @@ Clear-Host
 $Workloads = "exo"
 Connect-O365PS $Workloads
 
-Clear-Host
+#Check if log path already exists before creating folder
+if(!(Test-Path "$global:WSPath\ExportQuarantineMessage"))
+{
+    Clear-Host
 
-Write-Host "Created Log folder" -ForegroundColor Green
-mkdir -Path $global:WSPath\ExportQuarantineMessage
-Read-Host "Press any key to Continue"
+    Write-Host "Created Log folder" -ForegroundColor Green
+    mkdir -Path $global:WSPath\ExportQuarantineMessage
+    Read-Host "Press any key to Continue"
+}
 
 Clear-Host
 
@@ -28,7 +32,7 @@ if($QuarantineMessages.Count -ne 0)
     
         $QuarantineMessageBytes = [Convert]::FromBase64String($ExportedQuarantineMessage.Eml)
     
-        $QuarantineMessagePath = "$global:WSPath\ExportQuarantineMessage\QuarantineMessage$i.eml"
+        $QuarantineMessagePath = "$global:WSPath\ExportQuarantineMessage\"+$QuarantineMessage.Identity.Split('\')[1]+".eml"
 
         [System.IO.File]::WriteAllBytes($QuarantineMessagePath,$QuarantineMessageBytes)
 
@@ -52,6 +56,8 @@ $global:WSPath\ExportQuarantineMessage\QuarantineMessages.zip" -ForegroundColor 
     Read-Host "Press any key to return to O365Troubleshooters Main Menu"
 
     Clear-Host
+    
+    Disconnect-All
 
     Start-O365TroubleshootersMenu
 }
@@ -60,6 +66,10 @@ else
 {
     Read-Host "No Messages were selected
 Press any key to return to O365Troubleshooters Main Menu"
+
     Clear-Host
+
+    Disconnect-All
+
     Start-O365TroubleshootersMenu
 }
