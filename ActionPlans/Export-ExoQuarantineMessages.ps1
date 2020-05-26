@@ -28,6 +28,7 @@ if($QuarantineMessages.Count -ne 0)
     {   
         Write-Host "Exporting Quarantine Message #$i" -ForegroundColor Green
         
+        try{
         $ExportedQuarantineMessage = Export-QuarantineMessage -Identity $QuarantineMessage.Identity
     
         $QuarantineMessageBytes = [Convert]::FromBase64String($ExportedQuarantineMessage.Eml)
@@ -40,7 +41,10 @@ if($QuarantineMessages.Count -ne 0)
             -DestinationPath "$global:WSPath\ExportQuarantineMessage\QuarantineMessages.zip"
 
         Remove-Item $QuarantineMessagePath -Force
-        
+        }
+        catch{
+            Write-Log -function Export-QuarantineMessage -step ExportQuarantineMessage -Description "Could Export/Write/Archive/Purge EML with`r`n"+$Error.Exception.Message
+        }
         $i++
         
         Start-Sleep -s 0.5
