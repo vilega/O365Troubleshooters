@@ -11,7 +11,7 @@ if(!(Test-Path "$global:WSPath\ExportQuarantineMessage"))
 
     Write-Host "Created Log folder" -ForegroundColor Green
     mkdir -Path $global:WSPath\ExportQuarantineMessage
-    Read-Host "Press any key to Continue"
+    Read-Host "Press ENTER to Continue"
 }
 
 Clear-Host
@@ -43,7 +43,8 @@ if($QuarantineMessages.Count -ne 0)
         Remove-Item $QuarantineMessagePath -Force
         }
         catch{
-            Write-Log -function Export-QuarantineMessage -step ExportQuarantineMessage -Description "Could Export/Write/Archive/Purge EML with`r`n"+$Error.Exception.Message
+            Write-Log -function Export-QuarantineMessage -step ExportQuarantineMessage `
+            -Description "Could Export/Write/Archive/Purge EML with`r`n"+$Error.Exception.Message
         }
         $i++
         
@@ -57,7 +58,7 @@ if($QuarantineMessages.Count -ne 0)
     Write-Host "Created Archive with Exported Quarantine Messages 
 $global:WSPath\ExportQuarantineMessage\QuarantineMessages.zip" -ForegroundColor Green
     
-    Read-Host "Press any key to return to O365Troubleshooters Main Menu"
+    Read-Host "Press ENTER to return to O365Troubleshooters Main Menu"
 
     Clear-Host
     
@@ -69,7 +70,7 @@ $global:WSPath\ExportQuarantineMessage\QuarantineMessages.zip" -ForegroundColor 
 else
 {
     Read-Host "No Messages were selected
-Press any key to return to O365Troubleshooters Main Menu"
+Press ENTER to return to O365Troubleshooters Main Menu"
 
     Clear-Host
 
