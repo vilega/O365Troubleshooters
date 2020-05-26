@@ -739,16 +739,17 @@ Function    Start-O365Troubleshooters
 
 Function Start-O365TroubleshootersMenu {
     $menu=@"
-    1 Office Message Encryption General Troubleshooting
-    2 Analyze compromise account/tenant
-    3 SMTP Relay Test
-    4 Tools: Exchange Online Audit Search
-    5 Tools: Unified Logging Audit Search
-    6 Tools: Azure AD Audit Log Search
-    7 Tools: Find all users with a specific RBAC Role
-    8 Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox
-    9 Tools: Decode SafeLinks URL
-    Q Quit
+    1  Office Message Encryption General Troubleshooting
+    2  Analyze compromise account/tenant
+    3  SMTP Relay Test
+    4  Tools: Exchange Online Audit Search
+    5  Tools: Unified Logging Audit Search
+    6  Tools: Azure AD Audit Log Search
+    7  Tools: Find all users with a specific RBAC Role
+    8  Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox
+    9  Tools: Decode SafeLinks URL
+    10 Tools: Export Quarantine Messages
+    Q  Quit
      
     Select a task by number or Q to quit
 "@
