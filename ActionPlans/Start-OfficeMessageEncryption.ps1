@@ -772,7 +772,7 @@ Select a task by number or Q to go back
 
         
 # Connect Workloads (split workloads by comma): "msol","exo","eop","sco","spo","sfb","AipService"
-$Workloads = "exo", "sco", "AIPService"
+$Workloads = "exo", "sco", "AIPService","msol"
 Connect-O365PS $Workloads
     
 $CurrentProperty = "Connecting to: $Workloads"
@@ -780,7 +780,7 @@ $CurrentDescription = "Success"
 write-log -Function "Connecting to O365 workloads" -Step $CurrentProperty -Description $CurrentDescription 
     
 $ts = Get-Date -Format yyyyMMdd_HHmmss
-$pathOME=$global:WSPath+"\$($ts)_Config_AIP"
+$pathOME=$global:WSPath+"\OfficeMessageEncryption_$ts"
 mkdir "$pathOME"
 mkdir "$pathOME\Logs" 
 Start-transcript -Path "$pathOME\OMEv2Transcript_$ts.txt" -Verbose
