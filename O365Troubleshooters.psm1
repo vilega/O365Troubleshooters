@@ -687,7 +687,7 @@ function Disconnect-All {
 
     try {
             # Check and remove EXO session
-            if($Global:O365Session){
+            if($Global:EXOSession){
                 Remove-PSSession $Global:EXOSession}
                             
             # Check and remove EOP session
@@ -746,9 +746,10 @@ Function Start-O365TroubleshootersMenu {
     5  Tools: Unified Logging Audit Search
     6  Tools: Azure AD Audit Log Search
     7  Tools: Find all users with a specific RBAC Role
-    8  Tools: Find all users with a specific RBAC Role
+    8  Tools: Find all users with all RBAC Roles
     9  Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox
     10 Tools: Decode SafeLinks URL
+    11 Tools: Export Quarantine Messages
     Q  Quit
      
     Select a task by number or Q to quit
@@ -801,6 +802,11 @@ Switch ($r) {
     "10" {
         Write-Host "Tools: Decode SafeLinks URL" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-DecodeSafeLinksURL.ps1
+    }
+
+    "11" {
+        Write-Host "Tools: Export Quarantine Message" -ForegroundColor Green
+        . $script:modulePath\ActionPlans\Export-ExoQuarantineMessages.ps1
     }
 
     "Q" {
