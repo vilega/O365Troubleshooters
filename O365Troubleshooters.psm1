@@ -170,7 +170,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
                         $Global:banner = "Azure AD (MSOL) PowerShell"
                         $try++
                         # Creating the session for PS MSOL Service
-                        Connect-MsolService �Credential $O365Cred -ErrorVariable errordescr -ErrorAction SilentlyContinue  <### -ErrorAction SilentlyContinue  -> Update_Razvan: add this option at the end of each connection line after verifying that the function are ok #>
+                        Connect-MsolService -Credential $O365Cred -ErrorVariable errordescr -ErrorAction SilentlyContinue  <### -ErrorAction SilentlyContinue  -> Update_Razvan: add this option at the end of each connection line after verifying that the function are ok #>
                         $Global:Domain = get-msoldomain -ErrorAction SilentlyContinue | Where-Object {$_.name -like "*.onmicrosoft.com" } | Where-Object {$_.name -notlike "*mail.onmicrosoft.com"}  
                         $CurrentError = $errordescr.exception.message <### Update_Razvan: verify every error message on every connection endpoint and changed it accordingly: $errordescr | fl * -Force #>
                         # Connection Errors check (mostly for wrong credentials reasons)
@@ -223,7 +223,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
                         }
                             try {
 
-                            $Global:EXOSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://outlook.office365.com/powershell-liveid/" -Credential $O365Cred -Authentication "Basic" -AllowRedirection -SessionOption $PSsettings -ErrorVariable errordescr -ErrorAction Stop 
+                            $Global:EXOSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://outlook.office365.com/powershell-liveid/" -Credential $global:O365Cred -Authentication "Basic" -AllowRedirection -SessionOption $PSsettings -ErrorVariable errordescr -ErrorAction Stop 
                             $CurrentError = $errordescr.exception  
                             Import-Module (Import-PSSession $EXOSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue
                             $CurrentDescription = "Success"
@@ -265,7 +265,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
                 $try++
                 $CurrentError = $errordescr.exception
                 Import-Module ExchangeOnlineManagement -Global -DisableNameChecking  -ErrorAction SilentlyContinue
-                Connect-ExchangeOnline -Credential $O365Cred -PSSessionOption $PSsettings -ErrorVariable errordescr -ErrorAction Stop 
+                Connect-ExchangeOnline -Credential $global:O365Cred -PSSessionOption $PSsettings -ErrorVariable errordescr -ErrorAction Stop 
                 # Connection Errors check (mostly for wrong credentials reasons)
                 &$Global:CredentialValidation
     }
@@ -289,7 +289,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
                         $Global:banner = "Exchange Online Protection PowerShell"
                         $try++
                         # Creating EOP PS session
-                        $Global:EOPSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://ps.protection.outlook.com/powershell-liveid" -Credential $O365Cred -Authentication "Basic" -AllowRedirection -SessionOption $PSsettings -ErrorVariable errordescr -ErrorAction SilentlyContinue 
+                        $Global:EOPSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://ps.protection.outlook.com/powershell-liveid" -Credential $global:O365Cred -Authentication "Basic" -AllowRedirection -SessionOption $PSsettings -ErrorVariable errordescr -ErrorAction SilentlyContinue 
                         $CurrentError = $errordescr.exception
                         Import-Module (Import-PSSession $EOPSession  -AllowClobber -DisableNameChecking ) -Global -DisableNameChecking  -ErrorAction SilentlyContinue
                         # Connection Errors check (mostly for wrong credentials reasons)
@@ -315,7 +315,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
                         $Global:Error.Clear();
                         $Global:banner = "Security and Compliance Center Powershell"
                         $try++ 
-                        $Global:SCCSession = New-PSSession -ConfigurationName Microsoft.Compliance -ConnectionUri "https://ps.compliance.protection.outlook.com/powershell-liveid/" -Credential $O365Cred -Authentication "Basic" -AllowRedirection -SessionOption $PSsettings -ErrorVariable errordescr -ErrorAction SilentlyContinue
+                        $Global:SCCSession = New-PSSession -ConfigurationName Microsoft.Compliance -ConnectionUri "https://ps.compliance.protection.outlook.com/powershell-liveid/" -Credential $global:O365Cred -Authentication "Basic" -AllowRedirection -SessionOption $PSsettings -ErrorVariable errordescr -ErrorAction SilentlyContinue
                         $CurrentError = $errordescr.exception
                         Import-Module (Import-PSSession $SCCSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -Prefix CC -ErrorAction SilentlyContinue
                         #Credentials check
@@ -390,7 +390,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
                         # Import SFB Online PS module
                         Import-Module LyncOnlineConnector
                         # Creating a new SFB Online PS Session
-                        $global:sfboSession = New-CsOnlineSession -Credential $O365Cred -ErrorVariable errordescr
+                        $global:sfboSession = New-CsOnlineSession -Credential $global:O365Cred -ErrorVariable errordescr
                         $CurrentError = $errordescr.exception
                         Import-Module (Import-PSSession $sfboSession -DisableNameChecking -AllowClobber) -Global -DisableNameChecking 
                         # Credentials check
@@ -417,13 +417,13 @@ Function Connect-O365PS { # Function to connecto to O365 services
                         # Import AIPService module
                         Import-Module AIPService
                         # Creating a new AIPService PS Session
-                        Connect-AIPService -Credential $O365Cred -ErrorVariable errordescr
+                        Connect-AIPService -Credential $global:O365Cred -ErrorVariable errordescr 
                         $CurrentError = $errordescr.exception
                         # Credentials check
                         &$Global:CredentialValidation
                     }
                  while (($Try -le 2) -and ($null -ne $Global:Error)) 
-                 &$Global:DisplayConnects
+                 &$Global:DisplayConnect
     }
   }
 #endregion Connection scripts region
@@ -726,7 +726,7 @@ function Disconnect-All {
     }
     
     write-log -Function "Disconnect - ExecutionPolicy" -Step $CurrentProperty -Description $CurrentDescription
-    Read-Host -Prompt "Please press [Enter] to continue"
+    # Read-Host -Prompt "Please press [Enter] to continue"
     }
 
 
@@ -739,16 +739,17 @@ Function    Start-O365Troubleshooters
 
 Function Start-O365TroubleshootersMenu {
     $menu=@"
-    1  Office Message Encryption General Troubleshooting
-    2  Analyze compromise account/tenant
-    3  SMTP Relay Test
+    1  Encryption: Office Message Encryption General Troubleshooting
+    2  Security: Analyze compromise account/tenant
+    3  Mail Flow: SMTP Relay Test
     4  Tools: Exchange Online Audit Search
     5  Tools: Unified Logging Audit Search
     6  Tools: Azure AD Audit Log Search
     7  Tools: Find all users with a specific RBAC Role
-    8  Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox
-    9  Tools: Decode SafeLinks URL
-    10 Tools: Export Quarantine Messages
+    8  Tools: Find all users with all RBAC Roles
+    9  Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox
+    10 Tools: Decode SafeLinks URL
+    11 Tools: Export Quarantine Messages
     Q  Quit
      
     Select a task by number or Q to quit
@@ -789,28 +790,36 @@ Switch ($r) {
         . $script:modulePath\ActionPlans\Start-FindUserWithSpecificRbacRole.ps1
     }
     "8" {
+        Write-Host "Tools: Find all users with all RBAC Role" -ForegroundColor Green
+        . $script:modulePath\ActionPlans\Start-AllUsersWithAllRoles.ps1
+    }
+    
+    "9" {
         Write-Host "Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-MailboxDiagnosticLogs.ps1
     }
      
-    "9" {
+    "10" {
         Write-Host "Tools: Decode SafeLinks URL" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-DecodeSafeLinksURL.ps1
     }
 
-    "10" {
+    "11" {
         Write-Host "Tools: Export Quarantine Message" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Export-ExoQuarantineMessages.ps1
     }
 
     "Q" {
         Write-Host "Quitting" -ForegroundColor Green
+        Start-Sleep -Seconds 2
         Disconnect-all 
         exit
     }
      
     default {
         Write-Host "I don't understand what you want to do. Will reload the menu!" -ForegroundColor Yellow
+        Start-Sleep -Seconds 2
+        Clear-Host
         Start-O365TroubleshootersMenu 
      }
     } 

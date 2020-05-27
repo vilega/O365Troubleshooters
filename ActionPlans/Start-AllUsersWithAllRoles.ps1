@@ -8,7 +8,7 @@ $ts= get-date -Format yyyyMMdd_HHmmss
 $ExportPath = "$global:WSPath\RbacRole_$ts"
 mkdir $ExportPath -Force
 . $script:modulePath\ActionPlans\Start-RbacTools.ps1
-Get-SpecificRoleMembers
+Get-AllUsersWithAllRoles
 Read-Host "Press any key then [Enter] to return to main menu"
 Clear-Host
 Start-O365TroubleshootersMenu
