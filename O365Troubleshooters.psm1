@@ -729,7 +729,19 @@ function Disconnect-All {
     # Read-Host -Prompt "Please press [Enter] to continue"
     }
 
+Function Read-Key{
+    if ($psISE)
+    {
+        Write-Host "Press [Enter] to continue" -ForegroundColor Yellow
+        Read-Host 
+    }
+    else 
+    {
+        Write-Host "Press any key to continue" -ForegroundColor Yellow
+        $host.ui.RawUI.ReadKey("NoEcho,IncludeKeyDown")|Out-Null
+    }
 
+}
 
 Function    Start-O365Troubleshooters
 {
