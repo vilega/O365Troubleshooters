@@ -42,8 +42,13 @@ write-log -Function "Connecting to O365 workloads" -Step $CurrentProperty -Descr
 $ts= get-date -Format yyyyMMdd_HHmmss
 $ExportPath = "$global:WSPath\ExchangeOnlineAudit_$ts"
 mkdir $ExportPath -Force
-Write-Host "Please imput the number of days you want to search (maximum 90): " -ForegroundColor Cyan -NoNewline
-$DaysToSearch= Read-Host
+
+do
+{
+    Write-Host "Please imput the number of days you want to search (maximum 90): " -ForegroundColor Cyan -NoNewline
+    [int]$DaysToSearch= Read-Host
+} while ($DaysToSearch -gt 90)
+
 Write-Host "Please imput cmdlets to search separated by comma (or just hit [Enter] to look for all cmdles): " -ForegroundColor Cyan -NoNewline
 $CmdletsToSearch = Read-Host
 Write-Host "Please imput the UPN for the user you want to search actions (or just hit [Enter] to look for all users): " -ForegroundColor Cyan -NoNewline

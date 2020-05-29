@@ -732,12 +732,13 @@ function Disconnect-All {
 Function Read-Key{
     if ($psISE)
     {
-        Write-Host "Press [Enter] to continue" -ForegroundColor Yellow
+        Write-Host "Press [Enter] to continue" -ForegroundColor Cyan
         Read-Host 
     }
     else 
     {
-        Write-Host "Press any key to continue" -ForegroundColor Yellow
+        Write-Host "Press any key to continue" -ForegroundColor Cyan
+        #[void][System.Console]::ReadKey($true)
         $host.ui.RawUI.ReadKey("NoEcho,IncludeKeyDown")|Out-Null
     }
 
