@@ -729,7 +729,20 @@ function Disconnect-All {
     # Read-Host -Prompt "Please press [Enter] to continue"
     }
 
+Function Read-Key{
+    if ($psISE)
+    {
+        Write-Host "Press [Enter] to continue" -ForegroundColor Cyan
+        Read-Host 
+    }
+    else 
+    {
+        Write-Host "Press any key to continue" -ForegroundColor Cyan
+        #[void][System.Console]::ReadKey($true)
+        $host.ui.RawUI.ReadKey("NoEcho,IncludeKeyDown")|Out-Null
+    }
 
+}
 
 Function    Start-O365Troubleshooters
 {
@@ -744,7 +757,7 @@ Function Start-O365TroubleshootersMenu {
     3  Mail Flow: SMTP Relay Test
     4  Tools: Exchange Online Audit Search
     5  Tools: Unified Logging Audit Search
-    6  Tools: Azure AD Audit Log Search
+    6  Tools: Azure AD Audit Sign In Log Search
     7  Tools: Find all users with a specific RBAC Role
     8  Tools: Find all users with all RBAC Roles
     9  Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox
@@ -782,8 +795,8 @@ Switch ($r) {
         . $script:modulePath\ActionPlans\Start-UnifiedAuditLogSearch.ps1
     }
     "6" {
-        Write-Host "Tools: Azure AD Audit Log Search" -ForegroundColor Green
-        . $script:modulePath\ActionPlans\Start-AzureADAuditLogSearch.ps1
+        Write-Host "Tools: Azure AD Audit Sign In Log Search" -ForegroundColor Green
+        . $script:modulePath\ActionPlans\Start-AzureADAuditSignInLogSearch.ps1
     }
     "7" {
         Write-Host "Tools: Find all users with a specific RBAC Role" -ForegroundColor Green

@@ -1,37 +1,26 @@
-Function Search-EXOAdminAudit {
+Function Search-AzureAdSignInAudit {
     param( 
         [int][Parameter(Mandatory=$true)] $DaysToSearch,
         [string[]][Parameter(Mandatory=$false)] $CmdletsToSearch,
-        [string][Parameter(Mandatory=$false)] $Caller)
+        [string][Parameter(Mandatory=$false)] $Upn)
     
-    $user = $Caller    
-    if (!($user))
-    {
-        $user =$null
-    }
+        $DaysToSearch=10
+        $Upn ="admin@vilega.onmicrosoft.com"
+        Get-AzureADAuditSignInLogs -Filter "userPrincipalName eq $Upn"
 
-    $AdminAuditLogs = Search-AdminAuditLog -StartDate (Get-Date).addDays(-$DaysToSearch) -EndDate (Get-Date) -Cmdlets $CmdletsToSearch -ExternalAccess $false -UserIds $user
-
-    $ParsedAuditLogs = @()
-    foreach ($AdminAuditLog in $AdminAuditLogs)
-    {
-        $ParsedAuditLog = New-Object -TypeName psobject 
-        $ParsedAuditLog | Add-Member -MemberType NoteProperty -Name "Caller" -Value $AdminAuditLog.Caller
-        $ParsedAuditLog | Add-Member -MemberType NoteProperty -Name "ClientIP" -Value $AdminAuditLog.ClientIP
-        $ParsedAuditLog | Add-Member -MemberType NoteProperty -Name "Succeeded" -Value $AdminAuditLog.Succeeded
-        $ParsedAuditLog | Add-Member -MemberType NoteProperty -Name "RunDate" -Value $AdminAuditLog.RunDate
-        $Cmdlet = [string]$AdminAuditLog.CmdletName
-        foreach ($CmdletParameters in $AdminAuditLog.CmdletParameters)
+        if (!([string]::IsNullOrEmpty($userIds)))
         {
-            $Cmdlet += " -$($CmdletParameters.Name) `"$($CmdletParameters.Value)`""
+            $UnifiedAuditLogs =Search-UnifiedAuditLog -StartDate (Get-Date).addDays(-$DaysToSearch) -EndDate (Get-Date) -Operations $OperationsToSearch -UserIds $userIds -SessionCommand ReturnLargeSet 
         }
-        $ParsedAuditLog | Add-Member -MemberType NoteProperty -Name "Cmdlet" -Value $Cmdlet
-        $ParsedAuditLogs += $ParsedAuditLog
-    }
-    return $ParsedAuditLogs
+        else
+        {
+            $UnifiedAuditLogs =Search-UnifiedAuditLog -StartDate (Get-Date).addDays(-$DaysToSearch) -EndDate (Get-Date) -Operations $OperationsToSearch  -SessionCommand ReturnLargeSet 
+        }
+      
+        return AzureAdSignInAudit
 }
 
-$Workloads = "exo"
+$Workloads = "AzureADPreview"
 Connect-O365PS $Workloads
 
 
@@ -62,3 +51,15 @@ Read-Key
 # Return to the main menu
 Clear-Host
 Start-O365TroubleshootersMenu
+
+
+$MFAExchangeModule = ((Get-ChildItem -Path $($env:LOCALAPPDATA+"\Apps\2.0\") -Filter CreateExoPSSession.ps1 -Recurse ).FullName | Select-Object -Last 1)
+. "$MFAExchangeModule" |Out-Null
+Connect-EXOPSSession -userprincipalname "admin@vilega.onmicrosoft.com"
+
+
+Import-Module $((Get-ChildItem -Path $($env:LOCALAPPDATA + "\Apps\2.0\") -Filter Microsoft.Exchange.Management.ExoPowershellModule.dll -Recurse).FullName |`
+where { $_ -notmatch "_none_" } | select -First 1)
+
+$EXOSession = New-ExoPSSession -UserPrincipalName $UPN
+Import-PSSession $EXOSession -AllowClobber |out-null
