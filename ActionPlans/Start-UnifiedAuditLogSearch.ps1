@@ -75,11 +75,3 @@ Read-Key
 Clear-Host
 Start-O365TroubleshootersMenu
 
-
-###
-$LiveCred = Get-Credential
-$O365Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri https://outlook.office365.com/powershell-liveid/  -Credential $LiveCred -Authentication Basic -AllowRedirection
-$ccSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri https://ps.compliance.protection.outlook.com/powershell-liveid/ -Credential $LiveCred -Authentication Basic -AllowRedirection
-Import-PSSession $O365Session -AllowClobber
-Import-PSSession $ccSession -Prefix cc -AllowClobber
-
