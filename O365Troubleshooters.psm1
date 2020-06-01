@@ -9,7 +9,7 @@
 
     # Credential Validation block
     $Global:CredentialValidation = { 
-            If (($null -ne $errordescr)-and ($null -ne $global:Error)) {
+            If (!([string]::IsNullOrEmpty($errordescr))-and !([string]::IsNullOrEmpty($global:error[0]))) {
                 Write-Host "`nYou are NOT connected succesfully to $Global:banner. Please verify your credentials." -ForegroundColor Yellow
                 $CurrentDescription = "`""+$CurrentError+"`""
                 write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
@@ -282,7 +282,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
                         catch 
                         {
                             Write-Host "$CurrentProperty"
-                            if (!("icrosoft.Exchange.Management.ExoPowershellModule" -in (Get-Module).Name))
+                            if (!("Microsoft.Exchange.Management.ExoPowershellModule" -in (Get-Module).Name))
                             {
                                 Import-Module $((Get-ChildItem -Path $($env:LOCALAPPDATA + "\Apps\2.0\") -Filter Microsoft.Exchange.Management.ExoPowershellModule.dll -Recurse).FullName | `
                                     Where-Object { $_ -notmatch "_none_" } | Select-Object -First 1) -Global -DisableNameChecking -Force -ErrorAction SilentlyContinue
@@ -389,26 +389,43 @@ Function Connect-O365PS { # Function to connecto to O365 services
 
     # Connect to Compliance Center Online
     "SCC"  {
-                $Global:Error.Clear();
-                If ($null -eq $Global:O365Cred) {
-                        &$Global:UserCredential
-                }
-                # The loop for re-entering credentials in case they are wrong and for re-connecting
+# The loop for re-entering credentials in case they are wrong and for re-connecting
+$CurrentProperty = "Connect Security&Compliance"
                 
-                $CurrentProperty = "Connect SCC"
-                Do {
-                        # Defining the banner variable and clear the errors
-                        $Global:Error.Clear();
-                        $Global:banner = "Security and Compliance Center Powershell"
-                        $try++ 
-                        $Global:SCCSession = New-PSSession -ConfigurationName Microsoft.Compliance -ConnectionUri "https://ps.compliance.protection.outlook.com/powershell-liveid/" -Credential $global:O365Cred -Authentication "Basic" -AllowRedirection -SessionOption $PSsettings -ErrorVariable errordescr -ErrorAction SilentlyContinue
-                        $CurrentError = $errordescr.exception
-                        Import-Module (Import-PSSession $SCCSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -Prefix CC -ErrorAction SilentlyContinue
-                        #Credentials check
-                        &$Global:CredentialValidation
-                }
-                while (($Try -le 2) -and ($null -ne $Global:Error)) 
-                &$Global:DisplayConnect
+Do {
+        # Defining the banner variable and clear the errors
+        $Global:Error.Clear();
+        $Global:banner = "Security&Compliance Online PowerShell - Modern & MFA"
+        $try++
+
+        try 
+        {
+            $null = Get-ccLabel -ErrorAction Stop
+        }
+        catch 
+        {
+            Write-Host "$CurrentProperty"
+            if (!("Microsoft.Exchange.Management.ExoPowershellModule" -in (Get-Module).Name))
+            {
+                Import-Module $((Get-ChildItem -Path $($env:LOCALAPPDATA + "\Apps\2.0\") -Filter Microsoft.Exchange.Management.ExoPowershellModule.dll -Recurse).FullName | `
+                    Where-Object { $_ -notmatch "_none_" } | Select-Object -First 1) -Global -DisableNameChecking -Force -ErrorAction SilentlyContinue
+            }
+
+            $errordescr = $null
+            if (($null -eq $Global:IPPSession )-or ($Global:IPPSession.State -eq "Closed") -or ($Global:IPPSession.State -eq "Broken"))
+            {
+                $Global:IPPSession = New-ExoPSSession -UserPrincipalName $global:UserPrincipalName -ConnectionUri 'https://ps.compliance.protection.outlook.com/PowerShell-LiveId' `
+                -PSSessionOption $PSsettings -ErrorVariable errordescr -ErrorAction Stop
+                $CurrentError = $errordescr.exception 
+                Import-Module (Import-PSSession $IPPSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue -Prefix cc
+                $null = Get-ccLabel -ErrorAction SilentlyContinue -ErrorVariable errordescr
+                $CurrentError = $errordescr.exception.message + $Global:Error[0]
+            }
+        }
+        &$Global:CredentialValidation
+}
+while (($Try -le 2) -and ($Global:Error)) 
+&$Global:DisplayConnect
     }
     
     #Connect to SharePoint Online PowerShell
@@ -487,29 +504,35 @@ Function Connect-O365PS { # Function to connecto to O365 services
     }
 
     # Connect to AIPService PowerShell
-    "AIPService" {
-                 $Global:Error.Clear();
-                 If ($null -eq $Global:O365Cred) {
-                        &$Global:UserCredential
-                 }
-                 # The loop for re-entering credentials in case they are wrong and for re-connecting
-                 $CurrentProperty = "Connect AIPService"
-                 
-                 Do {
-                        # Defining the banner variable and clear the errors
-                        $Global:Error.Clear();
-                        $Global:banner = "AIPService PowerShell"
-                        $try++
-                        # Import AIPService module
-                        Import-Module AIPService
-                        # Creating a new AIPService PS Session
-                        Connect-AIPService -Credential $global:O365Cred -ErrorVariable errordescr 
-                        $CurrentError = $errordescr.exception
-                        # Credentials check
-                        &$Global:CredentialValidation
-                    }
-                 while (($Try -le 2) -and ($null -ne $Global:Error)) 
-                 &$Global:DisplayConnect
+    "AIPService" 
+    {
+        do
+        {
+            $Global:Error.Clear();
+            $Global:banner = "AIPService PowerShell"
+            $errordescr = $null
+            $try++
+            try
+            {
+                $null = Get-AipServiceConfiguration -ErrorAction Stop
+            }
+            catch 
+            {
+                Write-Host "$CurrentProperty"
+                if (!("AIPService" -in (Get-Module).name))
+                {
+                    Import-Module AIPService -Global -DisableNameChecking  -ErrorAction SilentlyContinue
+                }
+                $errordescr = $null
+                $Global:Error.Clear();
+                Connect-AipService -ErrorVariable errordescr -ErrorAction SilentlyContinue
+                $null = Get-AipServiceConfiguration -ErrorVariable errordescr -ErrorAction SilentlyContinue 
+                $CurrentError = $errordescr.exception.message
+            }
+            &$Global:CredentialValidation
+        }
+        while (($Try -le 2) -and ($null -ne $Global:Error)) 
+        &$Global:DisplayConnect
     }
   }
 #endregion Connection scripts region
@@ -819,26 +842,14 @@ function Disconnect-All {
                 Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue
             }
 
+            # Disconnect AIP
+            if (("AipService" -in (Get-Module).name))
+            {
+                Disconnect-AipService -Confirm:$false -ErrorAction SilentlyContinue
+            }
+
+            # Disconnect all PsSessions
             Get-PSSession | Remove-PSSession
-
-            # Check and remove EXO session
-            # if($Global:EXOSession)
-            # {
-            #     Remove-PSSession $Global:EXOSession 
-            # }
-                            
-            # # Check and remove EOP session
-            # if($Global:EOPSession){
-            #     Remove-PSSession $Global:EOPSession}
-
-            # # Check and remove SCO session
-            # if($Global:SCCSession){
-            #     Remove-PSSession $Global:SCOSession}
-            
-            # # Check and remove S4B session
-            # if($global:sfboSession){
-            #     Remove-PSSession $global:sfboSession}
-            
     }
 
     catch {
