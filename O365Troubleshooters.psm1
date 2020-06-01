@@ -830,6 +830,12 @@ Function Test-PSVers {
 
 }
 
+function Start-Elevated {
+    Write-Host "Starting new PowerShell Window with the O365Troubleshooters Module loaded"
+    Read-Key
+    Start-Process powershell.exe -ArgumentList "-noexit -Command Install-Module O365Troubleshooters -force; Import-Module O365Troubleshooters;Start-O365Troubleshooters -elevatedExecution `$true" -Verb RunAs -Wait
+    Exit
+}
 
 function Disconnect-All {
     
@@ -875,6 +881,7 @@ function Disconnect-All {
     
     write-log -Function "Disconnect - ExecutionPolicy" -Step $CurrentProperty -Description $CurrentDescription
     # Read-Host -Prompt "Please press [Enter] to continue"
+    Read-Key
     }
 
 Function Read-Key{
@@ -899,6 +906,10 @@ Function    Start-O365Troubleshooters
 }
 
 Function Start-O365TroubleshootersMenu {
+    #[CmdletBinding()]
+    param(
+        [bool][Parameter(Mandatory=$false)] $elevatedExecution=$false
+    )
     $menu=@"
     1  Encryption: Office Message Encryption General Troubleshooting
     2  Security: Analyze compromise account/tenant
@@ -916,6 +927,10 @@ Function Start-O365TroubleshootersMenu {
     Select a task by number or Q to quit
 "@
 Clear-Host
+if ($elevatedExecution)
+{
+    Start-Elevated
+}
 Write-Host "Main Menu" -ForegroundColor Cyan
 $r = Read-Host $menu
 
