@@ -1,4 +1,3 @@
-
 # Required function to set Global Variables
 $encodedURL  = Read-Host("Please provide the ATP SafeLinks URL that you want to decode to original URL")
 
@@ -20,6 +19,5 @@ catch
 Write-Host "The decoded URL is:" -ForegroundColor Green
 Write-Host $decodedURL
 Write-Log -function "Start-AP_DecodeSafeLinksURL" -step  "Decoding URL" -Description "Decoded and Parse URL is: $decodedURL"
-Read-Host "Press any key and then to reload main menu [Enter]"
-Clear-Host
+Read-Key
 Start-O365TroubleshootersMenu
