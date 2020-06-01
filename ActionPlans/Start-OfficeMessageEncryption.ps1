@@ -770,9 +770,10 @@ Select a task by number or Q to go back
     }
 }
 
-        
+Clear-Host
+write-log -Function "Start-OfficeMessageEncryption" -Step "Start Action Plan"-Description "Succes"            
 # Connect Workloads (split workloads by comma): "msol","exo","eop","sco","spo","sfb","AipService"
-$Workloads = "exo", "sco", "AIPService","msol"
+$Workloads = "Exo", "Scc", "AIPService","Msol"
 Connect-O365PS $Workloads
     
 $CurrentProperty = "Connecting to: $Workloads"
@@ -781,16 +782,11 @@ write-log -Function "Connecting to O365 workloads" -Step $CurrentProperty -Descr
     
 $ts = Get-Date -Format yyyyMMdd_HHmmss
 $pathOME=$global:WSPath+"\OfficeMessageEncryption_$ts"
-mkdir "$pathOME"
-mkdir "$pathOME\Logs" 
+mkdir "$pathOME" |Out-Null
+mkdir "$pathOME\Logs" |Out-Null
 Start-transcript -Path "$pathOME\OMEv2Transcript_$ts.txt" -Verbose
 Write-Host "All the logs will be saved to the following location: $pathOME"
 Show-Menu
 Stop-Transcript
-    
-# Disconnecting
-disconnect-all  
-
-# Return to the main menu
-Clear-Host
+write-log -Function "Start-OfficeMessageEncryption" -Step "Return to Start-O365TroubleshootersMenu"-Description "Succes"     
 Start-O365TroubleshootersMenu
