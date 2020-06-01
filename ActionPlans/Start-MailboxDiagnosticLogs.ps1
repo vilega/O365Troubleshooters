@@ -13,7 +13,7 @@ $ts= get-date -Format yyyyMMdd_HHmmss
 $ExportPath = "$global:WSPath\MailboxDiagnosticLogs_$ts"
 mkdir $ExportPath -Force |out-null
 
-Write-Host "`nPlease input the mailbox for which you want to see MailboxDiagnosticLogs: " -ForegroundColor Green
+Write-Host "`nPlease input the mailbox for which you want to see MailboxDiagnosticLogs: " -ForegroundColor Cyan -NoNewline
 $mbx = Read-Host
 
 # Check if mailbox exist
