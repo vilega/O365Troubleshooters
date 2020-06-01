@@ -8,14 +8,14 @@ Function Get-SpecificRoleMembers {
     $GetEffectiveUsers = Get-ManagementRoleAssignment -GetEffectiveUsers | Where-Object {(($_.Enabled -eq $True) -and ($roles -match $_.Role))} |`
         Select-Object Role, RoleAssigneeName, RoleAssigneeType, RoleAssignmentDelegationtype, User, CustomRecipientWriteScope, CustomConfigWriteScope, RecipientWriteScope, ConfigWriteScope, Identity |`
         export-csv "$ExportPath\RoleMembers_$ts.csv" -NoTypeInformation 
-    Write-Host "The list of user who have $roles assigned was exported to $ExportPath\RoleMembers_$ts.csv" -ForegroundColor Cyan
+    Write-Host "The list of user who have selected roles assigned was exported to $global:ExportPath\RoleMembers_$ts.csv"
     return $GetEffectiveUsers
 }
 
 Function Get-AllUsersWithAllRoles {
 
-    Get-ManagementRoleAssignment -GetEffectiveUsers -| Where-Object {($_.Enabled -eq $True)} |`
+    Get-ManagementRoleAssignment -GetEffectiveUsers | Where-Object {($_.Enabled -eq $True)} |`
          Select-Object Role, RoleAssigneeName, RoleAssigneeType, RoleAssignmentDelegationtype, User, CustomRecipientWriteScope, CustomConfigWriteScope, RecipientWriteScope, ConfigWriteScope, Identity |`
-         export-csv "$ExportPath\ManagementRoleAssignmentUsers_$ts.csv" -NoTypeInformation
-    Write-Host "Export all users with all the roles assigned to the file: $ExportPath\ManagementRoleAssignmentUsers_$ts.csv" -ForegroundColor Cyan
+         export-csv "$global:ExportPath\ManagementRoleAssignmentUsers_$ts.csv" -NoTypeInformation
+    Write-Host "Export all users with all the roles assigned to the file: $global:ExportPath\ManagementRoleAssignmentUsers_$ts.csv"
 }

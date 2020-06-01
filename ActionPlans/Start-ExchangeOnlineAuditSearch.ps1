@@ -31,6 +31,7 @@ Function Search-EXOAdminAudit {
     return $ParsedAuditLogs
 }
 
+Clear-Host
 $Workloads = "exo"
 Connect-O365PS $Workloads
 
@@ -41,7 +42,7 @@ write-log -Function "Connecting to O365 workloads" -Step $CurrentProperty -Descr
     
 $ts= get-date -Format yyyyMMdd_HHmmss
 $ExportPath = "$global:WSPath\ExchangeOnlineAudit_$ts"
-mkdir $ExportPath -Force
+mkdir $ExportPath -Force |Out-Null
 
 do
 {
@@ -55,10 +56,9 @@ Write-Host "Please imput the UPN for the user you want to search actions (or jus
 $Caller = Read-Host
 
 $AuditLogs = Search-EXOAdminAudit -DaysToSearch $DaysToSearch -CmdletsToSearch  $CmdletsToSearch -Caller $Caller
-$AuditLogs | Export-Csv "$ExportPath\ExchangeOnlineAudit_$ts.csv"
+$AuditLogs | Export-Csv "$ExportPath\ExchangeOnlineAudit_$ts.csv" -NoTypeInformation
 Write-Host "Exchange Online audit logs have been exported to: $ExportPath\ExchangeOnlineAudit_$ts.csv"
 Read-Key
 
 # Return to the main menu
-Clear-Host
 Start-O365TroubleshootersMenu

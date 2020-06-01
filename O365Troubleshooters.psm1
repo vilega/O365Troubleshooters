@@ -9,17 +9,17 @@
 
     # Credential Validation block
     $Global:CredentialValidation = { 
-            If ($Global:Error -ne $null) {
+            If (($null -ne $errordescr)-and ($null -ne $global:Error)) {
                 Write-Host "`nYou are NOT connected succesfully to $Global:banner. Please verify your credentials." -ForegroundColor Yellow
                 $CurrentDescription = "`""+$CurrentError+"`""
                 write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
-                &$Global:UserCredential
+                #&$Global:UserCredential
             }
     }
 
     # Displaying connection status
     $Global:DisplayConnect = {
-            If ($Global:Error -ne $null) {
+            If ($errordescr -ne $null) {
                 Write-Host "`nYou are NOT connected succesfully to $Global:banner" -ForegroundColor Red
                 write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description "You are NOT connected succesfully to $Global:banner"
                 Write-Host "`nThe script will now exit." -ForegroundColor Red
@@ -60,7 +60,7 @@ Function Request-Credential {
 Function Connect-O365PS { # Function to connecto to O365 services
 
     # Parameter request and validation
-    param ([ValidateSet("msol","exo","exo2","eop","sco","spo","sfb","AIPService")][Parameter(Mandatory=$true)] 
+    param ([ValidateSet("Msol","AzureAd","AzureAdPreview","Exo","ExoBasic","Exo2","Eop","Scc","AIPService","Spo","Sfb","Teams")][Parameter(Mandatory=$true)] 
             $O365Service 
     )
     $Try = 0
@@ -69,17 +69,67 @@ Function Connect-O365PS { # Function to connecto to O365 services
     
 #region Module Checks
     # $O365Service = "MSOL", "EXO" - Checking if the Azure Active Directory Module for Windows PowerShell (64-bit version) modules are installed on the machine
-    If ( $O365Service -match "MSOL") {
-            If ((get-module -ListAvailable -Name *MSOnline*).count -eq 0 ) {
-                $CurrentProperty = "CheckingMSOL Module"
-                Write-Host "`nAzure Active Directory Module for Windows PowerShell is not installed. Please go to 'https://technet.microsoft.com/en-us/library/jj151815.aspx' in order to install is and and after that re-run the script" -ForegroundColor Yellow
-                $CurrentDescription = "Azure Active Directory Module for Windows PowerShell is not installed. Please go to 'https://technet.microsoft.com/en-us/library/jj151815.aspx' in order to install is and and after that re-run the script"
-                Write-Host "`nNow the script will stop." -ForegroundColor Red
-                write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
-                Read-Host
-                Exit
+    If ( $O365Service -match "MSOL") 
+    {
+        $updateMSOL = $false
+        [version]$minimumVersion = "1.0.8070" 
+
+        If ((get-module -ListAvailable -Name MSOnline).count -eq 0 )
+        {
+            $updateMSOL = $true
+        }
+        else 
+        {
+            $updateMSOL = $true
+            foreach ($version in (get-module -ListAvailable -Name MSOnline).Version)
+            {
+                if ($version -ge $minimumVersion)
+                {
+                    $updateMSOL = $false
+                }
             }
+        }
+        if ($updateMSOL)
+        {
+            $CurrentProperty = "Checking MSOL Module"
+            Write-Host "`nMSOL Module for Windows PowerShell is not installed. Initiated install from PowerShell Gallery" -ForegroundColor Red
+            $CurrentDescription = "MSOL Module for Windows PowerShell is not installed or is less than required version $minimumVersion. Initiated install from PowerShell Gallery"
+            write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
+            Uninstall-Module MSOnline -Force -Confirm:$false -ErrorAction SilentlyContinue |Out-Null
+            Install-Module MSOnline -Force -Confirm:$false
+        }
     }
+
+    If ( $O365Service -match "AzureAD") 
+    {
+        $updateAzureAD = $false
+        [version]$minimumVersion = "2.0.0.131"
+
+        If ((get-module -ListAvailable -Name AzureAD).count -eq 0 )
+        {
+            $updateAzureAD = $True
+        }
+        else 
+        {
+            $updateAzureAD = $True
+            foreach ($version in (get-module -ListAvailable -Name AzureAD).Version)
+            {
+                if ($version -ge $minimumVersion)
+                {
+                    $updateAzureAD = $false
+                }
+            }
+        }
+        if ($updateAzureAD)
+            {
+                $CurrentProperty = "Checking AzureAD Module"
+                $CurrentDescription = "Azure AD Module for Windows PowerShell is not installed or version is less than $minimumVersion. Initiated install from PowerShell Gallery"
+                Write-Host "`n$CurrentDescription" -ForegroundColor Red
+                write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
+                Uninstall-Module AzureAD -Force -Confirm:$false -ErrorAction SilentlyContinue |Out-Null
+                Install-Module MSOnline -Force -Confirm:$false
+            }
+}
 
     # Checking if the Sharepoint Online PowerShell Module is installed on the machine
     If ( $O365Service -match "SPO") {
@@ -110,44 +160,71 @@ Function Connect-O365PS { # Function to connecto to O365 services
     If ( $O365Service -match "AIPService") {
         If ((Get-Module -ListAvailable -Name AIPService).count -eq 0) {
             $CurrentProperty = "Checking AIPService Module"
-            
-            Write-Host "AIPService needs to be updated or you have just updated without restarting the PC/laptop" -ForegroundColor Red
-            Write-Host "We will try to install the AIPService module" -ForegroundColor Cyan
-            Install-Module -Name AIPService -Force -Confirm:$false
-            Write-Host "Installed the AADRM module"
-            #Import-Module AIPService -Force
-
-            #TODO: check if AADRM Module was succesfully installed
-            <# 
-            $CurrentDescription = "Azure Active Directory Right Management PowerShell module is not installed. Please access 'https://www.microsoft.com/en-us/download/details.aspx?id=30339' in order to download and install the module"
-            Write-Host "`nNow the script will stop." -ForegroundColor Red
+            $CurrentDescription = "AIPService needs to be updated or you have just updated without restarting the PC/laptop. Script will install the AIPService module from PowerShel Gallery"
+            Write-Host "`n$CurrentDescription" -ForegroundColor Red
             write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
-            Read-Host
-            Exit
-            #>
+            Install-Module -Name AIPService -Force -Confirm:$false
+            Write-Host "Installed the AIPService module"
             #TODO: if AADRM module was installed, that needs to be uninstalled
-
+            #TODO: check if AADRM Module was succesfully installed
         }
     }
     
     if ( $O365Service -match "exo2") 
     {
-        If ((Get-Module -ListAvailable -Name ExchangeOnlineManagement).count -eq 0) 
+        if ((Get-Module -ListAvailable -Name ExchangeOnlineManagement).count -eq 0) 
         {
-            $CurrentProperty = "Checking AIPService Module"
-            write-host "ExchangeOnlineManagement module is not installed. We'll install it to support connectin to Exchange Online Module v2" -ForegroundColor Red
+            $CurrentProperty = "Checking ExchangeOnlineManagement v2 Module"
+            $CurrentDescription = "ExchangeOnlineManagement module is not installed. We'll install it to support connectin to Exchange Online Module v2"
+            write-host "`n$CurrentDescription" -ForegroundColor Red
+            write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
             Install-Module -Name ExchangeOnlineManagement -Force -Confirm:$false
         }
     }
-
+    if ( $O365Service -match "Exo") 
+    {
+        if ($null -eq ((Get-ChildItem -Path $($env:LOCALAPPDATA + "\Apps\2.0\") -Filter Microsoft.Exchange.Management.ExoPowershellModule.dll -Recurse).FullName | `
+            Where-Object { $_ -notmatch "_none_" })) 
+        {
+            Write-Host "You requested to connect to Exchange Online with MFA but you don't have Exchange Online Remote PowerShell Module installed" -ForegroundColor Red
+            Write-Host "Please check the article https://docs.microsoft.com/en-us/powershell/exchange/exchange-online/connect-to-exchange-online-powershell/mfa-connect-to-exchange-online-powershell?view=exchange-ps" -ForegroundColor Red
+            Write-Host  "The script will now exit" -ForegroundColor Red
+            Read-Key
+            Write-Log  -function Connect-O365PS -step "Connect to EXO with Modern & MFA" -Description "Required module is not installed."
+            Disconnect-All
+            Exit
+        }
+    }
    
     #$Global:proxy = Read-Host
-    Write-Host "`nAre you able to access Internet from this location without a Proxy?" -ForegroundColor Cyan
-    $Global:proxy = get-choice "Yes", "No"
+    if ($null -eq $Global:proxy)
+    {
+        Write-Host "`nAre you able to access Internet from this location without a Proxy?" -ForegroundColor Cyan
+        $Global:proxy = get-choice "Yes", "No"
+        $Global:PSsettings = New-PSSessionOption -SkipRevocationCheck 
+        if ($Global:proxy -eq "n") 
+        {
+                    $Global:PSsettings = New-PSSessionOption -ProxyAccessType IEConfig -SkipRevocationCheck 
+                    
+                    if ($PSVersionTable.PSVersion.Major -eq 7)
+                    {
+                        (Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings').proxyServer
     
-    $Global:PSsettings = New-PSSessionOption -SkipRevocationCheck 
-    if ($Global:proxy -eq "n") {
-                $Global:PSsettings = New-PSSessionOption -ProxyAccessType IEConfig -SkipRevocationCheck 
+                        #Write-Host "Please imput proxy server address (e.g.: http://proxy): " -ForegroundColor Cyan -NoNewline
+                        #$proxyServer = Read-Host
+                        #Write-Host "Please imput proxy server port: " -ForegroundColor Cyan -NoNewline
+                        #$proxyPort = Read-Host
+                        $proxyConnection = "http://"+(Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings').proxyServer
+    
+                    }
+                    else 
+                    {
+                        #It doesn't work in PowerShell7
+                        $proxyConnection = ([System.Net.WebProxy]::GetDefaultProxy()).Address.ToString()
+                    }
+                    Invoke-WebRequest -Proxy $proxyConnection  -ProxyUseDefaultCredentials https://provisioningapi.microsoftonline.com/provisioningwebservice.svc
+        }
+    
     }
 
 #endregion Module Checks
@@ -155,124 +232,133 @@ Function Connect-O365PS { # Function to connecto to O365 services
 #region Connection scripts region
   switch ($O365Service) {
     # Connect to AzureAD (MSOL) PowerShell
-    "MSOL" {
+    "MSOL" 
+    {
+        $CurrentProperty = "Connect MSOL"
+        Do {
+                # Defining the banner variable and clear the errors
                 $Global:Error.Clear();
-                Import-Module MSOnline ;
-                If ($null -eq $Global:O365Cred) {
-                        &$Global:UserCredential
+                $Global:banner = "MSOL PowerShell"
+                $errordescr = $null
+                $try++
+                try 
+                {
+                    $null = Get-MsolCompanyInformation -ErrorAction Stop
                 }
-                # The loop for re-entering credentials in case they are wrong and for re-connecting 
-                
-                $CurrentProperty = "Connect MSOL"
-                Do {
-                        # Defining the banner variable and clear the errors
-                        $Global:Error.Clear();
-                        $Global:banner = "Azure AD (MSOL) PowerShell"
-                        $try++
-                        # Creating the session for PS MSOL Service
-                        Connect-MsolService -Credential $O365Cred -ErrorVariable errordescr -ErrorAction SilentlyContinue  <### -ErrorAction SilentlyContinue  -> Update_Razvan: add this option at the end of each connection line after verifying that the function are ok #>
-                        $Global:Domain = get-msoldomain -ErrorAction SilentlyContinue | Where-Object {$_.name -like "*.onmicrosoft.com" } | Where-Object {$_.name -notlike "*mail.onmicrosoft.com"}  
-                        $CurrentError = $errordescr.exception.message <### Update_Razvan: verify every error message on every connection endpoint and changed it accordingly: $errordescr | fl * -Force #>
-                        # Connection Errors check (mostly for wrong credentials reasons)
-                        &$Global:CredentialValidation
+                catch 
+                {
+                    Write-Host "$CurrentProperty"
+                    if (!("MSOnline" -in (Get-Module).name))
+                    {
+                        Import-Module MSOnline -Global -DisableNameChecking  -ErrorAction SilentlyContinue
+                    }
+                    $errordescr = $null
+                    Connect-MsolService -ErrorVariable errordescr -ErrorAction SilentlyContinue 
+                    $Global:Domain = get-msoldomain -ErrorAction SilentlyContinue -ErrorVariable errordescr| Where-Object {$_.name -like "*.onmicrosoft.com" } | Where-Object {$_.name -notlike "*mail.onmicrosoft.com"} 
+                    $CurrentError = $errordescr.exception.message
                 }
-                while (($Try -le 2) -and ($null -ne $Global:Error))
-                &$Global:DisplayConnect
+                # Creating the session for PS MSOL Service
+                &$Global:CredentialValidation
+        }
+        while (($Try -le 2) -and ($null -ne $errordescr))
+        &$Global:DisplayConnect
     }
 
     # Connect to Exchange Online PowerShell
     "EXO"  {    
-                $Global:Error.Clear();
-
                 # The loop for re-entering credentials in case they are wrong and for re-connecting
                 $CurrentProperty = "Connect EXO"
                 
                 Do {
                         # Defining the banner variable and clear the errors
                         $Global:Error.Clear();
-                        $Global:banner = "Exchange Online PowerShell"
+                        $Global:banner = "Exchange Online PowerShell - Modern & MFA"
                         $try++
-                        
-                        Write-Host "`nDo you connect to Exchange Online with MFA?" -ForegroundColor Cyan
-                        $Global:mfa = get-choice "Yes", "No"
-                        if ($mfa -eq "y")
+
+                        try 
                         {
-                            "MFA"
-                            Write-Host "When you use the Exchange Online Remote PowerShell Module, your session will end after one hour, which can be problematic for long-running scripts or processes. To avoid this issue, use Trusted IPs to bypass MFA for connections from your intranet." -ForegroundColor Yellow
-                            if ($null -eq ((Get-ChildItem -Path $($env:LOCALAPPDATA + "\Apps\2.0\") -Filter Microsoft.Exchange.Management.ExoPowershellModule.dll -Recurse).FullName | `
-                                Where-Object { $_ -notmatch "_none_" })) 
-                            {
-                                Write-Host "You requested to connect to Exchange Online with MFA but you don't have Exchange Online Remote PowerShell Module installed" -ForegroundColor Red
-                                Write-Host "Please check the article https://docs.microsoft.com/en-us/powershell/exchange/exchange-online/connect-to-exchange-online-powershell/mfa-connect-to-exchange-online-powershell?view=exchange-ps" -ForegroundColor Red
-                                Read-Host "The script will now exit. Press any key then [Enter] to exit"
-                                Disconnect-All
-                                Exit
-                            }
-                            Import-Module $((Get-ChildItem -Path $($env:LOCALAPPDATA + "\Apps\2.0\") -Filter Microsoft.Exchange.Management.ExoPowershellModule.dll -Recurse).FullName | `
-                                Where-Object { $_ -notmatch "_none_" } | Select-Object -First 1)
-                            $EXOSession = New-ExoPSSession  -PSSessionOption $PSsettings -ErrorVariable errordescr -ErrorAction Stop
-                            $CurrentError = $errordescr.exception 
-                            Import-Module (Import-PSSession $EXOSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue
-                            $CurrentDescription = "Success"
+                            $null = Get-OrganizationConfig -ErrorAction Stop
                         }
-                        else 
+                        catch 
                         {
-                            "Without MFA"
-                            If ($null -eq $Global:O365Cred) {
-                                &$Global:UserCredential
-                        }
-                            try {
-
-                            $Global:EXOSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://outlook.office365.com/powershell-liveid/" -Credential $global:O365Cred -Authentication "Basic" -AllowRedirection -SessionOption $PSsettings -ErrorVariable errordescr -ErrorAction Stop 
-                            $CurrentError = $errordescr.exception  
-                            Import-Module (Import-PSSession $EXOSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue
-                            $CurrentDescription = "Success"
-                            $Global:Domain = Get-AcceptedDomain | Where-Object{$_.name -like "*.onmicrosoft.com" } | Where-Object {$_.name -notlike "*mail.onmicrosoft.com"}  
-        
-                            }
-                            catch 
+                            Write-Host "$CurrentProperty"
+                            if (!("icrosoft.Exchange.Management.ExoPowershellModule" -in (Get-Module).Name))
                             {
-                                $CurrentDescription = "`""+$CurrentError.ErrorRecord.Exception +"`""
-                            } 
+                                Import-Module $((Get-ChildItem -Path $($env:LOCALAPPDATA + "\Apps\2.0\") -Filter Microsoft.Exchange.Management.ExoPowershellModule.dll -Recurse).FullName | `
+                                    Where-Object { $_ -notmatch "_none_" } | Select-Object -First 1) -Global -DisableNameChecking -Force -ErrorAction SilentlyContinue
+                            }
+
+                            $errordescr = $null
+                            if (($null -eq $Global:EXOSession )-or ($Global:EXOSession.State -eq "Closed") -or ($Global:EXOSession.State -eq "Broken"))
+                            {
+                                $Global:EXOSession = New-ExoPSSession -UserPrincipalName $global:UserPrincipalName -PSSessionOption $PSsettings -ErrorVariable errordescr -ErrorAction Stop
+                                $CurrentError = $errordescr.exception 
+                                Import-Module (Import-PSSession $EXOSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue
+                                $null = Get-OrganizationConfig -ErrorAction SilentlyContinue -ErrorVariable errordescr
+                                $CurrentError = $errordescr.exception.message + $Global:Error[0]
+                            }
                         }
-                        write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
-
-                        #Creating EXO PS Session
-                        #$Global:EXOSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://outlook.office365.com/powershell-liveid/" -Credential $O365Cred -Authentication "Basic" -AllowRedirection -SessionOption $PSsettings -ErrorVariable errordescr -ErrorAction SilentlyContinue | Out-Null
-                        #$CurrentError = $errordescr.exception  
-                        #Import-Module (Import-PSSession $EXOSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue | out-null
-
-                        # Connection Errors check (mostly for wrong credentials reasons)
                         &$Global:CredentialValidation
                 }
                 while (($Try -le 2) -and ($Global:Error)) 
                 &$Global:DisplayConnect
     }
 
-    # Connect to EXO2
-    "EXO2"  {
-        $Global:Error.Clear();
+    # Connecto to EXO Basic Authentication (not recommended unless you want to test secifically BasicAuth)
+    "ExoBasic"
+    {
         If ($null -eq $Global:O365Cred) {
-                &$Global:UserCredential
+            &$Global:UserCredential
         }
-        # The loop for re-entering credentials in case they are wrong and for re-connecting
-        
-        $CurrentProperty = "Connect EXO2"
-        Do {
-                # Defining the banner variable and clear the errors
-                $Global:Error.Clear();
-                $Global:banner = "Exchange Online v2 PowerShell"
-                $try++
-                $CurrentError = $errordescr.exception
-                Import-Module ExchangeOnlineManagement -Global -DisableNameChecking  -ErrorAction SilentlyContinue
-                Connect-ExchangeOnline -Credential $global:O365Cred -PSSessionOption $PSsettings -ErrorVariable errordescr -ErrorAction Stop 
-                # Connection Errors check (mostly for wrong credentials reasons)
-                &$Global:CredentialValidation
+        try {
+
+        $Global:EXOSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://outlook.office365.com/powershell-liveid/" -Credential $global:O365Cred -Authentication "Basic" -AllowRedirection -SessionOption $PSsettings -ErrorVariable errordescr -ErrorAction Stop 
+        $CurrentError = $errordescr.exception  
+        Import-Module (Import-PSSession $EXOSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue
+        $CurrentDescription = "Success"
+        $Global:Domain = Get-AcceptedDomain | Where-Object{$_.name -like "*.onmicrosoft.com" } | Where-Object {$_.name -notlike "*mail.onmicrosoft.com"}  
+
+        }
+        catch 
+        {
+            $CurrentDescription = "`""+$CurrentError.ErrorRecord.Exception +"`""
+        } 
+        &$Global:DisplayConnect
     }
-    while (($Try -le 2) -and ($Global:Error)) 
-    
-    &$Global:DisplayConnect
-}
+    # Connect to EXO2
+    "EXO2"  
+    {
+
+        $CurrentProperty = "Connect EXOv2"
+        Do 
+        {
+            # Defining the banner variable and clear the errors
+            $Global:Error.Clear();
+            $Global:banner = "EXOv2 PowerShell"
+            $errordescr = $null
+            $try++
+            try 
+            {
+                $null = Get-EXOMailbox -ErrorAction Stop
+            }
+            catch 
+            {
+                Write-Host "$CurrentProperty"
+                if (!("ExchangeOnlineManagement" -in (Get-Module).name))
+                {
+                    Import-Module ExchangeOnlineManagement -Global -DisableNameChecking  -ErrorAction SilentlyContinue
+                }
+                $errordescr = $null
+                Connect-ExchangeOnline  -PSSessionOption $PSsettings -ErrorVariable errordescr -ErrorAction SilentlyContinue    
+                $null = get-EXOMailbox -ErrorVariable errordescr
+                $CurrentError = $errordescr.exception.message
+            }
+            # Creating the session for PS MSOL Service
+            &$Global:CredentialValidation
+            }
+            while (($Try -le 2) -and ($null -ne $errordescr))
+            &$Global:DisplayConnect
+        }
 
     # Connect to EOP
     "EOP"  {
@@ -430,54 +516,95 @@ Function Connect-O365PS { # Function to connecto to O365 services
 }
 
 Function Set-GlobalVariables {
- Clear-Host
- Write-Host 
- $global:FormatEnumerationLimit = -1
- $script:PSModule = $ExecutionContext.SessionState.Module
- $script:modulePath = $script:PSModule.ModuleBase
- $global:ts = Get-Date -Format yyyyMMdd_HHmmss
- $global:Path =[Environment]::GetFolderPath("Desktop")
- $Global:Path += "\PowerShellOutputs"
- $global:WSPath = "$Path\PowerShellOutputs_$ts"
- $global:starline = New-Object String '*',5
- #$Global:ExtractXML_XML = "Get-MigrationUserStatistics ", "Get-ImapSubscription "
- $global:Disclaimer ='Note: Before you run the script: 
+    Clear-Host
+    Write-Host 
+    $global:FormatEnumerationLimit = -1
+    $script:PSModule = $ExecutionContext.SessionState.Module
+    $script:modulePath = $script:PSModule.ModuleBase
+    $global:ts = Get-Date -Format yyyyMMdd_HHmmss
+    $global:Path =[Environment]::GetFolderPath("Desktop")
+    $Global:Path += "\PowerShellOutputs"
+    $global:WSPath = "$Path\PowerShellOutputs_$ts"
+    $global:starline = New-Object String '*',5
+    #$Global:ExtractXML_XML = "Get-MigrationUserStatistics ", "Get-ImapSubscription "
+    $global:Disclaimer ='Note: Before you run the script: 
 
-The sample scripts are not supported under any Microsoft standard support program or service. 
-The sample scripts are provided AS IS without warranty of any kind. Microsoft further disclaims 
-all implied warranties including, without limitation, any implied warranties of merchantability 
-or of fitness for a particular purpose. The entire risk arising out of the use or performance of 
-the sample scripts and documentation remains with you. In no event shall Microsoft, its authors, 
-or anyone else involved in the creation, production, or delivery of the scripts be liable for any 
-damages whatsoever (including, without limitation, damages for loss of business profits, business 
-interruption, loss of business information, or other pecuniary loss) arising out of the use of or 
-inability to use the sample scripts or documentation, even if Microsoft has been advised of the 
-possibility of such damages.
-'
-Write-Host $global:Disclaimer -ForegroundColor Red
-Start-Sleep -Seconds 3
- 
- if (!(Test-Path $Path)) 
- {
-    Write-Host "We are creating the following folder $Path"
-    New-Item -Path $Path -ItemType Directory -Confirm:$False |Out-Null
- }
+    The sample scripts are not supported under any Microsoft standard support program or service. 
+    The sample scripts are provided AS IS without warranty of any kind. Microsoft further disclaims 
+    all implied warranties including, without limitation, any implied warranties of merchantability 
+    or of fitness for a particular purpose. The entire risk arising out of the use or performance of 
+    the sample scripts and documentation remains with you. In no event shall Microsoft, its authors, 
+    or anyone else involved in the creation, production, or delivery of the scripts be liable for any 
+    damages whatsoever (including, without limitation, damages for loss of business profits, business 
+    interruption, loss of business information, or other pecuniary loss) arising out of the use of or 
+    inability to use the sample scripts or documentation, even if Microsoft has been advised of the 
+    possibility of such damages.
+    '
+    Write-Host $global:Disclaimer -ForegroundColor Red
+    Start-Sleep -Seconds 3
+    
+    if (!(Test-Path $Path)) 
+    {
+        Write-Host "We are creating the following folder $Path"
+        New-Item -Path $Path -ItemType Directory -Confirm:$False |Out-Null
+    }
 
- if (!(Test-Path $WSPath))
- {
-   Write-Host "We are creating the following folder $WSPath"
-   New-Item -Path $WSPath -ItemType Directory -Confirm:$False |Out-Null
- }
- 
- $global:outputFile = "$WSPath\Log_$ts.csv"
- $global:columnLabels = "Time, Function, Step, Description"
- Out-File -FilePath $outputFile -InputObject $columnLabels -Encoding UTF8 |Out-Null
+    if (!(Test-Path $WSPath))
+    {
+    Write-Host "We are creating the following folder $WSPath"
+    New-Item -Path $WSPath -ItemType Directory -Confirm:$False |Out-Null
+    }
+    
+    $global:outputFile = "$WSPath\Log_$ts.csv"
+    $global:columnLabels = "Time, Function, Step, Description"
+    Out-File -FilePath $outputFile -InputObject $columnLabels -Encoding UTF8 |Out-Null
 
- Set-Location $WSPath
- Write-Host "`n"
+    Set-Location $WSPath
+    Write-Host "`n"
+
+    if ($null -eq $global:userPrincipalName)
+    {
+        $global:userPrincipalName = Get-ValidEmailAddress("UserPrincipalName used to connect to Office 365 Services")
+        Write-Host "Please note that depening the Office 365 Services we need to connect, you might be asked to re-add the UserPrincipalName in another Authentication Form!" -ForegroundColor Yellow
+        Start-Sleep -Seconds 3
+    }
 }
 
+function Get-ValidEmailAddress([string]$EmailAddressType)
+{
+    [int]$count = 0
+    do
+    {
+        Write-Host "Enter Valid $EmailAddressType`: " -ForegroundColor Cyan -NoNewline
+        [string]$EmailAddress = Read-Host
+        [bool]$valid = ($EmailAddress -match "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,63}$")
+        $count++
+    }
+    while (!$valid -and ($count -le 2))
+    
+    if ($valid)
+    {
+        return $EmailAddress
+    }
+    else 
+    {
+        Write-Host "You imput 3 time invalid address, the script will close !" -ForegroundColor Red
+        Start-Sleep -Seconds 3
+        Write-Log -function "Get-ValidEmailAddress" -step "Imput address" -Description "After 3 times imput invalid address, the script will close"
+        Disconnect-AadrmService
+        exit
+    }   
+    
 
+    if($EmailAddress -match "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,63}$")
+    {
+        
+    }
+    else
+    {
+        Get-ValidEmailAddress($EmailAddressType)
+    }
+}
 Function New-XMLObject {
     param ( 
         $CmdletsNeeded
@@ -686,21 +813,31 @@ function Disconnect-All {
     $CurrentDescription = "Disconnect is successful!"
 
     try {
-            # Check and remove EXO session
-            if($Global:EXOSession){
-                Remove-PSSession $Global:EXOSession}
-                            
-            # Check and remove EOP session
-            if($Global:EOPSession){
-                Remove-PSSession $Global:EOPSession}
+            # Disconnect EXOv2
+            if (("ExchangeOnlineManagement" -in (Get-Module).name))
+            {
+                Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue
+            }
 
-            # Check and remove SCO session
-            if($Global:SCCSession){
-                Remove-PSSession $Global:SCOSession}
+            Get-PSSession | Remove-PSSession
+
+            # Check and remove EXO session
+            # if($Global:EXOSession)
+            # {
+            #     Remove-PSSession $Global:EXOSession 
+            # }
+                            
+            # # Check and remove EOP session
+            # if($Global:EOPSession){
+            #     Remove-PSSession $Global:EOPSession}
+
+            # # Check and remove SCO session
+            # if($Global:SCCSession){
+            #     Remove-PSSession $Global:SCOSession}
             
-            # Check and remove S4B session
-            if($global:sfboSession){
-                Remove-PSSession $global:sfboSession}
+            # # Check and remove S4B session
+            # if($global:sfboSession){
+            #     Remove-PSSession $global:sfboSession}
             
     }
 
@@ -767,8 +904,8 @@ Function Start-O365TroubleshootersMenu {
      
     Select a task by number or Q to quit
 "@
-
-Write-Host "My Menu" -ForegroundColor Cyan
+Clear-Host
+Write-Host "Main Menu" -ForegroundColor Cyan
 $r = Read-Host $menu
 
 Switch ($r) {
@@ -809,6 +946,7 @@ Switch ($r) {
     
     "9" {
         Write-Host "Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox" -ForegroundColor Green
+        Start-Sleep -Seconds 3
         . $script:modulePath\ActionPlans\Start-MailboxDiagnosticLogs.ps1
     }
      

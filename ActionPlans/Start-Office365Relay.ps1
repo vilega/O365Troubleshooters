@@ -18,19 +18,19 @@ Some built in features that can be used for AntiSpam testing:
 Validates Email Address via Regex
 #>
 
-function Get-ValidEmailAddress([string]$EmailAddressType)
-{
-    [string]$EmailAddress = Read-Host "Enter Valid $EmailAddressType"
+# function Get-ValidEmailAddress([string]$EmailAddressType)
+# {
+#     [string]$EmailAddress = Read-Host "Enter Valid $EmailAddressType"
 
-    if($EmailAddress -match "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,63}$")
-    {
-        return $EmailAddress
-    }
-    else
-    {
-        Get-ValidEmailAddress($EmailAddressType)
-    }
-}
+#     if($EmailAddress -match "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,63}$")
+#     {
+#         return $EmailAddress
+#     }
+#     else
+#     {
+#         Get-ValidEmailAddress($EmailAddressType)
+#     }
+# }
 
 <#
 Validates Domain via Regex
