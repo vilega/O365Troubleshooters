@@ -62,7 +62,7 @@ Write-Host "Please imput the UPN for the user you want to search actions (or jus
 $userIds = Read-Host
 
 $UnifiedAuditLogs = Search-UnifiedLog -DaysToSearch $DaysToSearch -OperationsToSearch  $Operations -userIds $userIds
-$UnifiedAuditLogs | Export-Csv "$ExportPath\ExchangeOnlineAudit_$ts.csv" -NoTypeInformation
+$UnifiedAuditLogs | Export-Csv "$ExportPath\UnifiedAudit_$ts.csv" -NoTypeInformation
 Write-Host "Exchange Online audit logs have been exported to: $ExportPath\ExchangeOnlineAudit_$ts.csv"
 Write-Host "To parse and use the generated audit logs, go to the article: https://docs.microsoft.com/en-us/microsoft-365/compliance/export-view-audit-log-records ."
 Read-Key

@@ -1,4 +1,4 @@
-# Required function to set Global Variables
+Clear-Host
 $encodedURL  = Read-Host("Please provide the ATP SafeLinks URL that you want to decode to original URL")
 
 try

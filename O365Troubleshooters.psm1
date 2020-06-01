@@ -833,8 +833,8 @@ Function Test-PSVers {
 function Start-Elevated {
     Write-Host "Starting new PowerShell Window with the O365Troubleshooters Module loaded"
     Read-Key
-    Start-Process powershell.exe -ArgumentList "-noexit -Command Install-Module O365Troubleshooters -force; Import-Module O365Troubleshooters;Start-O365Troubleshooters -elevatedExecution `$true" -Verb RunAs -Wait
-    Exit
+    Start-Process powershell.exe -ArgumentList "-noexit -Command Install-Module O365Troubleshooters -force; Import-Module O365Troubleshooters -force; Start-O365Troubleshooters -elevatedExecution `$true" -Verb RunAs -Wait
+    #Exit
 }
 
 function Disconnect-All {
@@ -901,38 +901,46 @@ Function Read-Key{
 
 Function    Start-O365Troubleshooters
 {
-    Set-GlobalVariables
-    Start-O365TroubleshootersMenu
-}
-
-Function Start-O365TroubleshootersMenu {
-    #[CmdletBinding()]
     param(
         [bool][Parameter(Mandatory=$false)] $elevatedExecution=$false
     )
+    if (!$elevatedExecution)
+    {
+        Start-Elevated
+    }
+    else 
+    {
+        Set-GlobalVariables
+        Start-O365TroubleshootersMenu
+    }
+}
+
+Function Start-O365TroubleshootersMenu {
     $menu=@"
     1  Encryption: Office Message Encryption General Troubleshooting
-    2  Security: Analyze compromise account/tenant
-    3  Mail Flow: SMTP Relay Test
-    4  Tools: Exchange Online Audit Search
-    5  Tools: Unified Logging Audit Search
-    6  Tools: Azure AD Audit Sign In Log Search
-    7  Tools: Find all users with a specific RBAC Role
-    8  Tools: Find all users with all RBAC Roles
-    9  Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox
-    10 Tools: Decode SafeLinks URL
-    11 Tools: Export Quarantine Messages
+    2  Mail Flow: SMTP Relay Test
+    3  Tools: Exchange Online Audit Search
+    4  Tools: Unified Logging Audit Search
+    5  Tools: Find all users with a specific RBAC Role
+    6  Tools: Find all users with all RBAC Roles
+    7  Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox
+    8  Tools: Decode SafeLinks URL
+    9  Tools: Export Quarantine Messages
     Q  Quit
      
     Select a task by number or Q to quit
 "@
 Clear-Host
-if ($elevatedExecution)
-{
-    Start-Elevated
-}
 Write-Host "Main Menu" -ForegroundColor Cyan
 $r = Read-Host $menu
+
+# Security: Analyze compromise account/tenant
+# Write-Host "Action Plan: Analyze compromise account/tenant" -ForegroundColor Green
+# . $script:modulePath\ActionPlans\Start-CompromisedInvestigation.ps1
+
+# Tools: Azure AD Audit Sign In Log Search
+# Write-Host "Tools: Azure AD Audit Sign In Log Search" -ForegroundColor Green
+# . $script:modulePath\ActionPlans\Start-AzureADAuditSignInLogSearch.ps1
 
 Switch ($r) {
     "1" {
@@ -941,56 +949,49 @@ Switch ($r) {
     }
      
     "2" {
-        Write-Host "Action Plan: Analyze compromise account/tenant" -ForegroundColor Green
-        . $script:modulePath\ActionPlans\Start-CompromisedInvestigation.ps1
-    }
-     
-    "3" {
         Write-Host "Action Plan: SMTP Relay Test" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-Office365Relay.ps1
     }
-    "4" {
+    "3" {
         Write-Host "Tools: Exchange Online Audit Search" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-ExchangeOnlineAuditSearch.ps1
     }
-    "5" {
+    "4" {
         Write-Host "Tools: Unified Logging Audit Search" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-UnifiedAuditLogSearch.ps1
     }
-    "6" {
-        Write-Host "Tools: Azure AD Audit Sign In Log Search" -ForegroundColor Green
-        . $script:modulePath\ActionPlans\Start-AzureADAuditSignInLogSearch.ps1
-    }
-    "7" {
+    "5" {
         Write-Host "Tools: Find all users with a specific RBAC Role" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-FindUserWithSpecificRbacRole.ps1
     }
-    "8" {
+    "6" {
         Write-Host "Tools: Find all users with all RBAC Role" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-AllUsersWithAllRoles.ps1
     }
     
-    "9" {
+    "7" {
         Write-Host "Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox" -ForegroundColor Green
         Start-Sleep -Seconds 3
         . $script:modulePath\ActionPlans\Start-MailboxDiagnosticLogs.ps1
     }
      
-    "10" {
+    "8" {
         Write-Host "Tools: Decode SafeLinks URL" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-DecodeSafeLinksURL.ps1
     }
 
-    "11" {
+    "9" {
         Write-Host "Tools: Export Quarantine Message" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Export-ExoQuarantineMessages.ps1
     }
 
     "Q" {
         Write-Host "Quitting" -ForegroundColor Green
+        Write-Host "All logs and files have been saved on $global:WSPath"
         Start-Sleep -Seconds 2
         Disconnect-all 
-        exit
+        #exit
+        [Environment]::Exit(1)
     }
      
     default {
