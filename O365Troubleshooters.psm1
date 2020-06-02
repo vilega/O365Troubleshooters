@@ -210,9 +210,9 @@ Function Connect-O365PS { # Function to connecto to O365 services
                     {
                         (Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings').proxyServer
     
-                        #Write-Host "Please imput proxy server address (e.g.: http://proxy): " -ForegroundColor Cyan -NoNewline
+                        #Write-Host "Please input proxy server address (e.g.: http://proxy): " -ForegroundColor Cyan -NoNewline
                         #$proxyServer = Read-Host
-                        #Write-Host "Please imput proxy server port: " -ForegroundColor Cyan -NoNewline
+                        #Write-Host "Please input proxy server port: " -ForegroundColor Cyan -NoNewline
                         #$proxyPort = Read-Host
                         $proxyConnection = "http://"+(Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings').proxyServer
     
@@ -611,14 +611,14 @@ function Get-ValidEmailAddress([string]$EmailAddressType)
     }
     else 
     {
-        Write-Host "You imput 3 time invalid address, the script will close !" -ForegroundColor Red
+        Write-Host "You input 3 time invalid address, the script will close !" -ForegroundColor Red
         Start-Sleep -Seconds 3
-        Write-Log -function "Get-ValidEmailAddress" -step "Imput address" -Description "After 3 times imput invalid address, the script will close"
-        Disconnect-AadrmService
+        Write-Log -function "Get-ValidEmailAddress" -step "input address" -Description "After 3 times input invalid address, the script will close"
+        Disconnect-AadrmService ##TODO - discuss why this is needed here
         exit
     }   
     
-
+<# Old recurse of the function - replaced by new version with counter.
     if($EmailAddress -match "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,63}$")
     {
         
@@ -627,6 +627,7 @@ function Get-ValidEmailAddress([string]$EmailAddressType)
     {
         Get-ValidEmailAddress($EmailAddressType)
     }
+#>
 }
 Function New-XMLObject {
     param ( 

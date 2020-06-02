@@ -38,19 +38,31 @@ Includes a Switch purely for future extention of the script
 #>
 function Get-ValidDomain([string]$DomainType)
 {
-    [string]$Domain = Read-Host "Enter Valid $DomainType Domain Name"
-
     switch($DomainType)
     {
         "Initial *.onmicrosoft.com"
         {
-            if($Domain -match "^[A-Z0-9]+.onmicrosoft.com$")
+            [int]$count = 0
+            do
+            {
+                Write-Host "Enter Valid $DomainType Domain Name: " -ForegroundColor Cyan -NoNewline
+                [string]$Domain = Read-Host
+                [bool]$valid = ($Domain -match "^[A-Z0-9]+.onmicrosoft.com$")
+                $count++
+            }
+            while (!$valid -and ($count -le 2))
+            
+            if ($valid)
             {
                 return $Domain
             }
-            else
+            else 
             {
-                Get-ValidDomain($DomainType)
+                Write-Host "3 invalid domain inputs received`r`n `
+You will be returned to the O365Troubleshooters Main Menu!" -ForegroundColor Red
+                Start-Sleep -Seconds 3
+                Write-Log -function "Get-ValidDomain" -step "input address" -Description "After 3 invalid domain inputs, sending user back to O365Troubleshooters Main Menu"
+                Exit-ScriptAndSaveLogs
             }
         }
 
@@ -720,7 +732,6 @@ Answer"
         {   
             $Credentials = Get-CashedOrFreshCredentials
             [string]$O365SendAs = Get-ValidEmailAddress("From Email Address")
-            #[string]$Recipients = Get-ValidEmailAddress("RcptTo Email Address")
             [string[]]$Office365RelayRecipients = Get-Office365RelayRecipients
             Send-ClientSubmission($Credentials)
         }
@@ -729,7 +740,6 @@ Answer"
         {
             [string]$O365RelaySmarthost = Find-O365RelaySmarthost
             [string]$O365SendAs = Get-ValidEmailAddress("From Email Address")
-            #[string]$Recipients = Get-ValidEmailAddress("RcptTo Email Address") 
             [string[]]$Office365RelayRecipients = Get-Office365RelayRecipients
             Send-SMTPRelay($O365RelaySmarthost)
         }
