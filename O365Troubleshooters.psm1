@@ -610,12 +610,13 @@ function Get-ValidEmailAddress([string]$EmailAddressType)
         return $EmailAddress
     }
     else 
-    {
-        Write-Host "You input 3 time invalid address, the script will close !" -ForegroundColor Red
+    {   
+        [string]$Description = "Received 3 invalid email address inputs, the script will return to O365Troubleshooters Main Menu"
+        Write-Host "`n$Description" -ForegroundColor Red
         Start-Sleep -Seconds 3
-        Write-Log -function "Get-ValidEmailAddress" -step "input address" -Description "After 3 times input invalid address, the script will close"
-        Disconnect-AadrmService ##TODO - discuss why this is needed here
-        exit
+        Write-Log -function "Get-ValidEmailAddress" -step "input address" -Description $Description
+        Read-Key
+        Start-O365TroubleshootersMenu
     }   
     
 <# Old recurse of the function - replaced by new version with counter.
