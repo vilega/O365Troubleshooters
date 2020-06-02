@@ -986,11 +986,12 @@ Function Start-O365TroubleshootersMenu {
     2  Mail Flow: SMTP Relay Test
     3  Tools: Exchange Online Audit Search
     4  Tools: Unified Logging Audit Search
-    5  Tools: Find all users with a specific RBAC Role
-    6  Tools: Find all users with all RBAC Roles
-    7  Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox
-    8  Tools: Decode SafeLinks URL
-    9  Tools: Export Quarantine Messages
+    5  Tools: Azure AD Audit Sign In Log Search
+    6  Tools: Find all users with a specific RBAC Role
+    7  Tools: Find all users with all RBAC Roles
+    8  Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox
+    9  Tools: Decode SafeLinks URL
+    10 Tools: Export Quarantine Messages
     Q  Quit
      
     Select a task by number or Q to quit
@@ -1002,10 +1003,6 @@ $r = Read-Host $menu
 # Security: Analyze compromise account/tenant
 # Write-Host "Action Plan: Analyze compromise account/tenant" -ForegroundColor Green
 # . $script:modulePath\ActionPlans\Start-CompromisedInvestigation.ps1
-
-# Tools: Azure AD Audit Sign In Log Search
-# Write-Host "Tools: Azure AD Audit Sign In Log Search" -ForegroundColor Green
-# . $script:modulePath\ActionPlans\Start-AzureADAuditSignInLogSearch.ps1
 
 Switch ($r) {
     "1" {
@@ -1026,26 +1023,30 @@ Switch ($r) {
         . $script:modulePath\ActionPlans\Start-UnifiedAuditLogSearch.ps1
     }
     "5" {
+        Write-Host "Tools: Azure AD Audit Sign In Log Search" -ForegroundColor Green
+        . $script:modulePath\ActionPlans\Start-AzureADAuditSignInLogSearch.ps1
+    }   
+    "6" {
         Write-Host "Tools: Find all users with a specific RBAC Role" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-FindUserWithSpecificRbacRole.ps1
     }
-    "6" {
+    "7" {
         Write-Host "Tools: Find all users with all RBAC Role" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-AllUsersWithAllRoles.ps1
     }
     
-    "7" {
+    "8" {
         Write-Host "Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox" -ForegroundColor Green
         Start-Sleep -Seconds 3
         . $script:modulePath\ActionPlans\Start-MailboxDiagnosticLogs.ps1
     }
      
-    "8" {
+    "9" {
         Write-Host "Tools: Decode SafeLinks URL" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-DecodeSafeLinksURL.ps1
     }
 
-    "9" {
+    "10" {
         Write-Host "Tools: Export Quarantine Message" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Export-ExoQuarantineMessages.ps1
     }

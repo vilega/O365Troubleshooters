@@ -1,35 +1,43 @@
 Function Search-AzureAdSignInAudit {
     param( 
         [int][Parameter(Mandatory=$true)] $DaysToSearch,
-        [string[]][Parameter(Mandatory=$false)] $CmdletsToSearch,
         [string][Parameter(Mandatory=$false)] $Upn)
     
-        $DaysToSearch=10
-        $Upn ="admin@vilega.onmicrosoft.com"
-        Get-AzureADAuditSignInLogs -Filter "userPrincipalName eq $Upn"
+        $startD = ((Get-Date).addDays(-$DaysToSearch)) 
+        $startDate = "$($startD.Year)-$($startD.Month)-$($startD.Day)"
+        $endD = Get-Date 
+        $endDate = "$($endD.Year)-$($endD.Month)-$($endD.Day)"
 
         if (!([string]::IsNullOrEmpty($userIds)))
         {
-            $UnifiedAuditLogs =Search-UnifiedAuditLog -StartDate (Get-Date).addDays(-$DaysToSearch) -EndDate (Get-Date) -Operations $OperationsToSearch -UserIds $userIds -SessionCommand ReturnLargeSet 
+            $filterAll = "createdDateTime ge $startDate and createdDateTime le $endDate"
+            $filterFail = "createdDateTime ge $startDate and createdDateTime le $endDate and status/errorCode ne 0"
+            $global:AzureAdSignInAll = Get-AzureADAuditSignInLogs -Filter $filterAll
+            $global:AzureAdSignInFail = Get-AzureADAuditSignInLogs -Filter $filterFail
         }
         else
         {
-            $UnifiedAuditLogs =Search-UnifiedAuditLog -StartDate (Get-Date).addDays(-$DaysToSearch) -EndDate (Get-Date) -Operations $OperationsToSearch  -SessionCommand ReturnLargeSet 
+            $filterAll = "userPrincipalName eq `'$Upn`' and createdDateTime ge $startDate and createdDateTime le $endDate"
+            $filterFail = "userPrincipalName eq `'$Upn`' and createdDateTime ge $startDate and createdDateTime le $endDate and status/errorCode ne 0"
+            $global:AzureAdSignInAll = Get-AzureADAuditSignInLogs -Filter $filterAll
+            $global:AzureAdSignInFail = Get-AzureADAuditSignInLogs -Filter $filterFail
         }
       
-        return AzureAdSignInAudit
 }
 
-$Workloads = "AzureAD"
+Clear-Host
+$Workloads = "AzureADPreview"
 Connect-O365PS $Workloads
-
 
 $CurrentProperty = "Connecting to: $Workloads"
 $CurrentDescription = "Success"
 write-log -Function "Connecting to O365 workloads" -Step $CurrentProperty -Description $CurrentDescription 
-    
+
+Write-Host "Retrieving sign in logs is based on a preview feature!" -ForegroundColor Yellow
+Start-Sleep -Seconds 3
+
 $ts= get-date -Format yyyyMMdd_HHmmss
-$ExportPath = "$global:WSPath\ExchangeOnlineAudit_$ts"
+$ExportPath = "$global:WSPath\AzureADSignInAudit_$ts"
 mkdir $ExportPath -Force
 
 do
@@ -38,28 +46,16 @@ do
     [int]$DaysToSearch= Read-Host
 } while ($DaysToSearch -gt 90)
 
-Write-Host "Please input cmdlets to search separated by comma (or just hit [Enter] to look for all cmdles): " -ForegroundColor Cyan -NoNewline
-$CmdletsToSearch = Read-Host
-Write-Host "Please input the UPN for the user you want to search actions (or just hit [Enter] to look for all users): " -ForegroundColor Cyan -NoNewline
-$Caller = Read-Host
 
-$AuditLogs = Search-EXOAdminAudit -DaysToSearch $DaysToSearch -CmdletsToSearch  $CmdletsToSearch -Caller $Caller
-$AuditLogs | Export-Csv "$ExportPath\ExchangeOnlineAudit_$ts.csv"
-Write-Host "Exchange Online audit logs have been exported to: $ExportPath\ExchangeOnlineAudit_$ts.csv"
+Write-Host "Please input the UPN for the user you want to search sign in logs (or just hit [Enter] to look for all users): " -ForegroundColor Cyan -NoNewline
+$Upn = Read-Host
+
+Search-AzureAdSignInAudit -DaysToSearch $DaysToSearch -Upn $Upn
+$global:AzureAdSignInAll | Export-Csv "$ExportPath\AllSignInAuditLogs_$ts.csv"
+$global:AzureAdSignInFail | Export-Csv "$ExportPath\FailSignInAuditLogs_$ts.csv"
+Write-Host "Azure AD sign in logs (all and fail) have been exported to: $ExportPath"
 Read-Key
 
 # Return to the main menu
 Clear-Host
 Start-O365TroubleshootersMenu
-
-
-$MFAExchangeModule = ((Get-ChildItem -Path $($env:LOCALAPPDATA+"\Apps\2.0\") -Filter CreateExoPSSession.ps1 -Recurse ).FullName | Select-Object -Last 1)
-. "$MFAExchangeModule" |Out-Null
-Connect-EXOPSSession -userprincipalname "admin@vilega.onmicrosoft.com"
-
-
-Import-Module $((Get-ChildItem -Path $($env:LOCALAPPDATA + "\Apps\2.0\") -Filter Microsoft.Exchange.Management.ExoPowershellModule.dll -Recurse).FullName |`
-where { $_ -notmatch "_none_" } | select -First 1)
-
-$EXOSession = New-ExoPSSession -UserPrincipalName $UPN
-Import-PSSession $EXOSession -AllowClobber |out-null
