@@ -255,7 +255,10 @@ Function Connect-O365PS { # Function to connecto to O365 services
                     }
                     $errordescr = $null
                     Connect-MsolService -ErrorVariable errordescr -ErrorAction SilentlyContinue 
-                    $Global:Domain = (get-msoldomain -ErrorAction SilentlyContinue -ErrorVariable errordescr| Where-Object {$_.name -like "*.onmicrosoft.com" } | Where-Object {$_.name -notlike "*mail.onmicrosoft.com"}).Name
+                    if ($null -eq $Global:Domain)
+                    {
+                        $Global:Domain = (get-msoldomain -ErrorAction SilentlyContinue -ErrorVariable errordescr| Where-Object {$_.name -like "*.onmicrosoft.com" } | Where-Object {$_.name -notlike "*mail.onmicrosoft.com"}).Name
+                    }
                     $CurrentError = $errordescr.exception.message
                 }
                 # Creating the session for PS MSOL Service
@@ -285,8 +288,11 @@ Function Connect-O365PS { # Function to connecto to O365 services
                         Import-Module AzureAD -Global -DisableNameChecking  -ErrorAction SilentlyContinue
                     }
                     $errordescr = $null
-                    Connect-MsolService -ErrorVariable errordescr -ErrorAction SilentlyContinue 
-                    $Global:Domain = (Get-AzureADDomain -ErrorAction SilentlyContinue -ErrorVariable errordescr| Where-Object {$_.name -like "*.onmicrosoft.com" } | Where-Object {$_.name -notlike "*mail.onmicrosoft.com"}).Name
+                    Connect-AzureAd -ErrorVariable errordescr -ErrorAction SilentlyContinue 
+                    if ($null -eq $Global:Domain)
+                    {
+                        $Global:Domain = (Get-AzureADDomain -ErrorAction SilentlyContinue -ErrorVariable errordescr| Where-Object {$_.name -like "*.onmicrosoft.com" } | Where-Object {$_.name -notlike "*mail.onmicrosoft.com"}).Name
+                    }
                     $CurrentError = $errordescr.exception.message
                 }
                 # Creating the session for PS MSOL Service
@@ -296,6 +302,39 @@ Function Connect-O365PS { # Function to connecto to O365 services
         &$Global:DisplayConnect
     }
 
+    "AzureADPreview" {
+        $CurrentProperty = "Connect AzureADPreview"
+        Do {
+                # Defining the banner variable and clear the errors
+                $Global:Error.Clear();
+                $Global:banner = "AzureADPreview PowerShell"
+                $errordescr = $null
+                $try++
+                try 
+                {
+                    $null = AzureADPreview\Get-AzureADTenantDetail -ErrorAction Stop
+                }
+                catch 
+                {
+                    Write-Host "$CurrentProperty"
+                    if (!("AzureADPreview" -in (Get-Module).name))
+                    {
+                        Import-Module AzureADPreview -Global -DisableNameChecking  -ErrorAction SilentlyContinue
+                    }
+                    $errordescr = $null
+                    Connect-AzureADPreview -ErrorVariable errordescr -ErrorAction SilentlyContinue 
+                    if ($null -eq $Global:Domain)
+                    {
+                        $Global:Domain = (AzureADPreview\Get-AzureADDomain -ErrorAction SilentlyContinue -ErrorVariable errordescr| Where-Object {$_.name -like "*.onmicrosoft.com" } | Where-Object {$_.name -notlike "*mail.onmicrosoft.com"}).Name
+                    }
+                    $CurrentError = $errordescr.exception.message
+                }
+                # Creating the session for PS MSOL Service
+                &$Global:CredentialValidation
+        }
+        while (($Try -le 2) -and ($null -ne $errordescr))
+        &$Global:DisplayConnect
+    }
     # Connect to Exchange Online PowerShell
     "EXO" {    
         # The loop for re-entering credentials in case they are wrong and for re-connecting
