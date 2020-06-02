@@ -69,8 +69,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
     
 #region Module Checks
     # $O365Service = "MSOL", "EXO" - Checking if the Azure Active Directory Module for Windows PowerShell (64-bit version) modules are installed on the machine
-    If ( $O365Service -match "MSOL") 
-    {
+    If ( $O365Service -eq "MSOL") {
         $updateMSOL = $false
         [version]$minimumVersion = "1.0.8070" 
 
@@ -100,8 +99,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
         }
     }
 
-    If ( $O365Service -match "AzureAD") 
-    {
+    If ( $O365Service -eq "AzureAD") {
         $updateAzureAD = $false
         [version]$minimumVersion = "2.0.0.131"
 
@@ -121,18 +119,17 @@ Function Connect-O365PS { # Function to connecto to O365 services
             }
         }
         if ($updateAzureAD)
-            {
-                $CurrentProperty = "Checking AzureAD Module"
-                $CurrentDescription = "Azure AD Module for Windows PowerShell is not installed or version is less than $minimumVersion. Initiated install from PowerShell Gallery"
-                Write-Host "`n$CurrentDescription" -ForegroundColor Red
-                write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
-                Uninstall-Module AzureAD -Force -Confirm:$false -ErrorAction SilentlyContinue |Out-Null
-                Install-Module MSOnline -Force -Confirm:$false
-            }
-}
-
+        {
+            $CurrentProperty = "Checking AzureAD Module"
+            $CurrentDescription = "Azure AD Module for Windows PowerShell is not installed or version is less than $minimumVersion. Initiated install from PowerShell Gallery"
+            Write-Host "`n$CurrentDescription" -ForegroundColor Red
+            write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
+            Uninstall-Module AzureAD -Force -Confirm:$false -ErrorAction SilentlyContinue |Out-Null
+            Install-Module AzureAD -Force -Confirm:$false
+        }
+    }
     # Checking if the Sharepoint Online PowerShell Module is installed on the machine
-    If ( $O365Service -match "SPO") {
+    If ( $O365Service -eq "SPO") {
             If ((Get-Module -ListAvailable -Name Microsoft.Online.SharePoint.PowerShell).count -eq 0) {
                 $CurrentProperty = "CheckingSPO Module"
                 Write-Host "`nSharePoint Online Management Shell module is not installed. Please access 'https://www.microsoft.com/en-us/download/details.aspx?id=35588' in order to download and install the module" -ForegroundColor Yellow
@@ -145,7 +142,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
     }
 
     # Checking if the Skype for Business Online, Windows PowerShell Module is installed on the machine
-    If ( $O365Service -match "SFB") {
+    If ( $O365Service -eq "SFB") {
             If ((Get-Module -ListAvailable -Name LyncOnlineConnector).count -eq 0) {
                 $CurrentProperty = "CheckingSFB Module"
                 Write-Host "`nSkype for Business Online, Windows PowerShell module is not installed. Please access 'https://www.microsoft.com/en-us/download/details.aspx?id=39366' in order to download and install the module" -ForegroundColor Yellow
@@ -157,7 +154,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
             } 
     }
 
-    If ( $O365Service -match "AIPService") {
+    If ( $O365Service -eq "AIPService") {
         If ((Get-Module -ListAvailable -Name AIPService).count -eq 0) {
             $CurrentProperty = "Checking AIPService Module"
             $CurrentDescription = "AIPService needs to be updated or you have just updated without restarting the PC/laptop. Script will install the AIPService module from PowerShel Gallery"
@@ -170,8 +167,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
         }
     }
     
-    if ( $O365Service -match "exo2") 
-    {
+    if ( $O365Service -eq "exo2") {
         if ((Get-Module -ListAvailable -Name ExchangeOnlineManagement).count -eq 0) 
         {
             $CurrentProperty = "Checking ExchangeOnlineManagement v2 Module"
@@ -181,8 +177,8 @@ Function Connect-O365PS { # Function to connecto to O365 services
             Install-Module -Name ExchangeOnlineManagement -Force -Confirm:$false
         }
     }
-    if ( $O365Service -match "Exo") 
-    {
+
+    if ( $O365Service -eq "Exo") {
         if ($null -eq ((Get-ChildItem -Path $($env:LOCALAPPDATA + "\Apps\2.0\") -Filter Microsoft.Exchange.Management.ExoPowershellModule.dll -Recurse).FullName | `
             Where-Object { $_ -notmatch "_none_" })) 
         {
@@ -197,32 +193,29 @@ Function Connect-O365PS { # Function to connecto to O365 services
     }
    
     #$Global:proxy = Read-Host
-    if ($null -eq $Global:proxy)
-    {
+    if ($null -eq $Global:proxy) {
         Write-Host "`nAre you able to access Internet from this location without a Proxy?" -ForegroundColor Cyan
         $Global:proxy = get-choice "Yes", "No"
         $Global:PSsettings = New-PSSessionOption -SkipRevocationCheck 
-        if ($Global:proxy -eq "n") 
-        {
-                    $Global:PSsettings = New-PSSessionOption -ProxyAccessType IEConfig -SkipRevocationCheck 
-                    
-                    if ($PSVersionTable.PSVersion.Major -eq 7)
-                    {
-                        (Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings').proxyServer
-    
-                        #Write-Host "Please input proxy server address (e.g.: http://proxy): " -ForegroundColor Cyan -NoNewline
-                        #$proxyServer = Read-Host
-                        #Write-Host "Please input proxy server port: " -ForegroundColor Cyan -NoNewline
-                        #$proxyPort = Read-Host
-                        $proxyConnection = "http://"+(Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings').proxyServer
-    
-                    }
-                    else 
-                    {
-                        #It doesn't work in PowerShell7
-                        $proxyConnection = ([System.Net.WebProxy]::GetDefaultProxy()).Address.ToString()
-                    }
-                    Invoke-WebRequest -Proxy $proxyConnection  -ProxyUseDefaultCredentials https://provisioningapi.microsoftonline.com/provisioningwebservice.svc
+        if ($Global:proxy -eq "n") {
+            $Global:PSsettings = New-PSSessionOption -ProxyAccessType IEConfig -SkipRevocationCheck 
+            
+            if ($PSVersionTable.PSVersion.Major -eq 7) {
+                (Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings').proxyServer
+
+                #Write-Host "Please input proxy server address (e.g.: http://proxy): " -ForegroundColor Cyan -NoNewline
+                #$proxyServer = Read-Host
+                #Write-Host "Please input proxy server port: " -ForegroundColor Cyan -NoNewline
+                #$proxyPort = Read-Host
+                $proxyConnection = "http://"+(Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings').proxyServer
+
+            }
+
+            else {
+                #It doesn't work in PowerShell7
+                $proxyConnection = ([System.Net.WebProxy]::GetDefaultProxy()).Address.ToString()
+            }
+            Invoke-WebRequest -Proxy $proxyConnection  -ProxyUseDefaultCredentials https://provisioningapi.microsoftonline.com/provisioningwebservice.svc
         }
     
     }
@@ -232,8 +225,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
 #region Connection scripts region
   switch ($O365Service) {
     # Connect to AzureAD (MSOL) PowerShell
-    "MSOL" 
-    {
+    "MSOL" {
         $CurrentProperty = "Connect MSOL"
         Do {
                 # Defining the banner variable and clear the errors
@@ -265,48 +257,47 @@ Function Connect-O365PS { # Function to connecto to O365 services
     }
 
     # Connect to Exchange Online PowerShell
-    "EXO"  {    
-                # The loop for re-entering credentials in case they are wrong and for re-connecting
-                $CurrentProperty = "Connect EXO"
-                
-                Do {
-                        # Defining the banner variable and clear the errors
-                        $Global:Error.Clear();
-                        $Global:banner = "Exchange Online PowerShell - Modern & MFA"
-                        $try++
+    "EXO" {    
+        # The loop for re-entering credentials in case they are wrong and for re-connecting
+        $CurrentProperty = "Connect EXO"
+        
+        Do {
+            # Defining the banner variable and clear the errors
+            $Global:Error.Clear();
+            $Global:banner = "Exchange Online PowerShell - Modern & MFA"
+            $try++
 
-                        try 
-                        {
-                            $null = Get-OrganizationConfig -ErrorAction Stop
-                        }
-                        catch 
-                        {
-                            Write-Host "$CurrentProperty"
-                            if (!("Microsoft.Exchange.Management.ExoPowershellModule" -in (Get-Module).Name))
-                            {
-                                Import-Module $((Get-ChildItem -Path $($env:LOCALAPPDATA + "\Apps\2.0\") -Filter Microsoft.Exchange.Management.ExoPowershellModule.dll -Recurse).FullName | `
-                                    Where-Object { $_ -notmatch "_none_" } | Select-Object -First 1) -Global -DisableNameChecking -Force -ErrorAction SilentlyContinue
-                            }
-
-                            $errordescr = $null
-                            if (($null -eq $Global:EXOSession )-or ($Global:EXOSession.State -eq "Closed") -or ($Global:EXOSession.State -eq "Broken"))
-                            {
-                                $Global:EXOSession = New-ExoPSSession -UserPrincipalName $global:UserPrincipalName -PSSessionOption $PSsettings -ErrorVariable errordescr -ErrorAction Stop
-                                $CurrentError = $errordescr.exception 
-                                Import-Module (Import-PSSession $EXOSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue
-                                $null = Get-OrganizationConfig -ErrorAction SilentlyContinue -ErrorVariable errordescr
-                                $CurrentError = $errordescr.exception.message + $Global:Error[0]
-                            }
-                        }
-                        &$Global:CredentialValidation
+            try 
+            {
+                $null = Get-OrganizationConfig -ErrorAction Stop
+            }
+            catch 
+            {
+                Write-Host "$CurrentProperty"
+                if (!("Microsoft.Exchange.Management.ExoPowershellModule" -in (Get-Module).Name))
+                {
+                    Import-Module $((Get-ChildItem -Path $($env:LOCALAPPDATA + "\Apps\2.0\") -Filter Microsoft.Exchange.Management.ExoPowershellModule.dll -Recurse).FullName | `
+                        Where-Object { $_ -notmatch "_none_" } | Select-Object -First 1) -Global -DisableNameChecking -Force -ErrorAction SilentlyContinue
                 }
-                while (($Try -le 2) -and ($Global:Error)) 
-                &$Global:DisplayConnect
+
+                $errordescr = $null
+                if (($null -eq $Global:EXOSession )-or ($Global:EXOSession.State -eq "Closed") -or ($Global:EXOSession.State -eq "Broken"))
+                {
+                    $Global:EXOSession = New-ExoPSSession -UserPrincipalName $global:UserPrincipalName -PSSessionOption $PSsettings -ErrorVariable errordescr -ErrorAction Stop
+                    $CurrentError = $errordescr.exception 
+                    Import-Module (Import-PSSession $EXOSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue
+                    $null = Get-OrganizationConfig -ErrorAction SilentlyContinue -ErrorVariable errordescr
+                    $CurrentError = $errordescr.exception.message + $Global:Error[0]
+                }
+            }
+            &$Global:CredentialValidation
+        }
+        while (($Try -le 2) -and ($Global:Error)) 
+        &$Global:DisplayConnect
     }
 
     # Connecto to EXO Basic Authentication (not recommended unless you want to test secifically BasicAuth)
-    "ExoBasic"
-    {
+    "ExoBasic" {
         If ($null -eq $Global:O365Cred) {
             &$Global:UserCredential
         }
@@ -326,8 +317,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
         &$Global:DisplayConnect
     }
     # Connect to EXO2
-    "EXO2"  
-    {
+    "EXO2" {
 
         $CurrentProperty = "Connect EXOv2"
         Do 
@@ -358,10 +348,10 @@ Function Connect-O365PS { # Function to connecto to O365 services
             }
             while (($Try -le 2) -and ($null -ne $errordescr))
             &$Global:DisplayConnect
-        }
+    }
 
     # Connect to EOP
-    "EOP"  {
+    "EOP" {
                 $Global:Error.Clear();
                 If ($null -eq $Global:O365Cred) {
                         &$Global:UserCredential
@@ -388,91 +378,85 @@ Function Connect-O365PS { # Function to connecto to O365 services
     }
 
     # Connect to Compliance Center Online
-    "SCC"  {
+    "SCC" {
 # The loop for re-entering credentials in case they are wrong and for re-connecting
-$CurrentProperty = "Connect Security&Compliance"
+        $CurrentProperty = "Connect Security&Compliance"
                 
-Do {
-        # Defining the banner variable and clear the errors
-        $Global:Error.Clear();
-        $Global:banner = "Security&Compliance Online PowerShell - Modern & MFA"
-        $try++
+        Do {
+            # Defining the banner variable and clear the errors
+            $Global:Error.Clear();
+            $Global:banner = "Security&Compliance Online PowerShell - Modern & MFA"
+            $try++
 
-        try 
-        {
-            $null = Get-ccLabel -ErrorAction Stop
-        }
-        catch 
-        {
-            Write-Host "$CurrentProperty"
-            if (!("Microsoft.Exchange.Management.ExoPowershellModule" -in (Get-Module).Name))
+            try 
             {
-                Import-Module $((Get-ChildItem -Path $($env:LOCALAPPDATA + "\Apps\2.0\") -Filter Microsoft.Exchange.Management.ExoPowershellModule.dll -Recurse).FullName | `
-                    Where-Object { $_ -notmatch "_none_" } | Select-Object -First 1) -Global -DisableNameChecking -Force -ErrorAction SilentlyContinue
+                $null = Get-ccLabel -ErrorAction Stop
             }
+            catch 
+            {
+                Write-Host "$CurrentProperty"
+                if (!("Microsoft.Exchange.Management.ExoPowershellModule" -in (Get-Module).Name))
+                {
+                    Import-Module $((Get-ChildItem -Path $($env:LOCALAPPDATA + "\Apps\2.0\") -Filter Microsoft.Exchange.Management.ExoPowershellModule.dll -Recurse).FullName | `
+                        Where-Object { $_ -notmatch "_none_" } | Select-Object -First 1) -Global -DisableNameChecking -Force -ErrorAction SilentlyContinue
+                }
 
-            $errordescr = $null
-            if (($null -eq $Global:IPPSession )-or ($Global:IPPSession.State -eq "Closed") -or ($Global:IPPSession.State -eq "Broken"))
-            {
-                $Global:IPPSession = New-ExoPSSession -UserPrincipalName $global:UserPrincipalName -ConnectionUri 'https://ps.compliance.protection.outlook.com/PowerShell-LiveId' `
-                -PSSessionOption $PSsettings -ErrorVariable errordescr -ErrorAction Stop
-                $CurrentError = $errordescr.exception 
-                Import-Module (Import-PSSession $IPPSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue -Prefix cc
-                $null = Get-ccLabel -ErrorAction SilentlyContinue -ErrorVariable errordescr
-                $CurrentError = $errordescr.exception.message + $Global:Error[0]
+                $errordescr = $null
+                if (($null -eq $Global:IPPSession )-or ($Global:IPPSession.State -eq "Closed") -or ($Global:IPPSession.State -eq "Broken"))
+                {
+                    $Global:IPPSession = New-ExoPSSession -UserPrincipalName $global:UserPrincipalName -ConnectionUri 'https://ps.compliance.protection.outlook.com/PowerShell-LiveId' `
+                    -PSSessionOption $PSsettings -ErrorVariable errordescr -ErrorAction Stop
+                    $CurrentError = $errordescr.exception 
+                    Import-Module (Import-PSSession $IPPSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue -Prefix cc
+                    $null = Get-ccLabel -ErrorAction SilentlyContinue -ErrorVariable errordescr
+                    $CurrentError = $errordescr.exception.message + $Global:Error[0]
+                }
             }
+            &$Global:CredentialValidation
         }
-        &$Global:CredentialValidation
-}
-while (($Try -le 2) -and ($Global:Error)) 
-&$Global:DisplayConnect
+        while (($Try -le 2) -and ($Global:Error)) 
+        &$Global:DisplayConnect
     }
     
     #Connect to SharePoint Online PowerShell
     "SPO" {
-                $Global:Error.Clear();
-                Import-Module MSOnline ;
-                If ($null -eq $Global:O365Cred) {
-                        &$Global:UserCredential
+        $Global:Error.Clear();
+        Import-Module MSOnline ;
+        If ($null -eq $Global:O365Cred) {
+                &$Global:UserCredential
+        }
+        # The loop for re-entering credentials in case they are wrong and for re-connecting
+        $CurrentProperty = "Connect SPO"
+        
+        Do {
+                #### Update_Razvan (conditie pentru admin care nu foloseste onmicrosoft.com si verificare conectare MSOL pentru a lua domeniul)
+            If ($O365Cred.UserName -like "*.onmicrosoft.com") {
+                If ($O365Cred.UserName -like "*.mail.onmicrosoft.com") {
+                    $DomainHost = (($O365Cred.UserName -split ".mail.onmicrosoft.com")[0].Substring(0) -split "@")[1].Substring(0)
+                    &$Global:SPOConnectBlock
                 }
-                # The loop for re-entering credentials in case they are wrong and for re-connecting
-                $CurrentProperty = "Connect SPO"
-                
-                Do {
-                        #### Update_Razvan (conditie pentru admin care nu foloseste onmicrosoft.com si verificare conectare MSOL pentru a lua domeniul)
-               If ($O365Cred.UserName -like "*.onmicrosoft.com")
-                            {
-                            If ($O365Cred.UserName -like "*.mail.onmicrosoft.com")
-                                    {
-                                    $DomainHost = (($O365Cred.UserName -split ".mail.onmicrosoft.com")[0].Substring(0) -split "@")[1].Substring(0)
-                                    &$Global:SPOConnectBlock
-                                    }
-                            $DomainHost = (($O365Cred.UserName -split ".onmicrosoft.com")[0].Substring(0) -split "@")[1].Substring(0)
-                            &$Global:SPOConnectBlock
-               }
-               Else {
-               
+            $DomainHost = (($O365Cred.UserName -split ".onmicrosoft.com")[0].Substring(0) -split "@")[1].Substring(0)
+            &$Global:SPOConnectBlock
+            }
 
+            Else {
                 If ($null -ne $domain) {
-                        # Substract the domain host name out of the tenant name
-                        $DomainHost = ($domain.name -split ".onmicrosoft.com") 
-                        &$Global:SPOConnectBlock
-                                         }
-                        Else {
-                        $Global:Error.Clear();
-                        $Global:banner = "SharePoint Online PowerShell"
-                        $try++
-                        $URL= read-host "Please Input the connection URL (i.e.: https://Tenant_Domain-admin.sharepoint.com/)"
-                        Connect-SPOService -Url $URL -credential $O365Cred -ErrorVariable errordescr -ErrorAction SilentlyContinue
-                        &$Global:CredentialValidation
-                       }
-                       }
-                    
-                        
-                 
+                    # Substract the domain host name out of the tenant name
+                    $DomainHost = ($domain.name -split ".onmicrosoft.com") 
+                    &$Global:SPOConnectBlock
                 }
-                while (($Try -le 2) -and ($null -ne $Global:Error)) 
-                &$Global:DisplayConnect                     
+                Else {
+                    $Global:Error.Clear();
+                    $Global:banner = "SharePoint Online PowerShell"
+                    $try++
+                    $URL= read-host "Please Input the connection URL (i.e.: https://Tenant_Domain-admin.sharepoint.com/)"
+                    Connect-SPOService -Url $URL -credential $O365Cred -ErrorVariable errordescr -ErrorAction SilentlyContinue
+                    &$Global:CredentialValidation
+                }
+            }
+        }
+        while (($Try -le 2) -and ($null -ne $Global:Error)) 
+        &$Global:DisplayConnect                     
     }
 
     # Connect to Skype Online PowerShell
@@ -504,8 +488,7 @@ while (($Try -le 2) -and ($Global:Error))
     }
 
     # Connect to AIPService PowerShell
-    "AIPService" 
-    {
+    "AIPService" {
         do
         {
             $Global:Error.Clear();
@@ -535,8 +518,9 @@ while (($Try -le 2) -and ($Global:Error))
         &$Global:DisplayConnect
     }
   }
-#endregion Connection scripts region
 }
+#endregion Connection scripts region
+
 
 Function Set-GlobalVariables {
     Clear-Host

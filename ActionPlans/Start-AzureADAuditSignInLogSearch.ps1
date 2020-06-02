@@ -20,7 +20,7 @@ Function Search-AzureAdSignInAudit {
         return AzureAdSignInAudit
 }
 
-$Workloads = "AzureADPreview"
+$Workloads = "AzureAD"
 Connect-O365PS $Workloads
 
 
