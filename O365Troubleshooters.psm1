@@ -95,7 +95,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
             $CurrentDescription = "MSOL Module for Windows PowerShell is not installed or is less than required version $minimumVersion. Initiated install from PowerShell Gallery"
             write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
             Uninstall-Module MSOnline -Force -Confirm:$false -ErrorAction SilentlyContinue |Out-Null
-            Install-Module MSOnline -Force -Confirm:$false
+            Install-Module MSOnline -Force -Confirm:$false -AllowClobber
         }
     }
 
@@ -125,7 +125,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
             Write-Host "`n$CurrentDescription" -ForegroundColor Red
             write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
             #Uninstall-Module AzureAD -Force -Confirm:$false -ErrorAction SilentlyContinue |Out-Null
-            Install-Module AzureAD -Force -Confirm:$false
+            Install-Module AzureAD -Force -Confirm:$false -AllowClobber
         }
     }
 
@@ -155,7 +155,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
             Write-Host "`n$CurrentDescription" -ForegroundColor Red
             write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
             #Uninstall-Module AzureADPreview -Force -Confirm:$false -ErrorAction SilentlyContinue |Out-Null
-            Install-Module AzureADPreview -Force -Confirm:$false
+            Install-Module AzureADPreview -Force -Confirm:$false -AllowClobber
         }
     }
 
@@ -165,7 +165,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
             $CurrentDescription = "AIPService needs to be updated or you have just updated without restarting the PC/laptop. Script will install the AIPService module from PowerShel Gallery"
             Write-Host "`n$CurrentDescription" -ForegroundColor Red
             write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
-            Install-Module -Name AIPService -Force -Confirm:$false
+            Install-Module -Name AIPService -Force -Confirm:$false -AllowClobber
             Write-Host "Installed the AIPService module"
             #TODO: if AADRM module was installed, that needs to be uninstalled
             #TODO: check if AADRM Module was succesfully installed
@@ -193,7 +193,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
             $CurrentDescription = "ExchangeOnlineManagement module is not installed. We'll install it to support connectin to Exchange Online Module v2"
             write-host "`n$CurrentDescription" -ForegroundColor Red
             write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
-            Install-Module -Name ExchangeOnlineManagement -Force -Confirm:$false
+            Install-Module -Name ExchangeOnlineManagement -Force -Confirm:$false -AllowClobber
         }
     }
 
