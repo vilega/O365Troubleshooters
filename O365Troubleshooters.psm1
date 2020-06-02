@@ -517,10 +517,6 @@ Function Connect-O365PS { # Function to connecto to O365 services
         while (($Try -le 2) -and ($null -ne $Global:Error)) 
         &$Global:DisplayConnect
     }
-    # Connect to AzureAD Powershell Module
-    "AzureAD" {
-
-    }
   }
 }
 #endregion Connection scripts region
