@@ -654,7 +654,8 @@ function Exit-ScriptAndSaveLogs()
     [string] $logFileLocationNotification = "`r`nAll logs have been saved to the following location: $global:WSPath\Office365RelayLogs `r`n"
     Stop-Transcript
     Write-Host $logFileLocationNotification -ForegroundColor Green
-    Read-Host "Press Any Key to finalize Exit Office365Relay Script and return to O365Troubleshooters MainMenu"
+    Write-Host "You will return to O365Troubleshooters MainMenu"
+    Read-Key
     Clear-Host
     Start-O365TroubleshootersMenu
 }
@@ -669,7 +670,7 @@ It will offer quit option with Stop Transcript.
 #>
 function Get-RetryMenu()
 {
-    $RetryInput = Read-Host "`r`nPress any key to reach Main Menu or Q to exit the script"
+    $RetryInput = Read-Host "`r`nPress ENTER to reach Main Menu or Q to exit the script"
                     
     switch($RetryInput)
     {
@@ -765,7 +766,7 @@ See https://aka.ms/SendMailMessage for more information.`r`n"
 
     Write-Host $SendMailMessageDisclaimer -ForegroundColor Yellow
 
-    Read-Host "`r`nPress any key to Continue, Ctrl+C to quit the script"
+    Read-Key
 
     Clear-Host
     
@@ -779,7 +780,7 @@ See https://aka.ms/SendMailMessage for more information.`r`n"
 
     Start-transcript -Path "$global:WSPath\Office365RelayLogs\RelayTranscript_$ts.txt"
 
-    Read-Host "`r`nPress any key to Continue, Ctrl+C to quit the script"
+    Read-Key
 
     $RuntimeChoiceCounter = 1
     $Office365RelayErrorList = @()
