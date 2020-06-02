@@ -210,9 +210,9 @@ Function Connect-O365PS { # Function to connecto to O365 services
                     {
                         (Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings').proxyServer
     
-                        #Write-Host "Please imput proxy server address (e.g.: http://proxy): " -ForegroundColor Cyan -NoNewline
+                        #Write-Host "Please input proxy server address (e.g.: http://proxy): " -ForegroundColor Cyan -NoNewline
                         #$proxyServer = Read-Host
-                        #Write-Host "Please imput proxy server port: " -ForegroundColor Cyan -NoNewline
+                        #Write-Host "Please input proxy server port: " -ForegroundColor Cyan -NoNewline
                         #$proxyPort = Read-Host
                         $proxyConnection = "http://"+(Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings').proxyServer
     
@@ -610,15 +610,16 @@ function Get-ValidEmailAddress([string]$EmailAddressType)
         return $EmailAddress
     }
     else 
-    {
-        Write-Host "You imput 3 time invalid address, the script will close !" -ForegroundColor Red
+    {   
+        [string]$Description = "Received 3 invalid email address inputs, the script will return to O365Troubleshooters Main Menu"
+        Write-Host "`n$Description" -ForegroundColor Red
         Start-Sleep -Seconds 3
-        Write-Log -function "Get-ValidEmailAddress" -step "Imput address" -Description "After 3 times imput invalid address, the script will close"
-        Disconnect-AadrmService
-        exit
+        Write-Log -function "Get-ValidEmailAddress" -step "input address" -Description $Description
+        Read-Key
+        Start-O365TroubleshootersMenu
     }   
     
-
+<# Old recurse of the function - replaced by new version with counter.
     if($EmailAddress -match "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,63}$")
     {
         
@@ -627,6 +628,7 @@ function Get-ValidEmailAddress([string]$EmailAddressType)
     {
         Get-ValidEmailAddress($EmailAddressType)
     }
+#>
 }
 Function New-XMLObject {
     param ( 

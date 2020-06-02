@@ -33,7 +33,7 @@ $ExportPath = "$global:WSPath\UnifiedAudit_$ts"
 mkdir $ExportPath -Force |Out-Null
 do
 {
-    Write-Host "Please imput the number of days you want to search (maximum 90): " -ForegroundColor Cyan -NoNewline
+    Write-Host "Please input the number of days you want to search (maximum 90): " -ForegroundColor Cyan -NoNewline
     $DaysToSearch= Read-Host
 }while ($DaysToSearch -gt 90)
 
@@ -56,9 +56,9 @@ else
     Start-O365TroubleshootersMenu
 }
 
-#Write-Host "Please imput Operations to search separated by comma (or just hit [Enter] to look for all cmdles): " -ForegroundColor Cyan -NoNewline
+#Write-Host "Please input Operations to search separated by comma (or just hit [Enter] to look for all cmdles): " -ForegroundColor Cyan -NoNewline
 #$Operations = Read-Host
-Write-Host "Please imput the UPN for the user you want to search actions (or just hit [Enter] to look for all users): " -ForegroundColor Cyan -NoNewline
+Write-Host "Please input the UPN for the user you want to search actions (or just hit [Enter] to look for all users): " -ForegroundColor Cyan -NoNewline
 $userIds = Read-Host
 
 $UnifiedAuditLogs = Search-UnifiedLog -DaysToSearch $DaysToSearch -OperationsToSearch  $Operations -userIds $userIds

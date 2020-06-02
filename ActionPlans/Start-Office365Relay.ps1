@@ -38,19 +38,31 @@ Includes a Switch purely for future extention of the script
 #>
 function Get-ValidDomain([string]$DomainType)
 {
-    [string]$Domain = Read-Host "Enter Valid $DomainType Domain Name"
-
     switch($DomainType)
     {
         "Initial *.onmicrosoft.com"
         {
-            if($Domain -match "^[A-Z0-9]+.onmicrosoft.com$")
+            [int]$count = 0
+            do
+            {
+                Write-Host "Enter Valid $DomainType Domain Name: " -ForegroundColor Cyan -NoNewline
+                [string]$Domain = Read-Host
+                [bool]$valid = ($Domain -match "^[A-Z0-9]+.onmicrosoft.com$")
+                $count++
+            }
+            while (!$valid -and ($count -le 2))
+            
+            if ($valid)
             {
                 return $Domain
             }
-            else
+            else 
             {
-                Get-ValidDomain($DomainType)
+                Write-Host "3 invalid domain inputs received`r`n `
+You will be returned to the O365Troubleshooters Main Menu!" -ForegroundColor Red
+                Start-Sleep -Seconds 3
+                Write-Log -function "Get-ValidDomain" -step "input address" -Description "After 3 invalid domain inputs, sending user back to O365Troubleshooters Main Menu"
+                Exit-ScriptAndSaveLogs
             }
         }
 
@@ -642,7 +654,8 @@ function Exit-ScriptAndSaveLogs()
     [string] $logFileLocationNotification = "`r`nAll logs have been saved to the following location: $global:WSPath\Office365RelayLogs `r`n"
     Stop-Transcript
     Write-Host $logFileLocationNotification -ForegroundColor Green
-    Read-Host "Press Any Key to finalize Exit Office365Relay Script and return to O365Troubleshooters MainMenu"
+    Write-Host "You will return to O365Troubleshooters MainMenu"
+    Read-Key
     Clear-Host
     Start-O365TroubleshootersMenu
 }
@@ -657,7 +670,7 @@ It will offer quit option with Stop Transcript.
 #>
 function Get-RetryMenu()
 {
-    $RetryInput = Read-Host "`r`nPress any key to reach Main Menu or Q to exit the script"
+    $RetryInput = Read-Host "`r`nPress ENTER to reach Main Menu or Q to exit the script"
                     
     switch($RetryInput)
     {
@@ -720,7 +733,6 @@ Answer"
         {   
             $Credentials = Get-CashedOrFreshCredentials
             [string]$O365SendAs = Get-ValidEmailAddress("From Email Address")
-            #[string]$Recipients = Get-ValidEmailAddress("RcptTo Email Address")
             [string[]]$Office365RelayRecipients = Get-Office365RelayRecipients
             Send-ClientSubmission($Credentials)
         }
@@ -729,7 +741,6 @@ Answer"
         {
             [string]$O365RelaySmarthost = Find-O365RelaySmarthost
             [string]$O365SendAs = Get-ValidEmailAddress("From Email Address")
-            #[string]$Recipients = Get-ValidEmailAddress("RcptTo Email Address") 
             [string[]]$Office365RelayRecipients = Get-Office365RelayRecipients
             Send-SMTPRelay($O365RelaySmarthost)
         }
@@ -755,7 +766,7 @@ See https://aka.ms/SendMailMessage for more information.`r`n"
 
     Write-Host $SendMailMessageDisclaimer -ForegroundColor Yellow
 
-    Read-Host "`r`nPress any key to Continue, Ctrl+C to quit the script"
+    Read-Key
 
     Clear-Host
     
@@ -769,7 +780,7 @@ See https://aka.ms/SendMailMessage for more information.`r`n"
 
     Start-transcript -Path "$global:WSPath\Office365RelayLogs\RelayTranscript_$ts.txt"
 
-    Read-Host "`r`nPress any key to Continue, Ctrl+C to quit the script"
+    Read-Key
 
     $RuntimeChoiceCounter = 1
     $Office365RelayErrorList = @()
