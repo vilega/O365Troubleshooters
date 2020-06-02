@@ -68,7 +68,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
     $Global:O365Cred=$null
     
 #region Module Checks
-    # $O365Service = "MSOL", "EXO" - Checking if the Azure Active Directory Module for Windows PowerShell (64-bit version) modules are installed on the machine
+    # Checking if required modules are installed
     If ( $O365Service -eq "MSOL") {
         $updateMSOL = $false
         [version]$minimumVersion = "1.0.8070" 
@@ -95,7 +95,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
             $CurrentDescription = "MSOL Module for Windows PowerShell is not installed or is less than required version $minimumVersion. Initiated install from PowerShell Gallery"
             write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
             Uninstall-Module MSOnline -Force -Confirm:$false -ErrorAction SilentlyContinue |Out-Null
-            Install-Module MSOnline -Force -Confirm:$false
+            Install-Module MSOnline -Force -Confirm:$false -AllowClobber
         }
     }
 
@@ -124,34 +124,39 @@ Function Connect-O365PS { # Function to connecto to O365 services
             $CurrentDescription = "Azure AD Module for Windows PowerShell is not installed or version is less than $minimumVersion. Initiated install from PowerShell Gallery"
             Write-Host "`n$CurrentDescription" -ForegroundColor Red
             write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
-            Uninstall-Module AzureAD -Force -Confirm:$false -ErrorAction SilentlyContinue |Out-Null
-            Install-Module AzureAD -Force -Confirm:$false
+            #Uninstall-Module AzureAD -Force -Confirm:$false -ErrorAction SilentlyContinue |Out-Null
+            Install-Module AzureAD -Force -Confirm:$false -AllowClobber
         }
     }
-    # Checking if the Sharepoint Online PowerShell Module is installed on the machine
-    If ( $O365Service -eq "SPO") {
-            If ((Get-Module -ListAvailable -Name Microsoft.Online.SharePoint.PowerShell).count -eq 0) {
-                $CurrentProperty = "CheckingSPO Module"
-                Write-Host "`nSharePoint Online Management Shell module is not installed. Please access 'https://www.microsoft.com/en-us/download/details.aspx?id=35588' in order to download and install the module" -ForegroundColor Yellow
-                $CurrentDescription = "SharePoint Online Management Shell module is not installed. Please access 'https://www.microsoft.com/en-us/download/details.aspx?id=35588' in order to download and install the module. !!! Please restart your computer after the installtion finishes !!!"
-                Write-Host "`nNow the script will stop." -ForegroundColor Red
-                write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
-                Read-Host
-                Exit
-            } 
-    }
 
-    # Checking if the Skype for Business Online, Windows PowerShell Module is installed on the machine
-    If ( $O365Service -eq "SFB") {
-            If ((Get-Module -ListAvailable -Name LyncOnlineConnector).count -eq 0) {
-                $CurrentProperty = "CheckingSFB Module"
-                Write-Host "`nSkype for Business Online, Windows PowerShell module is not installed. Please access 'https://www.microsoft.com/en-us/download/details.aspx?id=39366' in order to download and install the module" -ForegroundColor Yellow
-                $CurrentDescription = "Skype for Business Online, Windows PowerShell module is not installed. Please access 'https://www.microsoft.com/en-us/download/details.aspx?id=39366' in order to download and install the module"
-                Write-Host "`nNow the script will stop." -ForegroundColor Red
-                write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
-                Read-Host
-                Exit
-            } 
+    If ( $O365Service -eq "AzureADPreview") {
+        $updateAzureADPreview = $false
+        [version]$minimumVersion = "2.0.2.89"
+
+        If ((get-module -ListAvailable -Name AzureADPreview).count -eq 0 )
+        {
+            $updateAzureADPreview = $True
+        }
+        else 
+        {
+            $updateAzureADPreview = $True
+            foreach ($version in (get-module -ListAvailable -Name AzureADPreview).Version)
+            {
+                if ($version -ge $minimumVersion)
+                {
+                    $updateAzureADPreview = $false
+                }
+            }
+        }
+        if ($updateAzureADPreview)
+        {
+            $CurrentProperty = "Checking AzureADPreview Module"
+            $CurrentDescription = "AzureADPreview Module is not installed or version is less than $minimumVersion. Initiated install from PowerShell Gallery"
+            Write-Host "`n$CurrentDescription" -ForegroundColor Red
+            write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
+            #Uninstall-Module AzureADPreview -Force -Confirm:$false -ErrorAction SilentlyContinue |Out-Null
+            Install-Module AzureADPreview -Force -Confirm:$false -AllowClobber
+        }
     }
 
     If ( $O365Service -eq "AIPService") {
@@ -160,24 +165,13 @@ Function Connect-O365PS { # Function to connecto to O365 services
             $CurrentDescription = "AIPService needs to be updated or you have just updated without restarting the PC/laptop. Script will install the AIPService module from PowerShel Gallery"
             Write-Host "`n$CurrentDescription" -ForegroundColor Red
             write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
-            Install-Module -Name AIPService -Force -Confirm:$false
+            Install-Module -Name AIPService -Force -Confirm:$false -AllowClobber
             Write-Host "Installed the AIPService module"
             #TODO: if AADRM module was installed, that needs to be uninstalled
             #TODO: check if AADRM Module was succesfully installed
         }
     }
     
-    if ( $O365Service -eq "exo2") {
-        if ((Get-Module -ListAvailable -Name ExchangeOnlineManagement).count -eq 0) 
-        {
-            $CurrentProperty = "Checking ExchangeOnlineManagement v2 Module"
-            $CurrentDescription = "ExchangeOnlineManagement module is not installed. We'll install it to support connectin to Exchange Online Module v2"
-            write-host "`n$CurrentDescription" -ForegroundColor Red
-            write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
-            Install-Module -Name ExchangeOnlineManagement -Force -Confirm:$false
-        }
-    }
-
     if ( $O365Service -eq "Exo") {
         if ($null -eq ((Get-ChildItem -Path $($env:LOCALAPPDATA + "\Apps\2.0\") -Filter Microsoft.Exchange.Management.ExoPowershellModule.dll -Recurse).FullName | `
             Where-Object { $_ -notmatch "_none_" })) 
@@ -191,6 +185,21 @@ Function Connect-O365PS { # Function to connecto to O365 services
             Exit
         }
     }
+
+    if ( $O365Service -eq "Exo2") {
+        if ((Get-Module -ListAvailable -Name ExchangeOnlineManagement).count -eq 0) 
+        {
+            $CurrentProperty = "Checking ExchangeOnlineManagement v2 Module"
+            $CurrentDescription = "ExchangeOnlineManagement module is not installed. We'll install it to support connectin to Exchange Online Module v2"
+            write-host "`n$CurrentDescription" -ForegroundColor Red
+            write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
+            Install-Module -Name ExchangeOnlineManagement -Force -Confirm:$false -AllowClobber
+        }
+    }
+
+    # TODO: SPO prerequisites & modern module check
+
+    # TODO: SFB prerequisites & modern module check
    
     #$Global:proxy = Read-Host
     if ($null -eq $Global:proxy) {
@@ -224,7 +233,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
 
 #region Connection scripts region
   switch ($O365Service) {
-    # Connect to AzureAD (MSOL) PowerShell
+    # Connect to MSOL
     "MSOL" {
         $CurrentProperty = "Connect MSOL"
         Do {
@@ -246,7 +255,10 @@ Function Connect-O365PS { # Function to connecto to O365 services
                     }
                     $errordescr = $null
                     Connect-MsolService -ErrorVariable errordescr -ErrorAction SilentlyContinue 
-                    $Global:Domain = get-msoldomain -ErrorAction SilentlyContinue -ErrorVariable errordescr| Where-Object {$_.name -like "*.onmicrosoft.com" } | Where-Object {$_.name -notlike "*mail.onmicrosoft.com"} 
+                    if ($null -eq $Global:Domain)
+                    {
+                        $Global:Domain = (get-msoldomain -ErrorAction SilentlyContinue -ErrorVariable errordescr| Where-Object {$_.name -like "*.onmicrosoft.com" } | Where-Object {$_.name -notlike "*mail.onmicrosoft.com"}).Name
+                    }
                     $CurrentError = $errordescr.exception.message
                 }
                 # Creating the session for PS MSOL Service
@@ -256,6 +268,73 @@ Function Connect-O365PS { # Function to connecto to O365 services
         &$Global:DisplayConnect
     }
 
+    "AzureAD" {
+        $CurrentProperty = "Connect AzureAD"
+        Do {
+                # Defining the banner variable and clear the errors
+                $Global:Error.Clear();
+                $Global:banner = "AzureAD PowerShell"
+                $errordescr = $null
+                $try++
+                try 
+                {
+                    $null = Get-AzureADTenantDetail -ErrorAction Stop
+                }
+                catch 
+                {
+                    Write-Host "$CurrentProperty"
+                    if (!("AzureAD" -in (Get-Module).name))
+                    {
+                        Import-Module AzureAD -Global -DisableNameChecking  -ErrorAction SilentlyContinue
+                    }
+                    $errordescr = $null
+                    Connect-AzureAd -ErrorVariable errordescr -ErrorAction SilentlyContinue 
+                    if ($null -eq $Global:Domain)
+                    {
+                        $Global:Domain = (Get-AzureADDomain -ErrorAction SilentlyContinue -ErrorVariable errordescr| Where-Object {$_.name -like "*.onmicrosoft.com" } | Where-Object {$_.name -notlike "*mail.onmicrosoft.com"}).Name
+                    }
+                    $CurrentError = $errordescr.exception.message
+                }
+                # Creating the session for PS MSOL Service
+                &$Global:CredentialValidation
+        }
+        while (($Try -le 2) -and ($null -ne $errordescr))
+        &$Global:DisplayConnect
+    }
+
+    "AzureADPreview" {
+        $CurrentProperty = "Connect AzureADPreview"
+        Do {
+                # Defining the banner variable and clear the errors
+                $Global:Error.Clear();
+                $Global:banner = "AzureADPreview PowerShell"
+                $errordescr = $null
+                $try++
+                try 
+                {
+                    $null = AzureADPreview\Get-AzureADTenantDetail -ErrorAction Stop
+                }
+                catch 
+                {
+                    Write-Host "$CurrentProperty"
+                    if (!("AzureADPreview" -in (Get-Module).name))
+                    {
+                        Import-Module AzureADPreview -Global -DisableNameChecking  -ErrorAction SilentlyContinue
+                    }
+                    $errordescr = $null
+                    Connect-AzureADPreview -ErrorVariable errordescr -ErrorAction SilentlyContinue 
+                    if ($null -eq $Global:Domain)
+                    {
+                        $Global:Domain = (AzureADPreview\Get-AzureADDomain -ErrorAction SilentlyContinue -ErrorVariable errordescr| Where-Object {$_.name -like "*.onmicrosoft.com" } | Where-Object {$_.name -notlike "*mail.onmicrosoft.com"}).Name
+                    }
+                    $CurrentError = $errordescr.exception.message
+                }
+                # Creating the session for PS MSOL Service
+                &$Global:CredentialValidation
+        }
+        while (($Try -le 2) -and ($null -ne $errordescr))
+        &$Global:DisplayConnect
+    }
     # Connect to Exchange Online PowerShell
     "EXO" {    
         # The loop for re-entering credentials in case they are wrong and for re-connecting
@@ -907,11 +986,12 @@ Function Start-O365TroubleshootersMenu {
     2  Mail Flow: SMTP Relay Test
     3  Tools: Exchange Online Audit Search
     4  Tools: Unified Logging Audit Search
-    5  Tools: Find all users with a specific RBAC Role
-    6  Tools: Find all users with all RBAC Roles
-    7  Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox
-    8  Tools: Decode SafeLinks URL
-    9  Tools: Export Quarantine Messages
+    5  Tools: Azure AD Audit Sign In Log Search
+    6  Tools: Find all users with a specific RBAC Role
+    7  Tools: Find all users with all RBAC Roles
+    8  Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox
+    9  Tools: Decode SafeLinks URL
+    10 Tools: Export Quarantine Messages
     Q  Quit
      
     Select a task by number or Q to quit
@@ -923,10 +1003,6 @@ $r = Read-Host $menu
 # Security: Analyze compromise account/tenant
 # Write-Host "Action Plan: Analyze compromise account/tenant" -ForegroundColor Green
 # . $script:modulePath\ActionPlans\Start-CompromisedInvestigation.ps1
-
-# Tools: Azure AD Audit Sign In Log Search
-# Write-Host "Tools: Azure AD Audit Sign In Log Search" -ForegroundColor Green
-# . $script:modulePath\ActionPlans\Start-AzureADAuditSignInLogSearch.ps1
 
 Switch ($r) {
     "1" {
@@ -947,26 +1023,30 @@ Switch ($r) {
         . $script:modulePath\ActionPlans\Start-UnifiedAuditLogSearch.ps1
     }
     "5" {
+        Write-Host "Tools: Azure AD Audit Sign In Log Search" -ForegroundColor Green
+        . $script:modulePath\ActionPlans\Start-AzureADAuditSignInLogSearch.ps1
+    }   
+    "6" {
         Write-Host "Tools: Find all users with a specific RBAC Role" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-FindUserWithSpecificRbacRole.ps1
     }
-    "6" {
+    "7" {
         Write-Host "Tools: Find all users with all RBAC Role" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-AllUsersWithAllRoles.ps1
     }
     
-    "7" {
+    "8" {
         Write-Host "Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox" -ForegroundColor Green
         Start-Sleep -Seconds 3
         . $script:modulePath\ActionPlans\Start-MailboxDiagnosticLogs.ps1
     }
      
-    "8" {
+    "9" {
         Write-Host "Tools: Decode SafeLinks URL" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-DecodeSafeLinksURL.ps1
     }
 
-    "9" {
+    "10" {
         Write-Host "Tools: Export Quarantine Message" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Export-ExoQuarantineMessages.ps1
     }
