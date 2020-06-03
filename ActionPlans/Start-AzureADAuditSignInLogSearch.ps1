@@ -33,12 +33,12 @@ $CurrentProperty = "Connecting to: $Workloads"
 $CurrentDescription = "Success"
 write-log -Function "Connecting to O365 workloads" -Step $CurrentProperty -Description $CurrentDescription 
 
-Write-Host "Retrieving sign in logs is based on a preview feature!" -ForegroundColor Yellow
+Write-Host "Retrieving sign in logs is based on a preview feature!`n" -ForegroundColor Yellow
 Start-Sleep -Seconds 3
 
 $ts= get-date -Format yyyyMMdd_HHmmss
 $ExportPath = "$global:WSPath\AzureADSignInAudit_$ts"
-mkdir $ExportPath -Force
+mkdir $ExportPath -Force |out-null
 
 do
 {
@@ -51,7 +51,7 @@ Write-Host "Please input the UPN for the user you want to search sign in logs (o
 $Upn = Read-Host
 
 Search-AzureAdSignInAudit -DaysToSearch $DaysToSearch -Upn $Upn
-$global:AzureAdSignInAll | Export-Csv "$ExportPath\AllSignInAuditLogs_$ts.csv"
+$global:AzureAdSignInAll | Export-Csv "$ExportPath\AllSignInAuditLogs_$ts.csv" -no
 $global:AzureAdSignInFail | Export-Csv "$ExportPath\FailSignInAuditLogs_$ts.csv"
 Write-Host "Azure AD sign in logs (all and fail) have been exported to: $ExportPath"
 Read-Key

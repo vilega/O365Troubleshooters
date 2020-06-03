@@ -23,10 +23,10 @@ try{
     Get-Mailbox $mbx | Out-Null
 }
 Catch{
-    Write-Host "`nThe mailbox $mbx doesn't exist. Press [Enter] to exit"
-    Read-Host
+    Write-Host "`nThe mailbox $mbx doesn't exist. The scrip will return to main menu"
+    Read-Key
     $ErrorActionPreference = $previousErrorActionPreference
-    Exit
+    Start-O365TroubleshootersMenu
 }
 $global:ErrorActionPreference = $previousErrorActionPreference
 

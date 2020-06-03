@@ -67,6 +67,7 @@ Select a task by number or Q to reload main menu
     Switch ($r) {
  
         "1" {
+            Clear-Host
             Write-Host "`=== Enable Office Message Encryption (OME) ===" -ForegroundColor Green
             Enable-OMEv2
             Read-Host "Press [ENTER] to reload the menu"
@@ -75,6 +76,7 @@ Select a task by number or Q to reload main menu
         }
  
         "2" {
+            Clear-Host
             Write-Host "`n=== Enable Previous version of Office Message Encryption (OME) ===" -ForegroundColor Green
             Set-PreviousOME
             Read-Host "Press [ENTER] to reload the menu"
@@ -82,6 +84,7 @@ Select a task by number or Q to reload main menu
         }
 
         "3" {
+            Clear-Host
             Write-Host "`=== Configure OME to use both previous and current version of Office Message Encryption (OME) ===" -ForegroundColor Green
             Set-PreviousOMEandv2
             Read-Host "Press [ENTER] to reload the menu"
@@ -89,6 +92,7 @@ Select a task by number or Q to reload main menu
         }
  
         "4" {
+            Clear-Host
             Write-Host "`n=== Disable Office Message Encryption (OME) ===" -ForegroundColor Green
             Disable-OME
             Read-Host "Press [ENTER] to reload the menu"
@@ -96,6 +100,7 @@ Select a task by number or Q to reload main menu
         }
  
         "5" {
+            Clear-Host
             Write-Host "`n=== View Current Status of Office Message Encryption (OME) ===" -ForegroundColor Green
             Show-OMEStatus
             Read-Host "Press [ENTER] to reload the menu"
@@ -103,6 +108,7 @@ Select a task by number or Q to reload main menu
         }
 
         "6" {
+            Clear-Host
             Write-Host "=== View Templates configuration ===" -ForegroundColor Green
             Get-TemplatesConfig
             Read-Host "Press [ENTER] to reload the menu"
@@ -110,6 +116,7 @@ Select a task by number or Q to reload main menu
         }
  
         "7" {
+            Clear-Host
             Write-Host "`n=== Check for any known configuration issue ===" -ForegroundColor Green
             Show-ConfigIssue
             Read-Host "Press [ENTER] to reload the menu"
@@ -117,6 +124,7 @@ Select a task by number or Q to reload main menu
         }
  
         "8" {
+            Clear-Host
             Write-Host "`n=== Show AIP Logs ===" -ForegroundColor Green
             Export-AIPLogs
             Read-Host "Press [ENTER] to reload the menu"
@@ -124,6 +132,7 @@ Select a task by number or Q to reload main menu
         }
 
         "9" {
+            Clear-Host
             Write-Host "`n=== Check templates/labels cached folder ===" -ForegroundColor Green
             Show-CacheFolder
             Read-Host "Press [ENTER] to reload the menu"
@@ -131,6 +140,7 @@ Select a task by number or Q to reload main menu
         }
 
         "10" {
+            Clear-Host
             Write-Host "`n=== Check registry settings ===" -ForegroundColor Green
             Show-RegistrySettings
             Read-Host "Press [ENTER] to reload the menu"
@@ -138,12 +148,10 @@ Select a task by number or Q to reload main menu
         }
 
         "Q" {
+            Clear-Host
             Write-Host "`n=== Going back to the main menu ===" -ForegroundColor Cyan
             try
             {
-                # Disconnecting
-                disconnect-all  
-
                 # Return to the main menu
                 Clear-Host
                 Start-O365TroubleshootersMenu
@@ -160,62 +168,6 @@ Select a task by number or Q to reload main menu
 
     
 }
-
-function Connect-AipServiceandEXO {
-    if (!($PSVersionTable.PSVersion.Major -ge 3))
-    {
-        Write-Host "Your PowerShell version is less than minimum version 3"
-        Read-Host "Press [ENTER] to exist the script; Please re-run the script after you'll update PowerShell on your machine"
-        Exit
-    }   
-    $global:cred = Get-Credential -Message "Please Input your Global Admin credentials as we need to connect both to AIP and EXO:"
-    if (($null -eq $global:cred.Password) -or ($null -eq $global:cred.UserName))
-    {
-        Write-Host "Your username is null, so we cannot connect you!" -ForegroundColor Red
-        Read-Host "Press [ENTER] to reload the main menu"
-        Show-Menu
-    }
-
-
-    # Check if Azure Rights Management Administration Tool is installed
-    if (!(Get-Command -Module AipService))
-    {
-        Write-Host "AipService needs to be updated or you have just updated without restarting the PC/laptop" -ForegroundColor Red
-        Write-Host "We will try to install the AipService module" -ForegroundColor Cyan
-        # Start-Process  "https://www.microsoft.com/en-us/download/details.aspx?id=30339"
-        Install-Module -Name AipService
-        Write-Host "Installed the AipService module"
-        Import-Module AipService -Force
-    }
-    
-    if (!(Get-Command -Module MSOnline))
-    {
-        Write-Host "Microsoft Online Services Sign-in Assistant RTW and MSOnline module needs to be installed" -ForegroundColor Red
-        Start-Process  "https://docs.microsoft.com/en-us/office365/enterprise/powershell/connect-to-office-365-powershell"
-        Read-Host "Re-run the script once you have the `"Microsoft Online Services Sign-in Assistant RTW and MSOnline installed`" installed"
-        Exit
-    }
-    
-    $Error.Clear()
-    # Connecto to AipService & EXO
-    try
-    {
-        Connect-AipServiceService -Credential $global:cred -ErrorAction Stop
-        $global:session = New-PSSession -ConfigurationName Microsoft.Exchange  `
-        -ConnectionUri https://outlook.office365.com/powershell-liveid/  `
-        -Credential $global:cred -Authentication Basic -AllowRedirection
-        Import-PSSession $session -AllowClobber | Out-Null
-        Connect-MsolService -Credential $global:cred
-    }
-    catch
-    {
-        Write-Host "You received the following error while connecting to MSOL, AipService and EXO: `n$($error[0].Exception.Message)" -ForegroundColor Red
-        Read-Host "Hit [ENTER] to reload menu"
-        Show-Menu
-    }
-
-}
-
 Function Set-PreviousOME {
     If ((Get-AipServiceConfiguration).FunctionalState -ne "enabled")
             {
@@ -638,7 +590,8 @@ Function Show-ConfigIssue {
 
     if ((Get-ActiveSyncOrganizationSettings).AllowRMSSupportForUnenlightenedApps -eq $true) 
     {
-        Write-Host "AllowRMSSupportForUnenlightenedApps is enabled. Security issues?" -ForegroundColor Yellow
+        Write-Host "AllowRMSSupportForUnenlightenedApps is enabled. This configure the service to decrypt messages before they're sent to unenlightened apps like the iOS mail app. 
+        Unenlightened apps will receive the message already decrypted!" -ForegroundColor Yellow
         $anyissue = $True
     }
     
