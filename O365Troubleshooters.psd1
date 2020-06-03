@@ -12,7 +12,7 @@
 RootModule = '.\O365Troubleshooters.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.0.0.8'
+ModuleVersion = '2.0.0.9'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
