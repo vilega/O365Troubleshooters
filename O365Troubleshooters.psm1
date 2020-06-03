@@ -319,10 +319,10 @@ Function Connect-O365PS { # Function to connecto to O365 services
                     Write-Host "$CurrentProperty"
                     if (!("AzureADPreview" -in (Get-Module).name))
                     {
-                        Import-Module AzureADPreview -Global -DisableNameChecking  -ErrorAction SilentlyContinue
+                        Import-Module AzureADPreview -Global -DisableNameChecking  -ErrorAction SilentlyContinue 
                     }
                     $errordescr = $null
-                    Connect-AzureADPreview -ErrorVariable errordescr -ErrorAction SilentlyContinue 
+                    AzureADPreview\Connect-AzureAD -ErrorVariable errordescr -ErrorAction SilentlyContinue 
                     if ($null -eq $Global:Domain)
                     {
                         $Global:Domain = (AzureADPreview\Get-AzureADDomain -ErrorAction SilentlyContinue -ErrorVariable errordescr| Where-Object {$_.name -like "*.onmicrosoft.com" } | Where-Object {$_.name -notlike "*mail.onmicrosoft.com"}).Name
@@ -652,7 +652,7 @@ Function Set-GlobalVariables {
     {
         $global:userPrincipalName = Get-ValidEmailAddress("UserPrincipalName used to connect to Office 365 Services")
         Write-Host "Please note that depening the Office 365 Services we need to connect, you might be asked to re-add the UserPrincipalName in another Authentication Form!" -ForegroundColor Yellow
-        Start-Sleep -Seconds 3
+        Start-Sleep -Seconds 5
     }
 }
 
