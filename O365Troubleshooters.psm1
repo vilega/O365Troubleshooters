@@ -693,6 +693,39 @@ function Get-ValidEmailAddress([string]$EmailAddressType)
     }
 #>
 }
+
+function Read-IntFromConsole {
+    param ([string][Parameter(Mandatory=$true)]$IntType)
+
+    [int]$count = 0
+
+    do
+    {
+        [bool]$valid = $true
+        Write-Host "Enter Valid $IntType`: " -ForegroundColor Cyan -NoNewline
+        try{[int]$IntFromConsole = Read-Host}
+        catch [System.Management.Automation.RuntimeException]
+        {
+            Write-Host "Invalid $IntType returned" -ForegroundColor Red
+            $valid = $false
+            $count++
+        }
+    }while (!$valid -and ($count -le 2))
+    
+    if ($valid)
+    {
+        return $IntFromConsole
+    }
+    else 
+    {   
+        [string]$Description = "Received 3 invalid $IntType inputs, the script will return to O365Troubleshooters Main Menu"
+        Write-Host "`n$Description" -ForegroundColor Red
+        Start-Sleep -Seconds 3
+        Write-Log -function "Read-IntFromConsole" -step "input number" -Description $Description
+        Read-Key
+        Start-O365TroubleshootersMenu
+    }
+}
 Function New-XMLObject {
     param ( 
         $CmdletsNeeded
