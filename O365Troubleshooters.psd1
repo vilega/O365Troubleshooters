@@ -12,7 +12,7 @@
 RootModule = '.\O365Troubleshooters.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.0.0.9'
+ModuleVersion = '2.0.0.10'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -124,6 +124,7 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = '
+        2.0.0.10 - Fixed issue with Decode SafeLinks URL
         2.0.0.7 - Added Azure Sign in logs
         2.0.0.6 - Module deployed with main functions and the following action plans: OME, SMTP Relay, EXO Audit, Unified Audit, Find All Users with Specific RBAC, Export all users with RBAC, Export Mailbox Diagnostics logs, Decode ATP SafeLinks, Export Quarantine
         '
