@@ -1,5 +1,6 @@
 Clear-Host
 $encodedURL  = Read-Host("Please provide the ATP SafeLinks URL that you want to decode to original URL")
+Add-Type -AssemblyName System.Web
 
 try
 {
