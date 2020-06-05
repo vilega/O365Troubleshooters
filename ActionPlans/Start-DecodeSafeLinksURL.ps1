@@ -13,7 +13,7 @@ catch
     Write-Log -function "Start-AP_DecodeSafeLinksURL" -step  "Decoding URL" -Description "Couldn't decode and parse URL: $encodedURL"
     Write-Host "Couldn't decode and parse URL: $encodedURL"
     Read-Host "Press any key and then to reload main menu [Enter]"
-    Start-O365Troubleshooters
+    Start-O365TroubleshootersMenu
 }
 
 Write-Host "The decoded URL is:" -ForegroundColor Green
