@@ -12,7 +12,7 @@
 RootModule = '.\O365Troubleshooters.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.0.0.10'
+ModuleVersion = '2.0.0.11'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -111,7 +111,7 @@ PrivateData = @{
     PSData = @{
 
         # Tags applied to this module. These help with module discovery in online galleries.
-        Tags = @("O365","Exchange","EXO","Compliance","Security","Audit","OME","AIP")
+        Tags = @("O365","Office 365","Exchange","EXO","Exchange Online","Compliance","Security","Identity","Audit","OME","AIP","Office Message Encryption","Azure Information Protection","Unified Labeling","Diagnostic","Action plan","Report","Tool")
 
         # A URL to the license for this module.
         # LicenseUri = ''
@@ -124,6 +124,7 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = '
+        2.0.0.11 - Fixed export of AzureAD Audit SignIn Logs
         2.0.0.10 - Fixed issue with Decode SafeLinks URL
         2.0.0.7 - Added Azure Sign in logs
         2.0.0.6 - Module deployed with main functions and the following action plans: OME, SMTP Relay, EXO Audit, Unified Audit, Find All Users with Specific RBAC, Export all users with RBAC, Export Mailbox Diagnostics logs, Decode ATP SafeLinks, Export Quarantine

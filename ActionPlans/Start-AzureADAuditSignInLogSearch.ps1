@@ -51,8 +51,8 @@ Write-Host "Please input the UPN for the user you want to search sign in logs (o
 $Upn = Read-Host
 
 Search-AzureAdSignInAudit -DaysToSearch $DaysToSearch -Upn $Upn
-$global:AzureAdSignInAll | Export-Csv "$ExportPath\AllSignInAuditLogs_$ts.csv" -no
-$global:AzureAdSignInFail | Export-Csv "$ExportPath\FailSignInAuditLogs_$ts.csv"
+$global:AzureAdSignInAll | Export-Csv "$ExportPath\AllSignInAuditLogs_$ts.csv" -NoTypeInformation
+$global:AzureAdSignInFail | Export-Csv "$ExportPath\FailSignInAuditLogs_$ts.csv" -NoTypeInformation
 Write-Host "Azure AD sign in logs (all and fail) have been exported to: $ExportPath"
 Read-Key
 
