@@ -111,7 +111,7 @@ PrivateData = @{
     PSData = @{
 
         # Tags applied to this module. These help with module discovery in online galleries.
-        Tags = @("O365","Office 365","Exchange","EXO","Exchange Online","Compliance","Security","Identity","Audit","OME","AIP","Office Message Encryption","Azure Information Protection","Unified Labeling","Diagnostic","Action plan","Report","Tool")
+        Tags = @("O365","Office365","Exchange","EXO","ExchangeOnline","Compliance","Security","Identity","Audit","OME","AIP","OfficeMessageEncryption","Azure","Protection","AzureInformationProtection","UnifiedLabeling","Diagnostic","Actionplan","Report","Tool")
 
         # A URL to the license for this module.
         # LicenseUri = ''
