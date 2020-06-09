@@ -10,7 +10,7 @@ if(!(Test-Path "$global:WSPath\ExportQuarantineMessage"))
     Clear-Host
 
     Write-Host "Created Log folder" -ForegroundColor Green
-    mkdir -Path $global:WSPath\ExportQuarantineMessage
+    mkdir -Path $global:WSPath\ExportQuarantineMessage | Out-Null
     Read-Host "Press ENTER to Continue"
 }
 
