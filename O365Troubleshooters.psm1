@@ -952,6 +952,20 @@ function Disconnect-All {
                 Disconnect-AipService -Confirm:$false -ErrorAction SilentlyContinue
             }
 
+            # Disconnect AzureAD
+            if (("AzureAD" -in (Get-Module).name))
+            {
+                AzureAD\Disconnect-AzureAD -Confirm:$false -ErrorAction SilentlyContinue
+                Remove-Module AzureAD -Force -Confirm:$false -ErrorAction SilentlyContinue
+            }
+
+            # Disconnect AzureADPreview
+            if (("AzureADPreview" -in (Get-Module).name))
+            {
+                AzureADPreview\Disconnect-AzureAD -Confirm:$false -ErrorAction SilentlyContinue
+                Remove-Module AzureADPreview -Force -Confirm:$false -ErrorAction SilentlyContinue
+            }
+
             # Disconnect all PsSessions
             Get-PSSession | Remove-PSSession
     }
