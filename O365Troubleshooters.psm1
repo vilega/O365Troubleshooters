@@ -1039,6 +1039,7 @@ Function Start-O365TroubleshootersMenu {
     8  Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox
     9  Tools: Decode SafeLinks URL
     10 Tools: Export Quarantine Messages
+    11 Tools: Transform IMCEAEX (old LegacyExchangeDN) to X500 address
     Q  Quit
      
     Select a task by number or Q to quit
@@ -1096,6 +1097,11 @@ Switch ($r) {
     "10" {
         Write-Host "Tools: Export Quarantine Message" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Export-ExoQuarantineMessages.ps1
+    }
+
+    "11" {
+        Write-Host "Tools: Transform IMCEAEX (old LegacyExchangeDN) to X500 address" -ForegroundColor Green
+        . $script:modulePath\ActionPlans\Get-X500FromImceaexNDR.ps1
     }
 
     "Q" {
