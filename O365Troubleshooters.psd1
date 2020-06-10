@@ -12,7 +12,7 @@
 RootModule = '.\O365Troubleshooters.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.0.0.11'
+ModuleVersion = '2.0.0.12'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -103,6 +103,7 @@ FileList = @(
     'ActionPlans\Start-OfficeMessageEncryption.ps1'
     'ActionPlans\Start-RbacTools.ps1'
     'ActionPlans\Start-UnifiedAuditLogSearch.ps1'
+    'ActionPlans\Get-X500FromImceaexNdr.ps1'
 )
 
 # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
@@ -124,6 +125,7 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = '
+        2.0.0.11 - Added Tool: Transform IMCEAEX (old LegacyExchangeDN) to X500 address
         2.0.0.11 - Fixed export of AzureAD Audit SignIn Logs
         2.0.0.10 - Fixed issue with Decode SafeLinks URL
         2.0.0.7 - Added Azure Sign in logs
