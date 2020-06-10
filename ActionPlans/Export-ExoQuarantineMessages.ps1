@@ -4,14 +4,19 @@ Clear-Host
 $Workloads = "exo"
 Connect-O365PS $Workloads
 
+$ts= get-date -Format yyyyMMdd_HHmmss
 #Check if log path already exists before creating folder
-if(!(Test-Path "$global:WSPath\ExportQuarantineMessage"))
+if(!(Test-Path "$global:WSPath\ExportQuarantineMessage_$ts"))
 {
     Clear-Host
 
-    Write-Host "Created Log folder" -ForegroundColor Green
-    mkdir -Path $global:WSPath\ExportQuarantineMessage | Out-Null
-    Read-Host "Press ENTER to Continue"
+    $QuarantineMessageExportPath = "$global:WSPath\ExportQuarantineMessage_$ts"
+    
+    mkdir -Path $QuarantineMessageExportPath | Out-Null
+    
+    Write-Host "Created Log folder`r`n$QuarantineMessageExportPath" -ForegroundColor Green
+
+    Read-Key
 }
 
 Clear-Host
@@ -33,12 +38,12 @@ if($QuarantineMessages.Count -ne 0)
     
         $QuarantineMessageBytes = [Convert]::FromBase64String($ExportedQuarantineMessage.Eml)
     
-        $QuarantineMessagePath = "$global:WSPath\ExportQuarantineMessage\"+$QuarantineMessage.Identity.Split('\')[1]+".eml"
+        $QuarantineMessagePath = $QuarantineMessageExportPath+"\"+$QuarantineMessage.Identity.Split('\')[1]+".eml"
 
         [System.IO.File]::WriteAllBytes($QuarantineMessagePath,$QuarantineMessageBytes)
 
         Compress-Archive -Path $QuarantineMessagePath -Update -CompressionLevel Optimal `
-            -DestinationPath "$global:WSPath\ExportQuarantineMessage\QuarantineMessages.zip"
+            -DestinationPath "$QuarantineMessageExportPath\QuarantineMessages.zip"
 
         Remove-Item $QuarantineMessagePath -Force
         }
@@ -56,25 +61,23 @@ if($QuarantineMessages.Count -ne 0)
 
     
     Write-Host "Created Archive with Exported Quarantine Messages 
-$global:WSPath\ExportQuarantineMessage\QuarantineMessages.zip" -ForegroundColor Green
+$QuarantineMessageExportPath\QuarantineMessages.zip
+You will be returned to O365Troubleshooters Main Menu" -ForegroundColor Green
     
-    Read-Host "Press ENTER to return to O365Troubleshooters Main Menu"
+    Read-Key
 
     Clear-Host
-    
-    Disconnect-All
 
     Start-O365TroubleshootersMenu
 }
 
 else
 {
-    Read-Host "No Messages were selected
-Press ENTER to return to O365Troubleshooters Main Menu"
+    Write-Host "No Messages were selected, you will be returned to O365Troubleshooters Main Menu" -ForegroundColor Red
+
+    Read-Key
 
     Clear-Host
-
-    Disconnect-All
 
     Start-O365TroubleshootersMenu
 }
