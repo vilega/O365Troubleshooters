@@ -28,7 +28,15 @@ catch
 
 try 
 {
-    $X500 = ("X500:" + $Imceaex -replace("_","/") -replace("\+20"," ") -replace("\+28","(") -replace("\+29",")") -replace("IMCEAEX\-","") -split "@")[0] 
+    # $X500 = ("X500:" + $Imceaex -replace("_","/") -replace("\+20"," ") -replace("\+28","(") -replace("\+29",")") -replace("IMCEAEX\-","") -split "@")[0] 
+    $X500 = ("X500:" + $Imceaex -replace("_","/")  -replace("IMCEAEX\-","") -split "@")[0]
+    $matches = ([regex]'([+][0-9a-fA-F][0-9a-fA-F])').Matches($X500)
+    $HexValues = $matches | Select-Object value -Unique
+    foreach($HexValue in $HexValues)
+    {
+        $replace = [Convert]::ToChar([Convert]::ToInt64(($HexValue.Value -replace("\+","")),16))
+        $X500 = $X500 -replace("\$($HexValue.Value)",$replace)
+    }
 }
 catch 
 {
