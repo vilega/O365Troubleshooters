@@ -156,6 +156,10 @@ function Get-AuthenticationCredentials()
 {
     $Office365RelayErrorList.Clear()
 
+    Write-Host -ForegroundColor Cyan "You will be prompted for Credentials of the account used to send emails via SMTP Client Submission"
+
+    Read-Key
+
     $O365SenderCred = Get-Credential
     if ( ($null -eq $O365SenderCred) -or ($O365SenderCred.Password -match "") )
     {
