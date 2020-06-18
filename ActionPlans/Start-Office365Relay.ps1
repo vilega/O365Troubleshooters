@@ -85,11 +85,15 @@ Collects a List of Valid Recipient Email Addresses:
 function Get-Office365RelayRecipients()
 {   
     $Office365RelayErrorList.Clear()
-    [int]$Office365RelayRecipientCount = Read-Host "Enter a Number of Recipients" -ErrorAction SilentlyContinue `
-                                            -ErrorVariable +Office365RelayErrorList
+    
+    Write-Host -ForegroundColor Cyan "Enter a Number of Recipients : " -NoNewline
+
+    [int]$Office365RelayRecipientCount = Read-Host -ErrorAction SilentlyContinue -ErrorVariable +Office365RelayErrorList
     
     if( ($null -eq $Office365RelayErrorList[0]) -and ($Office365RelayRecipientCount -gt 0 ) -and ($Office365RelayRecipientCount -le 500 ) )
-    {
+    {   
+        Write-Host -ForegroundColor Cyan "You will receive recurring prompts to enter each individual recipient"
+
         [string]$EmailAddressType = "RcptTo Email Address"
 
         [int]$i = 0
@@ -161,7 +165,8 @@ function Get-AuthenticationCredentials()
     Read-Key
 
     $O365SenderCred = Get-Credential
-    if ( ($null -eq $O365SenderCred) -or ($O365SenderCred.Password -match "") )
+
+    if ($null -eq $O365SenderCred)
     {
         Write-Host -ForegroundColor Red "UserName and/or Password empty`r`nYou will be returned to the Script Main Menu"
         Read-Key
