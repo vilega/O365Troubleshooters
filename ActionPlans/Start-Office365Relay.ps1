@@ -157,6 +157,12 @@ function Get-AuthenticationCredentials()
     $Office365RelayErrorList.Clear()
 
     $O365SenderCred = Get-Credential
+    if ( ($null -eq $O365SenderCred) -or ($O365SenderCred.Password -match "") )
+    {
+        Write-Host -ForegroundColor Red "UserName and/or Password empty`r`nYou will be returned to the Script Main Menu"
+        Read-Key
+        Get-MainMenu
+    }
 
     $O365AuthenticationCredentialsSession = New-PSSession -ConfigurationName Microsoft.Exchange `
         -ConnectionUri https://outlook.office365.com/powershell-liveid/ -Credential $O365SenderCred `
