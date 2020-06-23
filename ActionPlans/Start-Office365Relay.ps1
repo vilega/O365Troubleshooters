@@ -85,11 +85,15 @@ Collects a List of Valid Recipient Email Addresses:
 function Get-Office365RelayRecipients()
 {   
     $Office365RelayErrorList.Clear()
-    [int]$Office365RelayRecipientCount = Read-Host "Enter a Number of Recipients" -ErrorAction SilentlyContinue `
-                                            -ErrorVariable +Office365RelayErrorList
+    
+    Write-Host -ForegroundColor Cyan "Enter a Number of Recipients : " -NoNewline
+
+    [int]$Office365RelayRecipientCount = Read-Host -ErrorAction SilentlyContinue -ErrorVariable +Office365RelayErrorList
     
     if( ($null -eq $Office365RelayErrorList[0]) -and ($Office365RelayRecipientCount -gt 0 ) -and ($Office365RelayRecipientCount -le 500 ) )
-    {
+    {   
+        Write-Host -ForegroundColor Cyan "You will receive recurring prompts to enter each individual recipient"
+
         [string]$EmailAddressType = "RcptTo Email Address"
 
         [int]$i = 0
@@ -156,7 +160,18 @@ function Get-AuthenticationCredentials()
 {
     $Office365RelayErrorList.Clear()
 
+    Write-Host -ForegroundColor Cyan "You will be prompted for Credentials of the account used to send emails via SMTP Client Submission"
+
+    Read-Key
+
     $O365SenderCred = Get-Credential
+
+    if ($null -eq $O365SenderCred)
+    {
+        Write-Host -ForegroundColor Red "UserName and/or Password empty`r`nYou will be returned to the Script Main Menu"
+        Read-Key
+        Get-MainMenu
+    }
 
     $O365AuthenticationCredentialsSession = New-PSSession -ConfigurationName Microsoft.Exchange `
         -ConnectionUri https://outlook.office365.com/powershell-liveid/ -Credential $O365SenderCred `
@@ -270,7 +285,7 @@ Get-MessageAttachment function provides:
 function Get-MessageAttachment()
 {
     [string] $MessageAttachmentType = Read-Host "`r`nSelect a type of Attachment`r`n
-    A : File from Desktop
+    A : Local File
     B : No Attachment
     
     Answer"
@@ -279,14 +294,13 @@ function Get-MessageAttachment()
         {
             A
             {
-                $MessageAttachmentPath=[Environment]::GetFolderPath("Desktop")
-                [string] $MessageAttachmentFile = Read-Host "Enter the target htm file full name with extension
-for example : attachmentfile.csv`r`n
-Answer"         
-                $isPathValid = Test-Office365RelayScriptItemPath([string] "$MessageAttachmentPath\$MessageAttachmentFile")
+                Write-Host  -ForegroundColor Cyan -NoNewline "Enter the target htm file full name with extension
+for example : C:\attachmentfile.csv`r`nAnswer : "
+                [string] $MessageAttachmentFile = Read-Host        
+                $isPathValid = Test-Office365RelayScriptItemPath([string]$MessageAttachmentFile)
                 if($isPathValid)
                 {   
-                    return "$MessageAttachmentPath\$MessageAttachmentFile"
+                    return "$MessageAttachmentFile"
                 }
 
                 else 
@@ -337,7 +351,7 @@ function Send-ClientSubmission([PSCredential]$Credentials)
                                     -ErrorAction Continue -WarningAction SilentlyContinue -ErrorVariable +Office365RelayErrorList
             }
 
-            '*Users*Desktop*'
+            '*:\*'
             {
                 Send-mailmessage -to $Office365RelayRecipients -from $O365SendAs -smtpserver smtp.office365.com -subject "SMTP Client Submission Email - $d" `
                                     -body $o365RelayMessageBody -Credential $Credentials -Attachments $o365RelayMessageAttachment `
