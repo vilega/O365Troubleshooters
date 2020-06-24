@@ -1065,6 +1065,7 @@ Switch ($r) {
     "3" {
         Write-Host "Tools: Exchange Online Audit Search" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-ExchangeOnlineAuditSearch.ps1
+        Start-ExchangeOnlineAuditSearch
     }
     "4" {
         Write-Host "Tools: Unified Logging Audit Search" -ForegroundColor Green

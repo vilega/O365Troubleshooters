@@ -31,34 +31,36 @@ Function Search-EXOAdminAudit {
     return $ParsedAuditLogs
 }
 
-Clear-Host
-$Workloads = "exo"
-Connect-O365PS $Workloads
+function Start-ExchangeOnlineAuditSearch() {
+    Clear-Host
+    $Workloads = "exo"
+    Connect-O365PS $Workloads
 
 
-$CurrentProperty = "Connecting to: $Workloads"
-$CurrentDescription = "Success"
-write-log -Function "Connecting to O365 workloads" -Step $CurrentProperty -Description $CurrentDescription 
-    
-$ts= get-date -Format yyyyMMdd_HHmmss
-$ExportPath = "$global:WSPath\ExchangeOnlineAudit_$ts"
-mkdir $ExportPath -Force |Out-Null
+    $CurrentProperty = "Connecting to: $Workloads"
+    $CurrentDescription = "Success"
+    write-log -Function "Connecting to O365 workloads" -Step $CurrentProperty -Description $CurrentDescription 
+        
+    $ts= get-date -Format yyyyMMdd_HHmmss
+    $ExportPath = "$global:WSPath\ExchangeOnlineAudit_$ts"
+    mkdir $ExportPath -Force |Out-Null
 
-do
-{
-    Write-Host "Please input the number of days you want to search (maximum 90): " -ForegroundColor Cyan -NoNewline
-    [int]$DaysToSearch= Read-Host
-} while ($DaysToSearch -gt 90)
+    do
+    {
+        Write-Host "Please input the number of days you want to search (maximum 90): " -ForegroundColor Cyan -NoNewline
+        [int]$DaysToSearch= Read-Host
+    } while ($DaysToSearch -gt 90)
 
-Write-Host "Please input cmdlets to search separated by comma (or just hit [Enter] to look for all cmdles): " -ForegroundColor Cyan -NoNewline
-$CmdletsToSearch = Read-Host
-Write-Host "Please input the UPN for the user you want to search actions (or just hit [Enter] to look for all users): " -ForegroundColor Cyan -NoNewline
-$Caller = Read-Host
+    Write-Host "Please input cmdlets to search separated by comma (or just hit [Enter] to look for all cmdles): " -ForegroundColor Cyan -NoNewline
+    $CmdletsToSearch = Read-Host
+    Write-Host "Please input the UPN for the user you want to search actions (or just hit [Enter] to look for all users): " -ForegroundColor Cyan -NoNewline
+    $Caller = Read-Host
 
-$AuditLogs = Search-EXOAdminAudit -DaysToSearch $DaysToSearch -CmdletsToSearch  $CmdletsToSearch -Caller $Caller
-$AuditLogs | Export-Csv "$ExportPath\ExchangeOnlineAudit_$ts.csv" -NoTypeInformation
-Write-Host "Exchange Online audit logs have been exported to: $ExportPath\ExchangeOnlineAudit_$ts.csv"
-Read-Key
+    $AuditLogs = Search-EXOAdminAudit -DaysToSearch $DaysToSearch -CmdletsToSearch  $CmdletsToSearch -Caller $Caller
+    $AuditLogs | Export-Csv "$ExportPath\ExchangeOnlineAudit_$ts.csv" -NoTypeInformation
+    Write-Host "Exchange Online audit logs have been exported to: $ExportPath\ExchangeOnlineAudit_$ts.csv"
+    Read-Key
 
-# Return to the main menu
-Start-O365TroubleshootersMenu
+    # Return to the main menu
+    Start-O365TroubleshootersMenu
+}
