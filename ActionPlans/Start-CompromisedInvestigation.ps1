@@ -1,30 +1,34 @@
 Function Start-CompromisedMain
 {
 
+    #region Blocked Senders
+    ###Get Blocked Senders and Create Hashtable Array with SenderAddress & Reasons
+    $blockedSenders = Get-BlockedSenderAddress
+    $Reasons = @()
+
+    
+
+    foreach($blockedSender in $blockedSenders)
+    {
+        $Reason = $blockedSender.Reason.Replace(";","`n")
+        $Reason = ConvertFrom-StringData $Reason.Replace(":","=")
+        $Reason["SenderAddress"] = $blockedSender.SenderAddress
+        $Reasons += $Reason
+    }
+
+    $Reasons
+    #endregion Blocked Senders
+
+
 
 }
 
-#region Blocked Senders
-###Get Blocked Senders and Create Hashtable Array with SenderAddress & Reasons
-$blockedSenders = Get-BlockedSenderAddress
-$Reasons = @()
 
- 
-
-foreach($blockedSender in $blockedSenders)
-{
-    $Reason = $blockedSender.Reason.Replace(";","`n")
-    $Reason = ConvertFrom-StringData $Reason.Replace(":","=")
-    $Reason["SenderAddress"] = $blockedSender.SenderAddress
-    $Reasons += $Reason
-}
-
-$Reasons
-#endregion Blocked Senders
 
 #region Connectors Created
+# Inbound Connector Check
 $InboundConnectorsCollection = @()
-$InboundConnectors = Get-InboundConnector | ? ConnectorType -EQ "OnPremises"
+$InboundConnectors = Get-InboundConnector | Where-Object ConnectorType -EQ "OnPremises"
 $now = (Get-date).ToUniversalTime()
 #([datetime]::UtcNow)
 $DaysToInvestigate = 14
@@ -33,14 +37,14 @@ foreach($InboundConnector in $InboundConnectors) {
 
     $ts = New-TimeSpan -Start $InboundConnector.WhenChangedUTC -End $now
     #$InboundConnectorCollection += $InboundConnector |select  Name,SenderDomains,TlsSenderCertificateName, SenderIPAddresses, @{Name='DaysSinceLastChange';Expression={$ts.Days}}
-    $InboundConnectorsCollection += $InboundConnector |select  *, @{Name='DaysSinceLastChange';Expression={$ts.Days}}
+    $InboundConnectorsCollection += $InboundConnector |Select-Object  *, @{Name='DaysSinceLastChange';Expression={$ts.Days}}
  
 }
 Write-Host "The following Inbound On Premises connectors have been changed/created in the last 14 days" -ForegroundColor Red
 foreach ($InboundConnectorCollection in $InboundConnectorsCollection) {
     if ($InboundConnectorCollection.DaysSinceLastChange -le $DaysToInvestigate)
         {
-            $InboundConnectorCollection |select  Name,SenderDomains,TlsSenderCertificateName, SenderIPAddresses, DaysSinceLastChange
+            $InboundConnectorCollection |Select-Object  Name,SenderDomains,TlsSenderCertificateName, SenderIPAddresses, DaysSinceLastChange
         }
 }
 
@@ -54,52 +58,98 @@ foreach($OutboundConnector in $OutboundConnectors) {
 
     $ts = New-TimeSpan -Start $OutboundConnector.WhenChangedUTC -End $now
     #$OutboundConnectorCollection += $OutboundConnector |select  Name,SenderDomains,TlsSenderCertificateName, SenderIPAddresses, @{Name='DaysSinceLastChange';Expression={$ts.Days}}
-    $OutboundConnectorsCollection += $OutboundConnector |select  *, @{Name='DaysSinceLastChange';Expression={$ts.Days}}
+    $OutboundConnectorsCollection += $OutboundConnector |Select-Object  *, @{Name='DaysSinceLastChange';Expression={$ts.Days}}
  
 }
 Write-Host "The following Outbound On Premises connectors have been changed/created in the last 14 days" -ForegroundColor Red
 foreach ($OutboundConnectorCollection in $OutboundConnectorsCollection) {
     if ($OutboundConnectorCollection.DaysSinceLastChange -le $DaysToInvestigate)
         {
-            $OutboundConnectorCollection |select  Name,SenderDomains,TlsSenderCertificateName, SenderIPAddresses, DaysSinceLastChange
+            $OutboundConnectorCollection |Select-Object  Name,SenderDomains,TlsSenderCertificateName, SenderIPAddresses, DaysSinceLastChange
         }
 }
 
+#ToDo
+#Here we will use Search-EXOAdminAudit from EXO Audit Search AP
+#We will need to modify EXO Audit Search AP so we can dot source and re-use the function we want.
 $AdminAuditLogs = Search-EXOAdminAudit -DaysToSearch 900 -CmdletsToSearch "New-InboundConnector","Set-InboundConnector","New-OutboundConnector","Set-OutboundConnector","Remove-InboundConnector","Remove-OutboundConnector"
-
 
 #endregion Connectors Created
 
+
+<#
+Transport Rules - Done
+Forwarding
+Redirect - Done
+Journaling - Done
+CBR - Done
+BCC - Done
+Audit 14
+#>
+
 #region TransportRules
-    <#
-    Transport Rules
-        Forwarding
-        Redirect
-        Journaling
-        CBR
-        BCC
 
-    Audit 14
+<#$SuspiciousTransportRule = New-Object -TypeName psobject
+$SuspiciousTransportRule | Add-Member -MemberType NoteProperty -Name RuleType
+$SuspiciousTransportRule | Add-Member -MemberType NoteProperty -Name Description#>
+$SuspiciousTransportRules = @()
+$TransportRules = Get-TransportRule -ResultSize unlimited
+foreach($TransportRule in $TransportRules)
+{
+    switch -wildcard($TransportRule.Description)
+    {   
+        "*redirect the message to*" 
+            {$SuspiciousTransportRules += $TransportRule|Select-Object Name,Description,State,Guid,WhenChanged;break}
+        "*Route the message using the connector*" 
+            {$SuspiciousTransportRules += $TransportRule|Select-Object Name,Description,State,Guid,WhenChanged;break}
+        "*Blind carbon copy(Bcc) the message*" 
+            {$SuspiciousTransportRules += $TransportRule|Select-Object Name,Description,State,Guid,WhenChanged;break}
+        "*Forward the message*" 
+            {$SuspiciousTransportRules += $TransportRule|Select-Object Name,Description,State,Guid,WhenChanged;break}
+        "*Add the sender's manager as recipient type*" 
+            {$SuspiciousTransportRules += $TransportRule|Select-Object Name,Description,State,Guid,WhenChanged;break}
+        "*Send the incident report to*" 
+            {$SuspiciousTransportRules += $TransportRule|Select-Object Name,Description,State,Guid,WhenChanged;break}
+        default{}
+    }
+}
+<#
+(Get-TransportRule -Filter "Description -like '*redirect the message to*'").Description
+(Get-TransportRule -Filter "Description -like '*Route the message using the connector*'").Description
+(Get-TransportRule -Filter "Description -like '*Blind carbon copy(Bcc) the message*'").Description
+(Get-TransportRule -Filter "Description -like '*Forward the message*'").Description
+(Get-TransportRule -Filter "Description -like '*Add the sender's manager as recipient type*'").Description
+(Get-TransportRule -Filter "Description -like '*Send the incident report to*'").Description 
+#>
 
-    #>
 
-    (Get-TransportRule -Filter "Description -like '*redirect the message to*'").Description
-    (Get-TransportRule -Filter "Description -like '*Route the message using the connector*'").Description
-    (Get-TransportRule -Filter "Description -like '*Blind carbon copy(Bcc) the message*'").Description
-
-    $AdminAuditLogs = Search-EXOAdminAudit -DaysToSearch $DaysToInvestigate -CmdletsToSearch "New-TransportRule","Set-TransportRule","Remove-TransportRule"
-
+$AdminAuditLogs = Search-EXOAdminAudit -DaysToSearch $DaysToInvestigate -CmdletsToSearch "New-TransportRule","Set-TransportRule","Remove-TransportRule"
 
 #endregion TransportRules
 
+#region JournalRule
+$JournalRule = @()
+$JournalRule = Get-JournalRule
+if($JournalRule.count -eq 0)
+{
+    Write-Host "No Journal Rule"
+}
+else 
+{
+    Write-Host "We have detected the following Journal Rules:"
+    $JournalRule|Format-Table Identity, Enabled, Scope, JournalEmailAddress, Recipient, WhenChanged
+}
+#endregion JournalRule
+
+
 #region Check GA
-$Administrators = Get-MsolRole | %{if (($_.name -eq "Company Administrator") -or ($_.name -eq "Exchange Service Administrator")) {$_}} |%{Get-MsolRoleMember -MaxResults 10000 -RoleObjectId $_.ObjectID}
+$Administrators = Get-MsolRole | ForEach-Object{if (($_.name -eq "Company Administrator") -or ($_.name -eq "Exchange Service Administrator")) {$_}} |ForEach-Object{Get-MsolRoleMember -MaxResults 10000 -RoleObjectId $_.ObjectID}
 $AdministratorsList = @()
 foreach($Administrator in $Administrators)
 {
 
-    $MsolUser = get-msoluser -UserPrincipalName $Administrator.EmailAddress |select LastPasswordChangeTimestamp, StrongPasswordRequired
-    $mailbox = get-mailbox $Administrator.EmailAddress -ErrorAction SilentlyContinue |select ForwardingAddress,ForwardingSmtpAddress, DeliverToMailboxAndForward
+    $MsolUser = get-msoluser -UserPrincipalName $Administrator.EmailAddress |Select-Object LastPasswordChangeTimestamp, StrongPasswordRequired
+    $mailbox = get-mailbox $Administrator.EmailAddress -ErrorAction SilentlyContinue |Select-Object ForwardingAddress,ForwardingSmtpAddress, DeliverToMailboxAndForward
     
     $Admin = New-Object -TypeName psobject 
     $Admin | Add-Member -MemberType NoteProperty -Name "UserPrincipalName" -Value $Administrator.EmailAddress 
@@ -112,10 +162,10 @@ foreach($Administrator in $Administrators)
 
     $AdministratorsList += $Admin
 }
-$AdministratorsList |ft
+$AdministratorsList |Format-Table
 
 
-Get-InboxRule -Mailbox $Upn|fl
+Get-InboxRule -Mailbox $Upn|Format-List
 
 #endregion Check GA
 
