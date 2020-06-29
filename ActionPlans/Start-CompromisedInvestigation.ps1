@@ -25,58 +25,33 @@ Function Get-BlockedSenderReasons
 
 
 Function Get-RecentSuspiciousConnectors
-{
-    # Inbound OnPrem Connector Check
-    $InboundConnectorsCollection = @()
-    $InboundConnectors = Get-InboundConnector | Where-Object ConnectorType -EQ "OnPremises"
+{param([int][Parameter(Mandatory=$true)] $DaysToInvestigate, [datetime][Parameter(Mandatory=$true)] $CurrentDateTime)
+    $InboundConnectors = Get-InboundConnector | Where-Object {($_.ConnectorType -EQ "OnPremises") -and `
+            ( ($_.WhenCreatedUTC -ge $CurrentDateTime.AddDays(-$DaysToInvestigate)) -or ($_.WhenChangedUTC -ge $CurrentDateTime.AddDays(-$DaysToInvestigate)) )}
 
-    foreach($InboundConnector in $InboundConnectors) 
-    {
-        $ts = New-TimeSpan -Start $InboundConnector.WhenChangedUTC -End $now
-        #$InboundConnectorCollection += $InboundConnector |select  Name,SenderDomains,TlsSenderCertificateName, SenderIPAddresses, @{Name='DaysSinceLastChange';Expression={$ts.Days}}
-        $InboundConnectorsCollection += $InboundConnector |Select-Object  *, @{Name='DaysSinceLastChange';Expression={$ts.Days}}
-    }
-    Write-Host "The following Inbound On Premises connectors have been changed/created in the last 14 days" -ForegroundColor Red
-    #ToDo : Remove Second Iteration
-    #Perform connector changed/creation date in the previous foreach when building the collection.
-    foreach ($InboundConnectorCollection in $InboundConnectorsCollection) 
-    {
-        if ($InboundConnectorCollection.DaysSinceLastChange -le $DaysToInvestigate)
-        {
-            $InboundConnectorCollection |Select-Object  Name,SenderDomains,TlsSenderCertificateName, SenderIPAddresses, DaysSinceLastChange
-        }
-    }
-
-    # Outbound Connectors check
-    $OutboundConnectorsCollection = @()
-    $OutboundConnectors = Get-OutboundConnector 
-    $now = (Get-date).ToUniversalTime()
-    #([datetime]::UtcNow)
-
-    foreach($OutboundConnector in $OutboundConnectors) {
-
-        $ts = New-TimeSpan -Start $OutboundConnector.WhenChangedUTC -End $now
-        #$OutboundConnectorCollection += $OutboundConnector |select  Name,SenderDomains,TlsSenderCertificateName, SenderIPAddresses, @{Name='DaysSinceLastChange';Expression={$ts.Days}}
-        $OutboundConnectorsCollection += $OutboundConnector |Select-Object  *, @{Name='DaysSinceLastChange';Expression={$ts.Days}}
+    $OutboundConnectors = Get-OutboundConnector | Where-Object {($_.WhenCreatedUTC -ge $CurrentDateTime.AddDays(-$DaysToInvestigate)) `
+                                                                -or ($_.WhenChangedUTC -ge $CurrentDateTime.AddDays(-$DaysToInvestigate))}
     
+    if($null -ne $InboundConnectors)
+    {
+        Write-Host "The following Inbound On Premises connectors have been created/modified in the last $DaysToInvestigate days" -ForegroundColor Yellow
+        $InboundConnectors|Select-Object Name, ConnectorType, Enabled, SenderDomains|Format-Table
+        $InboundConnectors|Export-Csv -NoTypeInformation -Path "$ExportPath\InboundConnectors.csv"
     }
-    Write-Host "The following Outbound On Premises connectors have been changed/created in the last 14 days" -ForegroundColor Red
-    #ToDo : Remove Second Iteration
-    #Perform connector changed/creation date in the previous foreach when building the collection.
-    foreach ($OutboundConnectorCollection in $OutboundConnectorsCollection) {
-        if ($OutboundConnectorCollection.DaysSinceLastChange -le $DaysToInvestigate)
-            {
-                $OutboundConnectorCollection |Select-Object  Name,SenderDomains,TlsSenderCertificateName, SenderIPAddresses, DaysSinceLastChange
-            }
+    else{Write-Host "No Inbound OnPrem Connectors created/modified in the past $DaysToInvestigate days" -ForegroundColor Green}
+	
+	if($null -ne $OutboundConnectors)
+    {
+        Write-Host "The following Outbound Connectors have been created/modified in the last $DaystoInvestigate days" -ForegroundColor Yellow
+        $OutboundConnectors|Select-Object Name, ConnectorType, Enabled, RecipientDomains|Format-Table
+        $OutboundConnectors|Export-Csv -NoTypeInformation -Path "$ExportPath\OutboundConnectors.csv"
     }
-
-    #ToDo
-    #Here we will use Search-EXOAdminAudit from EXO Audit Search AP
-    #We will need to modify EXO Audit Search AP so we can dot source and re-use the function we want.
-    $AdminAuditLogs = Search-EXOAdminAudit -DaysToSearch 900 -CmdletsToSearch "New-InboundConnector","Set-InboundConnector","New-OutboundConnector","Set-OutboundConnector","Remove-InboundConnector","Remove-OutboundConnector"
-
-    #endregion Connectors Created
+    else{Write-Host "No Outbound Connectors created/modified in the past $DaysToInvestigate days" -ForegroundColor Green}
+    
+    return $InboundConnectors, $OutboundConnectors
 }
+
+
 
 <#
 Transport Rules - Done
@@ -174,12 +149,13 @@ Function Test-ProvisionedMailbox
 }
 Function Get-SuspiciousInboxRules
 {param([string[]][Parameter(Mandatory=$true)] $EmailAddresses)
-    
+
     foreach($EmailAddress in $EmailAddresses)
     {
         $InboxRules += Get-InboxRule -Mailbox $EmailAddress
         Start-Sleep -Seconds 0.5
     }
+
     return $InboxRules
 }
 
@@ -220,11 +196,12 @@ Function Get-EXOAuditBypass
 
 Function Start-CompromisedMain
 {   
+    Clear-Host
     #Loading Dependencies from other APs
     . $script:modulePath\ActionPlans\Start-ExchangeOnlineAuditSearch.ps1
 
     #Connect to O365 Workloads
-    $Workloads = "exo","SCC", "MSOL"#, "AAD"
+    $Workloads = "exo", "MSOL"#, "AAD", "SCC"
     
     Connect-O365PS $Workloads
 
@@ -245,10 +222,36 @@ Function Start-CompromisedMain
 
     $GlobalAdminList = Get-GlobalAdminList
 
-    $GAProvisionedMailboxSMTP = Test-ProvisionedMailbox -EmailAddresses $GlobalAdminList.UserPrincipalName
+    $GlobalAdminList | Export-Csv -NoTypeInformation -Path "$ExportPath\GlobalAdminList.csv"
 
-    $GAInboxRules = Get-SuspiciousInboxRules $GAProvisionedMailboxSMTP
+    [string[]]$GAProvisionedMailboxSMTP = Test-ProvisionedMailbox -EmailAddresses $GlobalAdminList.UserPrincipalName
+
+    if($GAProvisionedMailboxSMTP.Count -ne 0)
+    {
+        $GAInboxRules = Get-SuspiciousInboxRules -EmailAddresses $GAProvisionedMailboxSMTP
+        $GAInboxRules | Export-Csv -NoTypeInformation -Path "$ExportPath\GAInboxRules.csv"
+    }
+
+    $InboundConnectors, $OutboundConnectors = Get-RecentSuspiciousConnectors -DaysToInvestigate $DaysToInvestigate -CurrentDateTime $now
+
+    
+    <#$InboundConnectorAdminAudit = Search-EXOAdminAudit -DaysToSearch $DaysToInvestigate -CmdletsToSearch "New-InboundConnector","Set-InboundConnector", `
+                                                                                                        "Remove-InboundConnector"
+    $InboundConnectorAdminAudit|Export-Csv -NoTypeInformation -Path "$ExportPath\InboundConnectorAdminAudit.csv"#>
+
+    <#$OutboundConnectorAdminAudit = Search-EXOAdminAudit -DaysToSearch $DaysToInvestigate -CmdletsToSearch "New-OutboundConnector","Set-OutboundConnector", `
+                                                                                                            "Remove-OutboundConnector"
+    $OutboundConnectorAdminAudit|Export-Csv -NoTypeInformation -Path "$ExportPath\OutboundConnectorAdminAudit.csv"#>
 
 
+    Get-EXOAuditBypass
+
+    Write-Host "Exported logs to $ExportPath, you will be returned to O365Troubleshooters Main Menu" -ForegroundColor Green
+    
+    Read-Key
+
+    Clear-Host
+
+    Start-O365TroubleshootersMenu
 }
 
