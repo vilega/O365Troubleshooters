@@ -157,10 +157,30 @@ Function Get-GlobalAdminList
     return $GlobalAdminList
 }
 
+Function Test-ProvisionedMailbox
+{param([string[]][Parameter(Mandatory=$true)] $EmailAddresses)
 
+    foreach($EmailAddress in $EmailAddresses)
+    {   
+        try     
+        {
+            $GAExoMailbox = Get-EXOMailbox $EmailAddress -ErrorAction Stop
+            [string[]]$ProvisionedMailboxSMTPs += $GAExoMailbox.PrimarySmtpAddress
+        }
+        catch   {break}        
+    }
+
+    return [string[]]$ProvisionedMailboxSMTPs
+}
 Function Get-SuspiciousInboxRules
-{
-    Get-InboxRule -Mailbox $Upn|Format-List
+{param([string[]][Parameter(Mandatory=$true)] $EmailAddresses)
+    
+    foreach($EmailAddress in $EmailAddresses)
+    {
+        $InboxRules += Get-InboxRule -Mailbox $EmailAddress
+        Start-Sleep -Seconds 0.5
+    }
+    return $InboxRules
 }
 
 #region GA audit disable & audit bypass
@@ -222,5 +242,13 @@ Function Start-CompromisedMain
     $now = (Get-date).ToUniversalTime() #([datetime]::UtcNow)
     
     $DaysToInvestigate = 14
+
+    $GlobalAdminList = Get-GlobalAdminList
+
+    $GAProvisionedMailboxSMTP = Test-ProvisionedMailbox -EmailAddresses $GlobalAdminList.UserPrincipalName
+
+    $GAInboxRules = Get-SuspiciousInboxRules $GAProvisionedMailboxSMTP
+
+
 }
 
