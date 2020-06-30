@@ -34,16 +34,14 @@ Function Get-RecentSuspiciousConnectors
     
     if($null -ne $InboundConnectors)
     {
-        Write-Host "The following Inbound On Premises connectors have been created/modified in the last $DaysToInvestigate days" -ForegroundColor Yellow
-        $InboundConnectors|Select-Object Name, ConnectorType, Enabled, SenderDomains|Format-Table
+        Write-Host "Inbound On Premises connectors have been created/modified in the last $DaysToInvestigate days" -ForegroundColor Yellow
         $InboundConnectors|Export-Csv -NoTypeInformation -Path "$ExportPath\InboundConnectors.csv"
     }
     else{Write-Host "No Inbound OnPrem Connectors created/modified in the past $DaysToInvestigate days" -ForegroundColor Green}
 	
 	if($null -ne $OutboundConnectors)
     {
-        Write-Host "The following Outbound Connectors have been created/modified in the last $DaystoInvestigate days" -ForegroundColor Yellow
-        $OutboundConnectors|Select-Object Name, ConnectorType, Enabled, RecipientDomains|Format-Table
+        Write-Host "Outbound Connectors have been created/modified in the last $DaystoInvestigate days" -ForegroundColor Yellow
         $OutboundConnectors|Export-Csv -NoTypeInformation -Path "$ExportPath\OutboundConnectors.csv"
     }
     else{Write-Host "No Outbound Connectors created/modified in the past $DaysToInvestigate days" -ForegroundColor Green}
@@ -129,24 +127,41 @@ Function Get-GlobalAdminList
 
         $GlobalAdminList += $Admin
     }
+    
     return $GlobalAdminList
 }
 
 Function Test-ProvisionedMailbox
 {param([string[]][Parameter(Mandatory=$true)] $EmailAddresses)
-
-    foreach($EmailAddress in $EmailAddresses)
+    
+    <#foreach($EmailAddress in $EmailAddresses)
     {   
+        Write-Host "Email Address #$i"
+        $i++
         try     
         {
             $GAExoMailbox = Get-EXOMailbox $EmailAddress -ErrorAction Stop
+            $ProvisionedMailboxSMTPs += $GAExoMailbox.PrimarySmtpAddress
+        }
+        catch   {continue}        
+    }#>
+
+    [int]$i = 0
+    while($i -lt $EmailAddresses.Count)
+    {
+        
+        try     
+        {
+            $i++
+            $GAExoMailbox = Get-EXOMailbox $EmailAddresses[$i-1] -ErrorAction Stop
             [string[]]$ProvisionedMailboxSMTPs += $GAExoMailbox.PrimarySmtpAddress
         }
-        catch   {break}        
+        catch   {continue}      
     }
 
     return [string[]]$ProvisionedMailboxSMTPs
 }
+
 Function Get-SuspiciousInboxRules
 {param([string[]][Parameter(Mandatory=$true)] $EmailAddresses)
 
@@ -155,7 +170,6 @@ Function Get-SuspiciousInboxRules
         $InboxRules += Get-InboxRule -Mailbox $EmailAddress
         Start-Sleep -Seconds 0.5
     }
-
     return $InboxRules
 }
 
@@ -221,19 +235,19 @@ Function Start-CompromisedMain
     $DaysToInvestigate = 14
 
     $GlobalAdminList = Get-GlobalAdminList
-
     $GlobalAdminList | Export-Csv -NoTypeInformation -Path "$ExportPath\GlobalAdminList.csv"
 
-    [string[]]$GAProvisionedMailboxSMTP = Test-ProvisionedMailbox -EmailAddresses $GlobalAdminList.UserPrincipalName
+    [string[]]$GASMTPs = $GlobalAdminList.UserPrincipalName
 
-    if($GAProvisionedMailboxSMTP.Count -ne 0)
+    $ProvisionedMailboxSMTPs = Test-ProvisionedMailbox -EmailAddresses $GASMTPs
+    
+    if($ProvisionedMailboxSMTPs.Count -gt 0)
     {
-        $GAInboxRules = Get-SuspiciousInboxRules -EmailAddresses $GAProvisionedMailboxSMTP
+        $GAInboxRules = Get-SuspiciousInboxRules -EmailAddresses $ProvisionedMailboxSMTPs
         $GAInboxRules | Export-Csv -NoTypeInformation -Path "$ExportPath\GAInboxRules.csv"
     }
 
     $InboundConnectors, $OutboundConnectors = Get-RecentSuspiciousConnectors -DaysToInvestigate $DaysToInvestigate -CurrentDateTime $now
-
     
     <#$InboundConnectorAdminAudit = Search-EXOAdminAudit -DaysToSearch $DaysToInvestigate -CmdletsToSearch "New-InboundConnector","Set-InboundConnector", `
                                                                                                         "Remove-InboundConnector"
@@ -254,4 +268,3 @@ Function Start-CompromisedMain
 
     Start-O365TroubleshootersMenu
 }
-
