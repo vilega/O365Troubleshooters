@@ -418,7 +418,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
                     Import-Module ExchangeOnlineManagement -Global -DisableNameChecking  -ErrorAction SilentlyContinue
                 }
                 $errordescr = $null
-                Connect-ExchangeOnline  -PSSessionOption $PSsettings -ErrorVariable errordescr -ErrorAction SilentlyContinue    
+                Connect-ExchangeOnline  -PSSessionOption $PSsettings -ErrorVariable errordescr -ErrorAction SilentlyContinue -ShowBanner:$false
                 $null = get-EXOMailbox -ErrorVariable errordescr
                 $CurrentError = $errordescr.exception.message
             }
