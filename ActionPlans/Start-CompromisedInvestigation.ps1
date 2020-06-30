@@ -145,7 +145,7 @@ Function Test-ProvisionedMailbox
         }
         catch   {continue}        
     }#>
-
+    
     [int]$i = 0
     while($i -lt $EmailAddresses.Count)
     {
@@ -156,15 +156,13 @@ Function Test-ProvisionedMailbox
             $GAExoMailbox = Get-EXOMailbox $EmailAddresses[$i-1] -ErrorAction Stop
             [string[]]$ProvisionedMailboxSMTPs += $GAExoMailbox.PrimarySmtpAddress
         }
-        catch   {continue}      
+        catch   {continue}
     }
-
     return [string[]]$ProvisionedMailboxSMTPs
 }
 
 Function Get-SuspiciousInboxRules
 {param([string[]][Parameter(Mandatory=$true)] $EmailAddresses)
-
     foreach($EmailAddress in $EmailAddresses)
     {
         $InboxRules += Get-InboxRule -Mailbox $EmailAddress
@@ -215,7 +213,7 @@ Function Start-CompromisedMain
     . $script:modulePath\ActionPlans\Start-ExchangeOnlineAuditSearch.ps1
 
     #Connect to O365 Workloads
-    $Workloads = "exo", "MSOL"#, "AAD", "SCC"
+    $Workloads = "Exo2", "MSOL"#, "AAD", "SCC"
     
     Connect-O365PS $Workloads
 
@@ -228,7 +226,7 @@ Function Start-CompromisedMain
     #Create Log Path
     $ts= get-date -Format yyyyMMdd_HHmmss
     $ExportPath = "$global:WSPath\Compromised_$ts"
-    mkdir $ExportPath -Force
+    mkdir $ExportPath -Force|Out-Null
     
     $now = (Get-date).ToUniversalTime() #([datetime]::UtcNow)
     
@@ -239,10 +237,10 @@ Function Start-CompromisedMain
 
     [string[]]$GASMTPs = $GlobalAdminList.UserPrincipalName
 
-    $ProvisionedMailboxSMTPs = Test-ProvisionedMailbox -EmailAddresses $GASMTPs
-    
+    [string[]]$ProvisionedMailboxSMTPs = Test-ProvisionedMailbox -EmailAddresses $GASMTPs
+
     if($ProvisionedMailboxSMTPs.Count -gt 0)
-    {
+    {   
         $GAInboxRules = Get-SuspiciousInboxRules -EmailAddresses $ProvisionedMailboxSMTPs
         $GAInboxRules | Export-Csv -NoTypeInformation -Path "$ExportPath\GAInboxRules.csv"
     }
