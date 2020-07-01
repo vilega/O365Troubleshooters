@@ -1,10 +1,13 @@
 Function Get-BlockedSenderReasons
 {
     ###Get Blocked Senders and Create Hashtable Array with SenderAddress & Reasons
+    ###ToDo clarify what to return to MainMenu
     $blockedSenders = Get-BlockedSenderAddress
 
     if($null -ne $blockedSenders)
-    {
+    {   
+        $blockedSenders|Export-Csv -NoTypeInformation -Path "$ExportPath\BlockedOutboundSenders.csv"
+        
         $blockedSenderReasons = @()
 
         foreach($blockedSender in $blockedSenders)
@@ -14,12 +17,12 @@ Function Get-BlockedSenderReasons
             $Reason["SenderAddress"] = $blockedSender.SenderAddress
             $blockedSenderReasons += $Reason
         }
-
         return $blockedSenderReasons
     }
     else 
     {
-        return "No Banned Outbound Senders Found"
+        Write-Host -ForegroundColor Green "No Banned Outbound Senders Found"
+        return $null
     }
 }
 
@@ -63,45 +66,51 @@ Audit 14
 
 
 Function Get-SuspiciousTransportRules
-{
+{   
+    #ToDo - only notify about recent rules
     $SuspiciousTransportRules = @()
     $TransportRules = Get-TransportRule -ResultSize unlimited
+    
     foreach($TransportRule in $TransportRules)
-    {
+    {   
         switch -wildcard($TransportRule.Description)
         {   
             "*redirect the message to*" 
-                {$SuspiciousTransportRules += $TransportRule|Select-Object Name,Description,State,Guid,WhenChanged;break}
+                {$SuspiciousTransportRules += $TransportRule<#|Select-Object Name,Description,State,Guid,WhenChanged#>}
             "*Route the message using the connector*" 
-                {$SuspiciousTransportRules += $TransportRule|Select-Object Name,Description,State,Guid,WhenChanged;break}
+                {$SuspiciousTransportRules += $TransportRule<#|Select-Object Name,Description,State,Guid,WhenChanged#>}
             "*Blind carbon copy(Bcc) the message*" 
-                {$SuspiciousTransportRules += $TransportRule|Select-Object Name,Description,State,Guid,WhenChanged;break}
+                {$SuspiciousTransportRules += $TransportRule<#|Select-Object Name,Description,State,Guid,WhenChanged#>}
             "*Forward the message*" 
-                {$SuspiciousTransportRules += $TransportRule|Select-Object Name,Description,State,Guid,WhenChanged;break}
+                {$SuspiciousTransportRules += $TransportRule<#|Select-Object Name,Description,State,Guid,WhenChanged#>}
             "*Add the sender's manager as recipient type*" 
-                {$SuspiciousTransportRules += $TransportRule|Select-Object Name,Description,State,Guid,WhenChanged;break}
+                {$SuspiciousTransportRules += $TransportRule<#|Select-Object Name,Description,State,Guid,WhenChanged#>}
             "*Send the incident report to*" 
-                {$SuspiciousTransportRules += $TransportRule|Select-Object Name,Description,State,Guid,WhenChanged;break}
+                {$SuspiciousTransportRules += $TransportRule<#|Select-Object Name,Description,State,Guid,WhenChanged#>}
             default{}
         }
     }
-
-    $AdminAuditLogs = Search-EXOAdminAudit -DaysToSearch $DaysToInvestigate `
-    -CmdletsToSearch "New-TransportRule","Set-TransportRule","Remove-TransportRule","Disable-TransportRule","Enable-TransportRule"
+    $SuspiciousTransportRules|Export-Csv -NoTypeInformation -Path "$ExportPath\TransportRulesToReview.csv"
+    return  $SuspiciousTransportRules
+    <#$AdminAuditLogs = Search-EXOAdminAudit -DaysToSearch $DaysToInvestigate `
+    -CmdletsToSearch "New-TransportRule","Set-TransportRule","Remove-TransportRule","Disable-TransportRule","Enable-TransportRule"#>
 }
 
 Function Get-SuspiciousJournalRule
-{
-    $JournalRule = @()
-    $JournalRule = Get-JournalRule
-    if($JournalRule.count -eq 0)
+{   
+    #ToDo - only notify about recent Journal Rules
+    $JournalRules = Get-JournalRule
+    if($JournalRules.count -eq 0)
     {
-        Write-Host "No Journal Rule"
+        Write-Host "No Journal Rule" -ForegroundColor Green
+        return $null
     }
     else 
     {
-        Write-Host "We have detected the following Journal Rules:"
-        $JournalRule|Format-Table Identity, Enabled, Scope, JournalEmailAddress, Recipient, WhenChanged
+        Write-Host "We have detected the following Journal Rules:" -ForegroundColor Yellow
+        $JournalRules|Format-Table Identity, Enabled, Scope, JournalEmailAddress, Recipient, WhenChanged
+        $JournalRules|Export-Csv -NoTypeInformation -Path "$ExportPath\JournalRules.csv"
+        return $JournalRules
     }
 }
 
@@ -133,19 +142,7 @@ Function Get-GlobalAdminList
 
 Function Test-ProvisionedMailbox
 {param([string[]][Parameter(Mandatory=$true)] $EmailAddresses)
-    
-    <#foreach($EmailAddress in $EmailAddresses)
-    {   
-        Write-Host "Email Address #$i"
-        $i++
-        try     
-        {
-            $GAExoMailbox = Get-EXOMailbox $EmailAddress -ErrorAction Stop
-            $ProvisionedMailboxSMTPs += $GAExoMailbox.PrimarySmtpAddress
-        }
-        catch   {continue}        
-    }#>
-    
+
     [int]$i = 0
     while($i -lt $EmailAddresses.Count)
     {
@@ -168,6 +165,8 @@ Function Get-SuspiciousInboxRules
         $InboxRules += Get-InboxRule -Mailbox $EmailAddress
         Start-Sleep -Seconds 0.5
     }
+    #ToDo - check which Admins have Inbox Rules with Forward/Redirect
+    $InboxRules | Export-Csv -NoTypeInformation -Path "$ExportPath\GAInboxRules.csv"
     return $InboxRules
 }
 
@@ -206,6 +205,24 @@ Function Get-EXOAuditBypass
 }
 #endregion GA audit disable & audit bypass
 
+function Get-ExoAdminAudit
+{
+
+    <#$InboundConnectorAdminAudit = Search-EXOAdminAudit -DaysToSearch $DaysToInvestigate `
+                                                -CmdletsToSearch "New-InboundConnector","Set-InboundConnector", "Remove-InboundConnector"
+
+    $InboundConnectorAdminAudit|Export-Csv -NoTypeInformation -Path "$ExportPath\InboundConnectorAdminAudit.csv"#>
+
+    <#$OutboundConnectorAdminAudit = Search-EXOAdminAudit -DaysToSearch $DaysToInvestigate `
+                                                -CmdletsToSearch "New-OutboundConnector","Set-OutboundConnector", "Remove-OutboundConnector"
+
+    $OutboundConnectorAdminAudit|Export-Csv -NoTypeInformation -Path "$ExportPath\OutboundConnectorAdminAudit.csv"#>
+
+    <#$AdminAuditLogs = Search-EXOAdminAudit -DaysToSearch $DaysToInvestigate `
+    -CmdletsToSearch "New-TransportRule","Set-TransportRule","Remove-TransportRule","Disable-TransportRule","Enable-TransportRule"?#>
+
+    
+}
 Function Start-CompromisedMain
 {   
     Clear-Host
@@ -242,22 +259,18 @@ Function Start-CompromisedMain
     if($ProvisionedMailboxSMTPs.Count -gt 0)
     {   
         $GAInboxRules = Get-SuspiciousInboxRules -EmailAddresses $ProvisionedMailboxSMTPs
-        $GAInboxRules | Export-Csv -NoTypeInformation -Path "$ExportPath\GAInboxRules.csv"
     }
 
     $InboundConnectors, $OutboundConnectors = Get-RecentSuspiciousConnectors -DaysToInvestigate $DaysToInvestigate -CurrentDateTime $now
-    
-    <#$InboundConnectorAdminAudit = Search-EXOAdminAudit -DaysToSearch $DaysToInvestigate -CmdletsToSearch "New-InboundConnector","Set-InboundConnector", `
-                                                                                                        "Remove-InboundConnector"
-    $InboundConnectorAdminAudit|Export-Csv -NoTypeInformation -Path "$ExportPath\InboundConnectorAdminAudit.csv"#>
-
-    <#$OutboundConnectorAdminAudit = Search-EXOAdminAudit -DaysToSearch $DaysToInvestigate -CmdletsToSearch "New-OutboundConnector","Set-OutboundConnector", `
-                                                                                                            "Remove-OutboundConnector"
-    $OutboundConnectorAdminAudit|Export-Csv -NoTypeInformation -Path "$ExportPath\OutboundConnectorAdminAudit.csv"#>
-
 
     Get-EXOAuditBypass
 
+    $JournalRules = Get-SuspiciousJournalRule
+
+    $SuspiciousTransportRules = Get-SuspiciousTransportRules  
+    
+    $BlockSenderReasons = Get-BlockedSenderReasons
+    
     Write-Host "Exported logs to $ExportPath, you will be returned to O365Troubleshooters Main Menu" -ForegroundColor Green
     
     Read-Key
