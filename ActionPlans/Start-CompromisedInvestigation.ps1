@@ -207,27 +207,35 @@ Function Get-EXOAuditBypass
 
 function Get-ExoAdminAudit
 {
+    #Loading Dependencies from other APs
+    . $script:modulePath\ActionPlans\Start-ExchangeOnlineAuditSearch.ps1
 
-    <#$InboundConnectorAdminAudit = Search-EXOAdminAudit -DaysToSearch $DaysToInvestigate `
+    #Individual AdminAudit Calls for suspicious actions
+    $InboxRuleAdminAudit = Search-EXOAdminAudit -DaysToSearch $DaysToInvestigate `
+                                    -CmdletsToSearch "New-InboxRule","Set-InboxRule","Remove-InboxRule","Enable-InboxRule","Disable-InboxRule"
+    if($null -ne $InboxRuleAdminAudit)
+    {$InboxRuleAdminAudit|Export-Csv -Append -NoTypeInformation -Path "$ExportPath\EXOAdminAuditLogs.csv"}
+
+    $InboundConnectorAdminAudit = Search-EXOAdminAudit -DaysToSearch $DaysToInvestigate `
                                                 -CmdletsToSearch "New-InboundConnector","Set-InboundConnector", "Remove-InboundConnector"
+    if($null -ne $InboundConnectorAdminAudit)
+    {$InboundConnectorAdminAudit|Export-Csv -Append -NoTypeInformation -Path "$ExportPath\EXOAdminAuditLogs.csv"}
 
-    $InboundConnectorAdminAudit|Export-Csv -NoTypeInformation -Path "$ExportPath\InboundConnectorAdminAudit.csv"#>
-
-    <#$OutboundConnectorAdminAudit = Search-EXOAdminAudit -DaysToSearch $DaysToInvestigate `
+    $OutboundConnectorAdminAudit = Search-EXOAdminAudit -DaysToSearch $DaysToInvestigate `
                                                 -CmdletsToSearch "New-OutboundConnector","Set-OutboundConnector", "Remove-OutboundConnector"
+    if($null -ne $OutboundConnectorAdminAudit)
+    {$OutboundConnectorAdminAudit|Export-Csv -Append -NoTypeInformation -Path "$ExportPath\EXOAdminAuditLogs.csv"}
 
-    $OutboundConnectorAdminAudit|Export-Csv -NoTypeInformation -Path "$ExportPath\OutboundConnectorAdminAudit.csv"#>
+    $TransportRuleAdminAudit = Search-EXOAdminAudit -DaysToSearch $DaysToInvestigate `
+    -CmdletsToSearch "New-TransportRule","Set-TransportRule","Remove-TransportRule","Disable-TransportRule","Enable-TransportRule"
+    if($null -ne $OutboundConnectorAdminAudit)
+    {$TransportRuleAdminAudit|Export-Csv -Append -NoTypeInformation -Path "$ExportPath\EXOAdminAuditLogs.csv"}
 
-    <#$AdminAuditLogs = Search-EXOAdminAudit -DaysToSearch $DaysToInvestigate `
-    -CmdletsToSearch "New-TransportRule","Set-TransportRule","Remove-TransportRule","Disable-TransportRule","Enable-TransportRule"?#>
-
-    
+    return $InboundConnectorAdminAudit,$OutboundConnectorAdminAudit,$TransportRuleAdminAudit,$InboxRuleAdminAudit
 }
 Function Start-CompromisedMain
 {   
     Clear-Host
-    #Loading Dependencies from other APs
-    . $script:modulePath\ActionPlans\Start-ExchangeOnlineAuditSearch.ps1
 
     #Connect to O365 Workloads
     $Workloads = "Exo2", "MSOL"#, "AAD", "SCC"
@@ -270,6 +278,8 @@ Function Start-CompromisedMain
     $SuspiciousTransportRules = Get-SuspiciousTransportRules  
     
     $BlockSenderReasons = Get-BlockedSenderReasons
+
+    $InboundConnectorAdminAudit,$OutboundConnectorAdminAudit,$TransportRuleAdminAudit,$InboxRuleAdminAudit = Get-ExoAdminAudit
     
     Write-Host "Exported logs to $ExportPath, you will be returned to O365Troubleshooters Main Menu" -ForegroundColor Green
     
