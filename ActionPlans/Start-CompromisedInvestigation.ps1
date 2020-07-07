@@ -205,7 +205,7 @@ Function Get-EXOAuditBypass
 }
 #endregion GA audit disable & audit bypass
 
-function Get-ExoAdminAudit
+function Get-CompromisedAdminAudit
 {
     #Loading Dependencies from other APs
     . $script:modulePath\ActionPlans\Start-ExchangeOnlineAuditSearch.ps1
@@ -279,7 +279,9 @@ Function Start-CompromisedMain
     
     $BlockSenderReasons = Get-BlockedSenderReasons
 
-    $InboundConnectorAdminAudit,$OutboundConnectorAdminAudit,$TransportRuleAdminAudit,$InboxRuleAdminAudit = Get-ExoAdminAudit
+    $InboundConnectorAdminAudit,$OutboundConnectorAdminAudit,$TransportRuleAdminAudit,$InboxRuleAdminAudit = Get-CompromisedAdminAudit
+
+    #Call Azure AD Sign In and collect login audit for admins
     
     Write-Host "Exported logs to $ExportPath, you will be returned to O365Troubleshooters Main Menu" -ForegroundColor Green
     

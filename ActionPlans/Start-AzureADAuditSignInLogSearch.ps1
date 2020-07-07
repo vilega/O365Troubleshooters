@@ -1,3 +1,4 @@
+#ToDo move Main to Function to . source in other APs
 Function Search-AzureAdSignInAudit {
     param( 
         [int][Parameter(Mandatory=$true)] $DaysToSearch,
