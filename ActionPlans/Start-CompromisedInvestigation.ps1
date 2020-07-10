@@ -315,7 +315,7 @@ Function Export-CompromisedHTMLReport
 
     if($TransportRules)
     {
-        $TransportRules = $SuspiciousTransportRules | ConvertTo-Html -Property Name,Description,State,Guid,WhenChanged -Fragment `
+        $TransportRules = $SuspiciousTransportRules | ConvertTo-Html -Property Name, Description, State, Guid, WhenChanged -Fragment `
                                         -PreContent "<h2 class=`"ResultNotOk`">Suspicious Transport Rules</h2>"
     }
     else 
@@ -325,7 +325,8 @@ Function Export-CompromisedHTMLReport
 
     if($InboxRules)
     {
-        $InboxRules = $GAInboxRules | ConvertTo-Html -Property Name,Description,Enabled -Fragment -PreContent "<h2>Suspicious Inbox Rules</h2>"
+        $InboxRules = $GAInboxRules | ConvertTo-Html -Property MailboxOwnerId, Name, Description, Enabled -Fragment `
+                                -PreContent "<h2 class=`"ResultNotOk`">Suspicious Inbox Rules</h2>"
     }
     else 
     {
@@ -334,7 +335,8 @@ Function Export-CompromisedHTMLReport
 
     if($InboundConnectors)
     {
-        $InboundConnectors = $InboundConnectors | ConvertTo-Html -Property Name, Enabled, WhenChangedUTC -As List -PreContent "<h2>Suspicious Inbound Connectors</h2>"
+        $InboundConnectors = $InboundConnectors | ConvertTo-Html -Property Name, Enabled, WhenChangedUTC -Fragment -As List `
+                                        -PreContent "<h2 class=`"ResultNotOk`">Suspicious Inbound Connectors</h2>"
     }
     else 
     {
@@ -343,7 +345,8 @@ Function Export-CompromisedHTMLReport
 
     if($OutboundConnectors)
     {
-        $OutboundConnectors = $OutboundConnectors | ConvertTo-Html -Property Name, Enabled, WhenChangedUTC -As List -PreContent "<h2>Suspicious Outbound Connectors</h2>"
+        $OutboundConnectors = $OutboundConnectors | ConvertTo-Html -Property Name, Enabled, WhenChangedUTC -Fragment -As List `
+                                        -PreContent "<h2 class=`"ResultNotOk`">Suspicious Outbound Connectors</h2>"
     }
     else 
     {
@@ -352,13 +355,14 @@ Function Export-CompromisedHTMLReport
 
     if($JournalRules)
     {
-        $JournalRules = $JournalRules | ConvertTo-Html -Property Name, Enabled, WhenChangedUTC -As List -PreContent "<h2>Suspicious Journal Rules</h2>"
+        $JournalRules = $JournalRules | ConvertTo-Html -Property Name, Enabled, WhenChangedUTC -Fragment -As List `
+                                -PreContent "<h2 class=`"ResultNotOk`">Suspicious Journal Rules</h2>"
     }
     else 
     {
-        $JournalRules = $JournalRules | ConvertTo-Html -PreContent "<h2 class=`"ResultOk`">No Suspicious Rules</h2>"
+        $JournalRules = $JournalRules | ConvertTo-Html -PreContent "<h2 class=`"ResultOk`">No Suspicious Journal Rules</h2>"
     }
-    
+
     $Report = ConvertTo-Html -Head $header -Body "$ReportTitle $InboxRules $TransportRules $InboundConnectors $OutboundConnectors $JournalRules" `
                                 -Title "Compromised Investigation" -PreContent "<p>Creation Date: $now</p>"
 
@@ -386,7 +390,7 @@ Function Start-CompromisedMain
     
     $now = (Get-date).ToUniversalTime() #([datetime]::UtcNow)
     
-    $DaysToInvestigate = 14
+    $DaysToInvestigate = Read-IntFromConsole -IntType "Number of days to investigate Tenant Compromise"
 
     $GlobalAdminList = Get-GlobalAdminList
     $GlobalAdminList | Export-Csv -NoTypeInformation -Path "$ExportPath\GlobalAdminList.csv"
