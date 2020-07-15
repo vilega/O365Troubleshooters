@@ -664,14 +664,14 @@ function Get-ValidEmailAddress([string]$EmailAddressType)
     {
         Write-Host "Enter Valid $EmailAddressType`: " -ForegroundColor Cyan -NoNewline
         [string]$EmailAddress = Read-Host
-        [bool]$valid = ($EmailAddress -match "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,63}$")
+        [bool]$valid = ($EmailAddress.Trim() -match "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,63}$")
         $count++
     }
     while (!$valid -and ($count -le 2))
     
     if ($valid)
     {
-        return $EmailAddress
+        return $EmailAddress.Trim()
     }
     else 
     {   
