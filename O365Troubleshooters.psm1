@@ -1082,6 +1082,7 @@ Switch ($r) {
     "6" {
         Write-Host "Tools: Azure AD Audit Sign In Log Search" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-AzureADAuditSignInLogSearch.ps1
+        Start-AzureADAuditSignInLogSearch
     }   
     "7" {
         Write-Host "Tools: Find all users with a specific RBAC Role" -ForegroundColor Green
