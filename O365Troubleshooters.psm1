@@ -658,6 +658,7 @@ Function Set-GlobalVariables {
 
 function Get-ValidEmailAddress([string]$EmailAddressType)
 {
+    #ToDo - Use Trim to account for starting or trailing whitespace in the console string input
     [int]$count = 0
     do
     {
