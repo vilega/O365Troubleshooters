@@ -38,7 +38,6 @@ Includes a Switch purely for future extention of the script
 #>
 function Get-ValidDomain([string]$DomainType)
 {   
-    #ToDo - Use Trim to account for starting or trailing whitespace in the console string input
     switch($DomainType)
     {
         "Initial *.onmicrosoft.com"
