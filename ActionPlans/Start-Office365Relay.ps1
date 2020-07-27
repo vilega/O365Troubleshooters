@@ -37,7 +37,7 @@ Validates Domain via Regex
 Includes a Switch purely for future extention of the script
 #>
 function Get-ValidDomain([string]$DomainType)
-{
+{   
     switch($DomainType)
     {
         "Initial *.onmicrosoft.com"
@@ -47,14 +47,14 @@ function Get-ValidDomain([string]$DomainType)
             {
                 Write-Host "Enter Valid $DomainType Domain Name: " -ForegroundColor Cyan -NoNewline
                 [string]$Domain = Read-Host
-                [bool]$valid = ($Domain -match "^[A-Z0-9]+.onmicrosoft.com$")
+                [bool]$valid = ($Domain.Trim() -match "^[A-Z0-9]+.onmicrosoft.com$")
                 $count++
             }
             while (!$valid -and ($count -le 2))
             
             if ($valid)
             {
-                return $Domain
+                return $Domain.Trim()
             }
             else 
             {
