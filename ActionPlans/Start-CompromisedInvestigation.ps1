@@ -416,8 +416,11 @@ Function Start-CompromisedMain
 
     $InboundConnectorAdminAudit,$OutboundConnectorAdminAudit,$TransportRuleAdminAudit,$InboxRuleAdminAudit = Get-CompromisedAdminAudit
 
-    #Call Azure AD Sign In and collect login audit for admins
+    #ToDo : Call Azure AD Sign In and collect login audit for admins
 
+    #ToDo : Add Audit Bypass feedback to Report
+    #ToDo : Add GA list with MFA Status to Report
+    #ToDo : Send Warning String to Report with Check Hidden Inbox Rule procedure
     Export-CompromisedHTMLReport -InboundConnectors $InboundConnectors -OutboundConnectors $OutboundConnectors `
                         -InboxRules $GAInboxRules -TransportRules $SuspiciousTransportRules
     
