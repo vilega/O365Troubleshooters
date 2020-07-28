@@ -37,14 +37,14 @@ Function Get-RecentSuspiciousConnectors
     
     if($null -ne $InboundConnectors)
     {
-        Write-Host "Inbound On Premises connectors have been created/modified in the last $DaysToInvestigate days" -ForegroundColor Yellow
+        Write-Warning "Inbound On Premises connectors have been created/modified in the last $DaysToInvestigate days"
         $InboundConnectors|Export-Csv -NoTypeInformation -Path "$ExportPath\InboundConnectors.csv"
     }
     else{Write-Host "No Inbound OnPrem Connectors created/modified in the past $DaysToInvestigate days" -ForegroundColor Green}
 	
 	if($null -ne $OutboundConnectors)
     {
-        Write-Host "Outbound Connectors have been created/modified in the last $DaystoInvestigate days" -ForegroundColor Yellow
+        Write-Warning "Outbound Connectors have been created/modified in the last $DaystoInvestigate days"
         $OutboundConnectors|Export-Csv -NoTypeInformation -Path "$ExportPath\OutboundConnectors.csv"
     }
     else{Write-Host "No Outbound Connectors created/modified in the past $DaysToInvestigate days" -ForegroundColor Green}
@@ -107,7 +107,7 @@ Function Get-SuspiciousJournalRule
     }
     else 
     {
-        Write-Host "We have detected the following Journal Rules:" -ForegroundColor Yellow
+        Write-Warning "We have detected the following Journal Rules:"
         $JournalRules|Format-Table Identity, Enabled, Scope, JournalEmailAddress, Recipient, WhenChanged
         $JournalRules|Export-Csv -NoTypeInformation -Path "$ExportPath\JournalRules.csv"
         return $JournalRules
@@ -186,7 +186,7 @@ Function Get-EXOAuditBypass
         
             if ((Get-MailboxAuditBypassAssociation -Identity $Administrator).AuditByPassEnabled -eq $true)
             {
-                Write-Host "The following administrator's ($Administrator) actions on other mailboxes are not audited!!! " -ForegroundColor Red
+                Write-Host "The following administrator's ($Administrator) actions on other mailboxes are not audited" -ForegroundColor Red
             }
         }
     }
@@ -198,7 +198,7 @@ Function Get-EXOAuditBypass
         {
             if ((Get-MailboxAuditBypassAssociation -Identity $Administrator).AuditByPassEnabled -eq $true)
             {
-                Write-Host "The following administrator's ($Administrator) actions on other mailboxes are not audited!!! " -ForegroundColor Red
+                Write-Host "The following administrator's ($Administrator) actions on other mailboxes are not audited" -ForegroundColor Red
             }
         }
     }
@@ -232,6 +232,30 @@ function Get-CompromisedAdminAudit
     {$TransportRuleAdminAudit|Export-Csv -Append -NoTypeInformation -Path "$ExportPath\EXOAdminAuditLogs.csv"}
 
     return $InboundConnectorAdminAudit,$OutboundConnectorAdminAudit,$TransportRuleAdminAudit,$InboxRuleAdminAudit
+}
+
+function Get-GAAzureSignInLogs
+{param([string[]][Parameter(Mandatory=$true)] $EmailAddresses)
+    #Dot Sourcing Start-AzureADAuditSignInLogSearch.ps1
+    . $script:modulePath\ActionPlans\Start-AzureADAuditSignInLogSearch.ps1
+
+    if($DaysToInvestigate -gt 30)
+    {
+        $DaysToSearch = 30
+        Write-Warning "The Compromised Investigation was scoped to $DaysToInvestigate days
+For Global Admin Azure AD Sign In logs we will be able to provide a maximum of 30 days of logs"
+    }
+    else 
+    {
+        $DaysToSearch = $DaysToInvestigate
+    }
+
+    foreach($GASMTP in $EmailAddresses)
+    {   
+        Search-AzureAdSignInAudit -DaysToSearch $DaysToSearch -Upn $GASMTP
+        $global:AzureAdSignInAll | Export-Csv "$ExportPath\GA_AllSignInAuditLogs_$ts.csv" -Append -NoTypeInformation
+        $global:AzureAdSignInFail | Export-Csv "$ExportPath\GA_FailSignInAuditLogs_$ts.csv" -Append -NoTypeInformation
+    }
 }
 
 Function Export-CompromisedHTMLReport
@@ -416,7 +440,7 @@ Function Start-CompromisedMain
 
     $InboundConnectorAdminAudit,$OutboundConnectorAdminAudit,$TransportRuleAdminAudit,$InboxRuleAdminAudit = Get-CompromisedAdminAudit
 
-    #ToDo : Call Azure AD Sign In and collect login audit for admins
+    Get-GAAzureSignInLogs -EmailAddresses $GASMTPs
 
     #ToDo : Add Audit Bypass feedback to Report
     #ToDo : Add GA list with MFA Status to Report
