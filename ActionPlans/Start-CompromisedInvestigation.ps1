@@ -107,8 +107,8 @@ Function Get-SuspiciousJournalRule
     }
     else 
     {
-        Write-Warning "We have detected the following Journal Rules:"
-        $JournalRules|Format-Table Identity, Enabled, Scope, JournalEmailAddress, Recipient, WhenChanged
+        Write-Warning "We have detected Journal Rules"
+        #$JournalRules|Format-Table Identity, Enabled, Scope, JournalEmailAddress, Recipient, WhenChanged
         $JournalRules|Export-Csv -NoTypeInformation -Path "$ExportPath\JournalRules.csv"
         return $JournalRules
     }
@@ -172,35 +172,33 @@ Function Get-SuspiciousInboxRules
 
 #region GA audit disable & audit bypass
 Function Get-EXOAuditBypass
-{
+{param([string[]][Parameter(Mandatory=$true)] $EmailAddresses)
+
     if ((Get-OrganizationConfig).AuditDisabled -eq $true)
     {
-        Write-Host "Automatic AuditEnabled at organization level is turned off" -ForegroundColor Red
-
-        foreach($Administrator in $AdministratorsList.UserPrincipalName)
-        {
-            if ((get-mailbox $Administrator -ea SilentlyContinue).AuditEnabled -eq $false)
-            {
-                Write-Host "The following Global Administrator $($Administrator) has mailbox audit disabled"
-            }
-        
-            if ((Get-MailboxAuditBypassAssociation -Identity $Administrator).AuditByPassEnabled -eq $true)
-            {
-                Write-Host "The following administrator's ($Administrator) actions on other mailboxes are not audited" -ForegroundColor Red
-            }
-        }
+        Write-Warning "Automatic AuditEnabled at organization level is turned off"
+        return $null
     }
+
     else
     {
         Write-Host "Automatic AuditEnabled at organization level is turned on" -ForegroundColor Green
         
-        foreach($Administrator in $AdministratorsList.UserPrincipalName)
+        foreach($GASMTP in $GASMTPs)
         {
-            if ((Get-MailboxAuditBypassAssociation -Identity $Administrator).AuditByPassEnabled -eq $true)
+            if ((Get-Mailbox $GASMTP -ErrorAction SilentlyContinue).AuditEnabled -eq $false)
             {
-                Write-Host "The following administrator's ($Administrator) actions on other mailboxes are not audited" -ForegroundColor Red
+                Write-Warning "The following Global Administrator $($GASMTP) has mailbox audit disabled"
+                [string[]]$MailboxAuditDisabledGAs += $GASMTP
+            }
+        
+            if ((Get-MailboxAuditBypassAssociation -Identity $GASMTP).AuditByPassEnabled -eq $true)
+            {
+                Write-Warning "The following administrator's ($GASMTP) actions on other mailboxes are not audited"
+                [string[]]$MailboxAuditBypassGAs += $GASMTP
             }
         }
+        return $MailboxAuditDisabledGAs, $MailboxAuditBypassGAs
     }
 }
 #endregion GA audit disable & audit bypass
@@ -258,13 +256,26 @@ For Global Admin Azure AD Sign In logs we will be able to provide a maximum of 3
     }
 }
 
+function Get-GlobalAdminsWithIssues
+{param([Object[]][Parameter(Mandatory=$true)] $GlobalAdminList)
+    foreach($GlobalAdmin in $GlobalAdminList)
+    {
+        if( ($GlobalAdmin.MfaState -notmatch "Enforced") -or ($GlobalAdmin.StrongPasswordRequired -ne $true) `
+                -or ($null -ne $GlobalAdmin.ForwardingAddress) -or ($null -ne $GlobalAdmin.ForwardingSmtpAddress))
+        {
+            [PSCustomObject[]]$GlobalAdminsWithIssues += $GlobalAdmin
+        }
+    }
+    return $GlobalAdminsWithIssues
+}
 Function Export-CompromisedHTMLReport
 {param(
     [Object[]][Parameter(Mandatory=$false)] $InboxRules,
     [Object[]][Parameter(Mandatory=$false)] $TransportRules,
     [Object[]][Parameter(Mandatory=$false)] $InboundConnectors,
     [Object[]][Parameter(Mandatory=$false)] $OutboundConnectors,
-    [Object[]][Parameter(Mandatory=$false)] $JournalRules
+    [Object[]][Parameter(Mandatory=$false)] $JournalRules,
+    [Object[]][Parameter(Mandatory=$true)] $GlobalAdminsWithIssues
 )
     #Export Info to HTML
     $header = @"
@@ -350,11 +361,11 @@ Function Export-CompromisedHTMLReport
     if($InboxRules)
     {
         $InboxRules = $GAInboxRules | ConvertTo-Html -Property MailboxOwnerId, Name, Description, Enabled -Fragment `
-                                -PreContent "<h2 class=`"ResultNotOk`">Suspicious Inbox Rules</h2>"
+                                -PreContent "<h2 class=`"ResultNotOk`">Suspicious Global Admin Inbox Rules</h2>"
     }
     else 
     {
-        $InboxRules = $InboxRules | ConvertTo-Html -PreContent "<h2 class=`"ResultOk`">No Suspicious Inbox Rules</h2>"
+        $InboxRules = $InboxRules | ConvertTo-Html -PreContent "<h2 class=`"ResultOk`">No Suspicious Global Admin Inbox Rules</h2>"
     }
 
     if($InboundConnectors)
@@ -379,7 +390,7 @@ Function Export-CompromisedHTMLReport
 
     if($JournalRules)
     {
-        $JournalRules = $JournalRules | ConvertTo-Html -Property Name, Enabled, WhenChangedUTC -Fragment -As List `
+        $JournalRules = $JournalRules | ConvertTo-Html -Property Name, Enabled, Scope, JournalEmailAddress -Fragment -As List `
                                 -PreContent "<h2 class=`"ResultNotOk`">Suspicious Journal Rules</h2>"
     }
     else 
@@ -387,7 +398,23 @@ Function Export-CompromisedHTMLReport
         $JournalRules = $JournalRules | ConvertTo-Html -PreContent "<h2 class=`"ResultOk`">No Suspicious Journal Rules</h2>"
     }
 
-    $Report = ConvertTo-Html -Head $header -Body "$ReportTitle $InboxRules $TransportRules $InboundConnectors $OutboundConnectors $JournalRules" `
+    if($GlobalAdminsWithIssues)
+    {
+        $GlobalAdminsWithIssues = $GlobalAdminsWithIssues | ConvertTo-Html -PreContent "<h2 class=`"ResultNotOk`">Global Admins configuration issues</h2>"
+    }
+    else 
+    {
+        $GlobalAdminsWithIssues = $GlobalAdminsWithIssues | ConvertTo-Html -PreContent "<h2 class=`"ResultOk`">No Global Admin configuration security concerns</h2>"
+    }
+
+    $HiddenInboxRulesWarningString = "This Script does not currently check for Hidden Inbox Rules.
+To identify and delete such rules, perform the steps from the following article:
+https://docs.microsoft.com/en-us/archive/blogs/hkong/how-to-delete-corrupted-hidden-inbox-rules-from-a-mailbox-using-mfcmapi"
+    $HiddenInboxRulesWarning = New-Object -TypeName psobject 
+    $HiddenInboxRulesWarning | Add-Member -MemberType NoteProperty -Name "Warning" -Value $HiddenInboxRulesWarningString 
+    $HiddenInboxRulesWarning = $HiddenInboxRulesWarning | ConvertTo-Html -Property Warning -PreContent "<h2 class=`"ResultNotOk`">Hidden Inbox Rules</h2>"
+
+    $Report = ConvertTo-Html -Head $header -Body "$ReportTitle $GlobalAdminsWithIssues $HiddenInboxRulesWarning $InboxRules $TransportRules $InboundConnectors $OutboundConnectors $JournalRules" `
                                 -Title "Compromised Investigation" -PreContent "<p>Creation Date: $now</p>"
 
     $Report | Out-File "$ExportPath\CompromisedReport_$ts.htm"
@@ -430,8 +457,6 @@ Function Start-CompromisedMain
 
     $InboundConnectors, $OutboundConnectors = Get-RecentSuspiciousConnectors -DaysToInvestigate $DaysToInvestigate -CurrentDateTime $now
 
-    Get-EXOAuditBypass
-
     $JournalRules = Get-SuspiciousJournalRule
 
     $SuspiciousTransportRules = Get-SuspiciousTransportRules  
@@ -442,11 +467,15 @@ Function Start-CompromisedMain
 
     Get-GAAzureSignInLogs -EmailAddresses $GASMTPs
 
+    $GlobalAdminsWithIssues = Get-GlobalAdminsWithIssues -GlobalAdminList $GlobalAdminList
+
     #ToDo : Add Audit Bypass feedback to Report
-    #ToDo : Add GA list with MFA Status to Report
-    #ToDo : Send Warning String to Report with Check Hidden Inbox Rule procedure
+    $MailboxAuditDisabledGAs, $MailboxAuditBypassGAs = Get-EXOAuditBypass -EmailAddresses $GASMTPs
+    
+    #Todo : Add BlockedSenderReasons to Report
+
     Export-CompromisedHTMLReport -InboundConnectors $InboundConnectors -OutboundConnectors $OutboundConnectors `
-                        -InboxRules $GAInboxRules -TransportRules $SuspiciousTransportRules
+                        -InboxRules $GAInboxRules -TransportRules $SuspiciousTransportRules -GlobalAdminsWithIssues $GlobalAdminsWithIssues -JournalRules $JournalRules
     
     Write-Host "Exported logs to $ExportPath, you will be returned to O365Troubleshooters Main Menu" -ForegroundColor Green
     

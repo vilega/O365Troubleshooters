@@ -931,7 +931,7 @@ Function Test-PSVers {
 function Start-Elevated {
     Write-Host "Starting new PowerShell Window with the O365Troubleshooters Module loaded"
     Read-Key
-    Start-Process powershell.exe -ArgumentList "-noexit -Command Install-Module O365Troubleshooters -force; Import-Module O365Troubleshooters -force; Start-O365Troubleshooters -elevatedExecution `$true" -Verb RunAs -Wait
+    Start-Process powershell.exe -ArgumentList "-noexit -Command Install-Module O365Troubleshooters -force; Import-Module O365Troubleshooters -force; Start-O365Troubleshooters -elevatedExecution `$true" -Verb RunAs #-Wait
     #Exit
 }
 
