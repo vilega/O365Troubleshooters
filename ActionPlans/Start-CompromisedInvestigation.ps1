@@ -173,7 +173,12 @@ Function Get-SuspiciousInboxRules
 #region GA audit disable & audit bypass
 Function Get-EXOAuditBypass
 {param([string[]][Parameter(Mandatory=$true)] $EmailAddresses)
-
+<#ToDo
+Return Object from Get-MailboxAuditBypassAssociation with properties:
+PrimarySMTPAddress
+WhenChangedUTC
+AuditBypassEnabled
+#>
     if ((Get-OrganizationConfig).AuditDisabled -eq $true)
     {
         Write-Warning "Automatic AuditEnabled at organization level is turned off"
@@ -461,6 +466,7 @@ Function Start-CompromisedMain
 
     $SuspiciousTransportRules = Get-SuspiciousTransportRules  
     
+    #Todo : Add BlockedSenderReasons to Report
     $BlockSenderReasons = Get-BlockedSenderReasons
 
     $InboundConnectorAdminAudit,$OutboundConnectorAdminAudit,$TransportRuleAdminAudit,$InboxRuleAdminAudit = Get-CompromisedAdminAudit
@@ -471,11 +477,10 @@ Function Start-CompromisedMain
 
     #ToDo : Add Audit Bypass feedback to Report
     $MailboxAuditDisabledGAs, $MailboxAuditBypassGAs = Get-EXOAuditBypass -EmailAddresses $GASMTPs
-    
-    #Todo : Add BlockedSenderReasons to Report
 
     Export-CompromisedHTMLReport -InboundConnectors $InboundConnectors -OutboundConnectors $OutboundConnectors `
-                        -InboxRules $GAInboxRules -TransportRules $SuspiciousTransportRules -GlobalAdminsWithIssues $GlobalAdminsWithIssues -JournalRules $JournalRules
+                        -InboxRules $GAInboxRules -TransportRules $SuspiciousTransportRules -GlobalAdminsWithIssues $GlobalAdminsWithIssues `
+                        -JournalRules $JournalRules
     
     Write-Host "Exported logs to $ExportPath, you will be returned to O365Troubleshooters Main Menu" -ForegroundColor Green
     
