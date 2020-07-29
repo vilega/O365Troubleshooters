@@ -37,7 +37,6 @@ function Get-Token {
              # Authority to Azure AD Tenant
             $authority = "https://login.microsoftonline.com/common";
         }
-      
     }
     
     # AuthenticationContext points to Azure AD
@@ -45,9 +44,9 @@ function Get-Token {
 
     # Get token silently
     $UserIdentifier = New-Object Microsoft.IdentityModel.Clients.ActiveDirectory.UserIdentifier($global:credentials.userName, "OptionalDisplayableId")
-    $Result = $authContext.AcquireTokenSilentAsync($resourceId, $clientId,$UserIdentifier)
-    while ($result.IsCompleted -ne $true) { Start-Sleep -Milliseconds 500}
-    if (!($Result.IsFaulted -eq $false)) 
+    $authResult = $authContext.AcquireTokenSilentAsync($resourceId, $clientId,$UserIdentifier)
+    while ($authResult.IsCompleted -ne $true) { Start-Sleep -Milliseconds 500}
+    if (!($authResult.IsFaulted -eq $false)) 
     {
         switch ($Result.Exception.InnerException.ErrorCode) 
         {
@@ -59,6 +58,7 @@ function Get-Token {
                 $userCreds = New-Object Microsoft.IdentityModel.Clients.ActiveDirectory.UserPasswordCredential($userName, $password)
                 $authResult = [Microsoft.IdentityModel.Clients.ActiveDirectory.AuthenticationContextIntegratedAuthExtensions]::AcquireTokenAsync($authContext, $resourceId, $clientId, $userCreds)
                 while ($authResult.IsCompleted -ne $true) { Start-Sleep -Milliseconds 500}
+                $Result = $authResult.Result
             }
             multiple_matching_tokens_detected 
             {
@@ -80,5 +80,38 @@ function Get-Token {
             }
         }
     }
+    return $authResult.Result
+}
 
+function Get-TokenFromCache
+{
+    param (
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("EXO","AzureGraph","AIPService")]
+        [string]
+        $Service
+    )
+      
+    switch ($Service) 
+    {
+        exo 
+        {
+            $resourceId = "https://outlook.office365.com"
+        }
+        AzureGraph 
+        {
+            # Resource URI to Graph endpoint
+            $resourceId = "https://graph.windows.net"
+        }
+
+        AIPService 
+        {
+            # Resource URI to AADRM endpoint
+            $resourceId = 'https://api.aadrm.com/';
+        }
+    }
+
+    $cache = [Microsoft.IdentityModel.Clients.ActiveDirectory.TokenCache]::DefaultShared
+    return $Cache.ReadItems() | Where-Object {($_.DisplayableId -eq $global:credentials.userName) -and ($_.Resource -eq $resourceID)}
+   
 }
