@@ -68,6 +68,44 @@ Function Connect-O365PS { # Function to connecto to O365 services
     $Global:O365Cred=$null
     
 #region Module Checks
+
+    # Azure Module is mandatory
+
+    if (!($global:addTypeAzureAD))
+    {
+        $minimumVersionAzureAD = '2.0.2.16'
+        $CurrentProperty = "Checking AzureAD Module"
+        if ((Get-Module azuread -ListAvailable | Where-Object { $_.Version -ge $minimumVersionAzureAD}).count -gt 0)
+        {
+            $pathModule = split-path ((Get-Module azuread -ListAvailable | Where-Object { $_.Version -ge $minimumVersionAzureAD } | Sort-Object -Property version -Descending)[0]).Path -parent
+            
+            $path = join-path $pathModule 'Microsoft.IdentityModel.Clients.ActiveDirectory.dll'
+            try 
+            {
+                Add-Type -Path $path
+            }
+            catch {}
+            
+            $CurrentDescription = "Azure AD Module for Windows PowerShell is installed and version is $(Split-Path $pathModule -Leaf)"
+            $global:addTypeAzureAD = $true
+        
+        }
+        else 
+        {
+            $CurrentDescription = "Azure AD Module for Windows PowerShell is not installed or version is less than $minimumVersionAzureAD. Initiated install from PowerShell Gallery"
+            Write-Host "`n$CurrentDescription" -ForegroundColor Red
+            write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
+            #Uninstall-Module AzureAD -Force -Confirm:$false -ErrorAction SilentlyContinue |Out-Null
+            
+            Install-Module AzureAD -Force -Confirm:$false -AllowClobber
+            $pathModule = split-path ((Get-Module azuread -ListAvailable | Where-Object { $_.Version -ge $minimumVersionAzureAD } | Sort-Object -Property version -Descending)[0]).Path -parent
+            $path = join-path $pathModule 'Microsoft.IdentityModel.Clients.ActiveDirectory.dll'
+            Add-Type -Path $path -IgnoreWarnings:$true -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
+            $CurrentDescription = "Azure AD Module for Windows PowerShell is installed and version is $(Split-Path $pathModule -Leaf)"
+            $global:addTypeAzureAD = $true
+        }
+    }
+
     # Checking if required modules are installed
     If ( $O365Service -eq "MSOL") {
         $updateMSOL = $false
@@ -99,6 +137,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
         }
     }
 
+    <# Removed as AzureAD is mandatory for all connections to request manually the token
     If ( $O365Service -eq "AzureAD") {
         $updateAzureAD = $false
         [version]$minimumVersion = "2.0.0.131"
@@ -128,7 +167,9 @@ Function Connect-O365PS { # Function to connecto to O365 services
             Install-Module AzureAD -Force -Confirm:$false -AllowClobber
         }
     }
+    #>
 
+    #TODO: need to check if AzureADPreview for sign-in logs 
     If ( $O365Service -eq "AzureADPreview") {
         $updateAzureADPreview = $false
         [version]$minimumVersion = "2.0.2.89"
@@ -172,6 +213,8 @@ Function Connect-O365PS { # Function to connecto to O365 services
         }
     }
     
+    # Currently disabled as connection is done based on access token
+    <# 
     if ( $O365Service -eq "Exo") {
         if ($null -eq ((Get-ChildItem -Path $($env:LOCALAPPDATA + "\Apps\2.0\") -Filter Microsoft.Exchange.Management.ExoPowershellModule.dll -Recurse).FullName | `
             Where-Object { $_ -notmatch "_none_" })) 
@@ -185,6 +228,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
             Exit
         }
     }
+    #>
 
     if ( $O365Service -eq "Exo2") {
         if ((Get-Module -ListAvailable -Name ExchangeOnlineManagement).count -eq 0) 
@@ -232,6 +276,28 @@ Function Connect-O365PS { # Function to connecto to O365 services
 #endregion Module Checks
 
 #region Connection scripts region
+  if ($global:MfaOption -eq 0)
+  {
+    $global:userPrincipalName = Get-ValidEmailAddress("UserPrincipalName used to connect to Office 365 Services")
+      do 
+      {
+        $mfa =Read-Host "Your account require MFA to authenticate? (y/n))"
+        $mfa = $mfa.ToLower()
+        if ($mfa -eq "y")
+        {
+           $global:MfaOption = 1
+           Write-Host $global:MfaDisclaimer -ForegroundColor Red 
+           
+        }
+        if ($mfa -eq "n")
+        {
+            $global:MfaOption = 2
+            $global:credentials = Get-Credential -UserName $global:userPrincipalName -Message "Please input your password:"
+        }
+      } until (($mfa -eq "y") -or ($mfa -eq "n"))
+    
+
+  }
   switch ($O365Service) {
     # Connect to MSOL
     "MSOL" {
@@ -612,6 +678,8 @@ Function Set-GlobalVariables {
     $Global:Path += "\PowerShellOutputs"
     $global:WSPath = "$Path\PowerShellOutputs_$ts"
     $global:starline = New-Object String '*',5
+    $global:addTypeAzureAD = $false
+    $global:MfaOption = 0;
     #$Global:ExtractXML_XML = "Get-MigrationUserStatistics ", "Get-ImapSubscription "
     $global:Disclaimer ='Note: Before you run the script: 
 
@@ -626,6 +694,12 @@ Function Set-GlobalVariables {
     inability to use the sample scripts or documentation, even if Microsoft has been advised of the 
     possibility of such damages.
     '
+    $global:MfaDisclaimer = @"
+    1. Please note that not all services allow PowerShell connection with MFA! Example: AIPService module doesn`'t support MFA
+    2. Using an account with MFA will generate multiple prompts for different Office 365 workloads
+    3. If you require to have an account with MFA, you can set trusted IPs from which MFA prompt won't be required. See article: https://docs.microsoft.com/azure/active-directory/authentication/howto-mfa-mfasettings#trusted-ips
+"@
+
     Write-Host $global:Disclaimer -ForegroundColor Red
     Start-Sleep -Seconds 3
     
@@ -648,12 +722,12 @@ Function Set-GlobalVariables {
     Set-Location $WSPath
     Write-Host "`n"
 
-    if ($null -eq $global:userPrincipalName)
-    {
-        $global:userPrincipalName = Get-ValidEmailAddress("UserPrincipalName used to connect to Office 365 Services")
-        Write-Host "Please note that depening the Office 365 Services we need to connect, you might be asked to re-add the UserPrincipalName in another Authentication Form!" -ForegroundColor Yellow
-        Start-Sleep -Seconds 5
-    }
+    #if ($null -eq $global:credential)
+    #{
+        #$global:userPrincipalName = Get-ValidEmailAddress("UserPrincipalName used to connect to Office 365 Services")
+        #Write-Host "Please note that depening the Office 365 Services we need to connect, you might be asked to re-add the UserPrincipalName in another Authentication Form!" -ForegroundColor Yellow
+        #Start-Sleep -Seconds 5
+    #}
 }
 
 function Get-ValidEmailAddress([string]$EmailAddressType)
