@@ -111,7 +111,16 @@ function Get-TokenFromCache
         }
     }
 
+    #returning token from cache
     $cache = [Microsoft.IdentityModel.Clients.ActiveDirectory.TokenCache]::DefaultShared
-    return $Cache.ReadItems() | Where-Object {($_.DisplayableId -eq $global:credentials.userName) -and ($_.Resource -eq $resourceID)}
-   
+    $token = $Cache.ReadItems() | Where-Object {($_.DisplayableId -eq $global:credentials.userName) -and ($_.Resource -eq $resourceID)}
+    # Check if access token lifetime is less than 30 minutes to request a new access token
+    if ($token)
+    {
+        if (($token.ExpiresOn - (get-date)).Totalminutes -lt 30)
+        {
+            return $null
+        }
+    }
+    return $token
 }
