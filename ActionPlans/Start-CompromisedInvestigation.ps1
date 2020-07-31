@@ -162,14 +162,33 @@ Function Test-ProvisionedMailbox
 
 Function Get-SuspiciousInboxRules
 {param([string[]][Parameter(Mandatory=$true)] $EmailAddresses)
+
+    $InboxRules = @()
+    $SuspiciousInboxRules = @()
     foreach($EmailAddress in $EmailAddresses)
     {
-        $InboxRules += Get-InboxRule -Mailbox $EmailAddress
+        $InboxRules += Get-InboxRule -Mailbox $EmailAddress | Select-Object *,@{Name="Mailbox";expression={$EmailAddress}}
         Start-Sleep -Seconds 0.5
     }
+
+    foreach($InboxRule in $InboxRules)
+    {   
+        switch -wildcard($InboxRule.Description)
+        {   
+            "*redirect the message to*" 
+                {$SuspiciousInboxRules += $InboxRule<#|Select-Object Name,Description,State,Guid,WhenChanged#>}
+            "*move the message to*" 
+                {$SuspiciousInboxRules += $InboxRule<#|Select-Object Name,Description,State,Guid,WhenChanged#>}
+            "*Forward the message*" 
+                {$SuspiciousInboxRules += $InboxRule<#|Select-Object Name,Description,State,Guid,WhenChanged#>}
+            "*delete the message*" 
+                {$SuspiciousInboxRules += $InboxRule<#|Select-Object Name,Description,State,Guid,WhenChanged#>}
+            default{}
+        }
+    }
     #ToDo - check which Admins have Inbox Rules with Forward/Redirect/Delete/MoveToFolder
-    $InboxRules | Export-Csv -NoTypeInformation -Path "$ExportPath\GAInboxRules.csv"
-    return $InboxRules
+    $SuspiciousInboxRules | Export-Csv -NoTypeInformation -Path "$ExportPath\GAInboxRules.csv"
+    return $SuspiciousInboxRules
 }
 
 #region GA audit disable & audit bypass
@@ -368,7 +387,7 @@ Function Export-CompromisedHTMLReport
 
     if($InboxRules)
     {
-        $InboxRules = $GAInboxRules | ConvertTo-Html -Property MailboxOwnerId, Name, Description, Enabled -Fragment `
+        $InboxRules = $GAInboxRules | ConvertTo-Html -Property Mailbox, Name, Description, Enabled -Fragment `
                                 -PreContent "<h2 class=`"ResultNotOk`">Suspicious Global Admin Inbox Rules</h2>"
     }
     else 
@@ -378,8 +397,9 @@ Function Export-CompromisedHTMLReport
 
     if($InboundConnectors)
     {
-        $InboundConnectors = $InboundConnectors | ConvertTo-Html -Property Name, Enabled, WhenChangedUTC -Fragment -As List `
-                                        -PreContent "<h2 class=`"ResultNotOk`">Suspicious Inbound Connectors</h2>"
+        $InboundConnectors = $InboundConnectors | ConvertTo-Html -Property Name, Enabled, ConnectorType, SenderIPAddresses, SenderDomains, `
+                                                                    TlsSenderCertificateName, WhenChangedUTC -Fragment <#-As List#> `
+                                                        -PreContent "<h2 class=`"ResultNotOk`">Suspicious Inbound Connectors</h2>"
     }
     else 
     {
@@ -388,8 +408,9 @@ Function Export-CompromisedHTMLReport
 
     if($OutboundConnectors)
     {
-        $OutboundConnectors = $OutboundConnectors | ConvertTo-Html -Property Name, Enabled, WhenChangedUTC -Fragment -As List `
-                                        -PreContent "<h2 class=`"ResultNotOk`">Suspicious Outbound Connectors</h2>"
+        $OutboundConnectors = $OutboundConnectors | ConvertTo-Html -Property Name, Enabled, ConnectorType, UseMXRecord, SmartHosts, `
+                                                                    WhenChangedUTC -Fragment <#-As List#> `
+                                                            -PreContent "<h2 class=`"ResultNotOk`">Suspicious Outbound Connectors</h2>"
     }
     else 
     {
@@ -398,7 +419,7 @@ Function Export-CompromisedHTMLReport
 
     if($JournalRules)
     {
-        $JournalRules = $JournalRules | ConvertTo-Html -Property Name, Enabled, Scope, JournalEmailAddress -Fragment -As List `
+        $JournalRules = $JournalRules | ConvertTo-Html -Property Name, Enabled, Scope, JournalEmailAddress -Fragment <#-As List#> `
                                 -PreContent "<h2 class=`"ResultNotOk`">Suspicious Journal Rules</h2>"
     }
     else 
@@ -458,8 +479,19 @@ To identify and delete such rules, perform the steps from the following article:
     {
         $OrganizationMailboxAuditDisabledWarning = $null | ConvertTo-Html -PreContent "<h2 class=`"ResultNotOk`">Mailbox Audit Disabled Organization Wide, check via Get-OrganizationConfig|select AuditDisabled</h2>"
     }
+
+    $AdminAuditNotificationString = "We have exported Full Admin Audit Logs for cmdlets:<br>
+    &emsp;New-InboxRule, Set-InboxRule, Remove-InboxRule, Enable-InboxRule, Disable-InboxRule<br>
+    &emsp;New-InboundConnector, Set-InboundConnector, Remove-InboundConnector<br>
+    &emsp;New-OutboundConnector, Set-OutboundConnector, Remove-OutboundConnector<br>
+    &emsp;New-TransportRule, Set-TransportRule, Remove-TransportRule, Disable-TransportRule, Enable-TransportRule<br>
+These logs can be found in file:<br>
+$ExportPath\EXOAdminAuditLogs.csv"
+
+    $AdminAuditNotification = $null | ConvertTo-Html -PostContent $AdminAuditNotificationString -PreContent "<h2 class=`"ResultNotOk`">Admin Audit Logs</h2>"
+
     $Report = ConvertTo-Html -Head $header -Body "$ReportTitle $GlobalAdminsWithIssues $HiddenInboxRulesWarning $InboxRules $OrganizationMailboxAuditDisabledWarning `
-                                $MailboxAuditBypassGAs $MailboxAuditDisabledGAs $BlockedSenderReasons $TransportRules $InboundConnectors $OutboundConnectors $JournalRules" `
+                                $MailboxAuditBypassGAs $MailboxAuditDisabledGAs $AdminAuditNotification $BlockedSenderReasons $TransportRules $InboundConnectors $OutboundConnectors $JournalRules" `
                                 -Title "Compromised Investigation" -PreContent "<p>Creation Date: $now</p>"
 
     $Report | Out-File "$ExportPath\CompromisedReport_$ts.htm"
@@ -522,7 +554,11 @@ Function Start-CompromisedMain
                         -OrganizationMailboxAuditDisabled $OrganizationMailboxAuditDisabled -MailboxAuditDisabledGAs $MailboxAuditDisabledGAs `
                         -MailboxAuditBypassGAs $MailboxAuditBypassGAs
     
-    Write-Host "Exported logs to $ExportPath, you will be returned to O365Troubleshooters Main Menu" -ForegroundColor Green
+    Write-Host -ForegroundColor Green "Exported logs to $ExportPath, here you will find:
+    -HTML Summary Report
+    $ExportPath\CompromisedReport_$ts.htm
+    -Full CSV Output dump used for analysis and building HTML Report.
+you will be returned to O365Troubleshooters Main Menu" 
     
     Read-Key
 

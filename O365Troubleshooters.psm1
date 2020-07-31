@@ -703,7 +703,14 @@ function Read-IntFromConsole {
     {
         [bool]$valid = $true
         Write-Host "Enter Valid $IntType`: " -ForegroundColor Cyan -NoNewline
-        try{[int]$IntFromConsole = Read-Host}
+        try
+        {
+            [int]$IntFromConsole = Read-Host
+            if($IntFromConsole -eq 0)
+            {
+                throw "System.Management.Automation.RuntimeException"
+            }
+        }
         catch [System.Management.Automation.RuntimeException]
         {
             Write-Host "Invalid $IntType returned" -ForegroundColor Red
