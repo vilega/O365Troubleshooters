@@ -979,6 +979,8 @@ Function Set-GlobalVariables {
         #Write-Host "Please note that depening the Office 365 Services we need to connect, you might be asked to re-add the UserPrincipalName in another Authentication Form!" -ForegroundColor Yellow
         #Start-Sleep -Seconds 5
     #}
+
+    . $script:modulePath\ActionPlans\Connect-ServicesWithTokens.ps1
 }
 
 function Get-ValidEmailAddress([string]$EmailAddressType)
