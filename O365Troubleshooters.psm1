@@ -100,7 +100,12 @@ Function Connect-O365PS { # Function to connecto to O365 services
             Install-Module AzureAD -Force -Confirm:$false -AllowClobber
             $pathModule = split-path ((Get-Module azuread -ListAvailable | Where-Object { $_.Version -ge $minimumVersionAzureAD } | Sort-Object -Property version -Descending)[0]).Path -parent
             $path = join-path $pathModule 'Microsoft.IdentityModel.Clients.ActiveDirectory.dll'
-            Add-Type -Path $path -IgnoreWarnings:$true -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
+            try 
+            {
+                Add-Type -Path $path -IgnoreWarnings:$true -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
+            }
+            catch {}
+            
             $CurrentDescription = "Azure AD Module for Windows PowerShell is installed and version is $(Split-Path $pathModule -Leaf)"
             $global:addTypeAzureAD = $true
         }
@@ -278,21 +283,23 @@ Function Connect-O365PS { # Function to connecto to O365 services
 #region Connection scripts region
   if ($global:MfaOption -eq 0)
   {
-    $global:userPrincipalName = Get-ValidEmailAddress("UserPrincipalName used to connect to Office 365 Services")
       do 
       {
-        $mfa =Read-Host "Your account require MFA to authenticate? (y/n))"
+
+        Write-Host "Do your account require MFA to authenticate? (y/n))" -ForegroundColor Blue
+        $mfa =Read-Host 
         $mfa = $mfa.ToLower()
         if ($mfa -eq "y")
         {
-           $global:MfaOption = 1
-           Write-Host $global:MfaDisclaimer -ForegroundColor Red 
-           
-        }
+            $global:MfaOption = 1
+            Write-Host $global:MfaDisclaimer -ForegroundColor Red 
+            $global:userPrincipalName = Get-ValidEmailAddress("UserPrincipalName used to connect to Office 365 Services")
+            }
         if ($mfa -eq "n")
         {
             $global:MfaOption = 2
-            $global:credentials = Get-Credential -UserName $global:userPrincipalName -Message "Please input your password:"
+            $global:credentials = Get-Credential -Message "Please input your Office 365 credentials:"
+            $global:userPrincipalName =$global:credentials.UserName
         }
       } until (($mfa -eq "y") -or ($mfa -eq "n"))
     
@@ -301,41 +308,92 @@ Function Connect-O365PS { # Function to connecto to O365 services
   switch ($O365Service) {
     # Connect to MSOL
     "MSOL" {
+        # Defining the banner variable and clear the errors
+        $Global:Error.Clear();
+        $Global:banner = "MSOL PowerShell"
         $CurrentProperty = "Connect MSOL"
-        Do {
-                # Defining the banner variable and clear the errors
-                $Global:Error.Clear();
-                $Global:banner = "MSOL PowerShell"
-                $errordescr = $null
-                $try++
-                try 
-                {
+        
+        if ($global:MfaOption -eq 2)
+        {
+            if (!(Get-Module MSOnline)) {
+                Import-Module MSOnline -Global -DisableNameChecking  -ErrorAction SilentlyContinue | Out-Null
+            }
+            $token = Get-TokenFromCache("AzureGraph")
+            if ($null -eq $token)
+            {
+                $token = Get-Token("AzureGraph")
+                Connect-MsolService -AdGraphAccessToken $token.AccessToken
+            }
+            else 
+            {
+                try {
                     $null = Get-MsolCompanyInformation -ErrorAction Stop
                 }
                 catch 
                 {
-                    Write-Host "$CurrentProperty"
-                    if (!("MSOnline" -in (Get-Module).name))
-                    {
-                        Import-Module MSOnline -Global -DisableNameChecking  -ErrorAction SilentlyContinue
-                    }
-                    $errordescr = $null
-                    Connect-MsolService -ErrorVariable errordescr -ErrorAction SilentlyContinue 
-                    if ($null -eq $Global:Domain)
-                    {
-                        $Global:Domain = (get-msoldomain -ErrorAction SilentlyContinue -ErrorVariable errordescr| Where-Object {$_.name -like "*.onmicrosoft.com" } | Where-Object {$_.name -notlike "*mail.onmicrosoft.com"}).Name
-                    }
-                    $CurrentError = $errordescr.exception.message
+                    Connect-MsolService -AdGraphAccessToken $token.AccessToken
                 }
-                # Creating the session for PS MSOL Service
-                &$Global:CredentialValidation
+            }
         }
-        while (($Try -le 2) -and ($null -ne $errordescr))
+        elseif ($global:MfaOption -eq 1) {
+            Do {
+
+                    $errordescr = $null
+                    $try++
+                    try 
+                    {
+                        $null = Get-MsolCompanyInformation -ErrorAction Stop
+                    }
+                    catch 
+                    {
+                        Write-Host "$CurrentProperty"
+                        if (!("MSOnline" -in (Get-Module).name))
+                        {
+                            Import-Module MSOnline -Global -DisableNameChecking  -ErrorAction SilentlyContinue | Out-Null
+                        }
+                        $errordescr = $null
+                        Connect-MsolService -ErrorVariable errordescr -ErrorAction SilentlyContinue 
+                        if ($null -eq $Global:Domain)
+                        {
+                            $Global:Domain = (get-msoldomain -ErrorAction SilentlyContinue -ErrorVariable errordescr| Where-Object {$_.name -like "*.onmicrosoft.com" } | Where-Object {$_.name -notlike "*mail.onmicrosoft.com"}).Name
+                        }
+                        $CurrentError = $errordescr.exception.message
+                    }
+                    # Creating the session for PS MSOL Service
+                    &$Global:CredentialValidation
+            } while (($Try -le 2) -and ($null -ne $errordescr))
+        }   
         &$Global:DisplayConnect
     }
 
     "AzureAD" {
-        $CurrentProperty = "Connect AzureAD"
+        # Defining the banner variable and clear the errors
+        $Global:Error.Clear();
+        $Global:banner = "AzureAD PowerShell"
+        $CurrentProperty = "Connect Azure"
+        if ($global:MfaOption -eq 2)
+        {
+            if (!(Get-Module AzureAD)) {
+                Import-Module AzureAD -Global -DisableNameChecking  -ErrorAction SilentlyContinue 
+            }
+            $token = Get-TokenFromCache("AzureGraph")
+            if ($null -eq $token)
+            {
+                $token = Get-Token("AzureGraph")
+                Connect-AzureAD -AadAccessToken $token.AccessToken -AccountId $global:userPrincipalName -ErrorVariable errordescr -ErrorAction SilentlyContinue |Out-Null
+            }
+            else 
+            {
+                try {
+                    $null = Get-AzureADTenantDetail -ErrorAction Stop
+                }
+                catch 
+                {
+                    Connect-AzureAD -AadAccessToken $token.AccessToken -AccountId $global:userPrincipalName -ErrorVariable errordescr -ErrorAction SilentlyContinue |Out-Null
+                }
+            }
+        }
+        elseif ($global:MfaOption -eq 1) {
         Do {
                 # Defining the banner variable and clear the errors
                 $Global:Error.Clear();
@@ -365,15 +423,39 @@ Function Connect-O365PS { # Function to connecto to O365 services
                 &$Global:CredentialValidation
         }
         while (($Try -le 2) -and ($null -ne $errordescr))
+    }
         &$Global:DisplayConnect
     }
 
     "AzureADPreview" {
+        # Defining the banner variable and clear the errors
+        $Global:Error.Clear();
+        $Global:banner = "AzureADPreview PowerShell"
         $CurrentProperty = "Connect AzureADPreview"
-        Do {
-                # Defining the banner variable and clear the errors
-                $Global:Error.Clear();
-                $Global:banner = "AzureADPreview PowerShell"
+        if ($global:MfaOption -eq 2)
+        {
+            if (!(Get-Module AzureADPreview)) {
+                Import-Module AzureADPreview -Global -DisableNameChecking  -ErrorAction SilentlyContinue 
+            }
+            $token = Get-TokenFromCache("AzureGraph")
+            if ($null -eq $token)
+            {
+                $token = Get-Token("AzureGraph")
+                AzureADPreview\Connect-AzureAD -AadAccessToken $token.AccessToken -AccountId $global:userPrincipalName -ErrorVariable errordescr -ErrorAction SilentlyContinue |Out-Null
+            }
+            else 
+            {
+                try {
+                    $null = AzureADPreview\Get-AzureADTenantDetail -ErrorAction Stop
+                }
+                catch 
+                {
+                    AzureADPreview\Connect-AzureAD -AadAccessToken $token.AccessToken -AccountId $global:userPrincipalName -ErrorVariable errordescr -ErrorAction SilentlyContinue |Out-Null
+                }
+            }
+        }
+        elseif ($global:MfaOption -eq 1) {
+            Do {
                 $errordescr = $null
                 $try++
                 try 
@@ -397,47 +479,96 @@ Function Connect-O365PS { # Function to connecto to O365 services
                 }
                 # Creating the session for PS MSOL Service
                 &$Global:CredentialValidation
+            } while (($Try -le 2) -and ($null -ne $errordescr))
         }
-        while (($Try -le 2) -and ($null -ne $errordescr))
+
         &$Global:DisplayConnect
     }
     # Connect to Exchange Online PowerShell
     "EXO" {    
-        # The loop for re-entering credentials in case they are wrong and for re-connecting
+        # Defining the banner variable and clear the errors
         $CurrentProperty = "Connect EXO"
-        
-        Do {
-            # Defining the banner variable and clear the errors
-            $Global:Error.Clear();
-            $Global:banner = "Exchange Online PowerShell - Modern & MFA"
-            $try++
+        $Global:Error.Clear();
+        $Global:banner = "Exchange Online PowerShell - Modern"
 
-            try 
+        if ($global:MfaOption -eq 2)
+        {
+            $token = Get-TokenFromCache("EXO")
+            if ($null -eq $token)
             {
-                $null = Get-OrganizationConfig -ErrorAction Stop
+                $token = Get-Token("EXO")
+                Get-PSSession -name EXO -ErrorAction SilentlyContinue | Remove-PSSession -Confirm:$false
+                
+                # Build the auth information
+                $Authorization = "Bearer {0}" -f $Token.AccessToken
+                $UserId = ($Token.UserInfo.DisplayableId).tostring()
+                
+                # create the "basic" token to send to O365 EXO
+                $Password = ConvertTo-SecureString -AsPlainText $Authorization -Force
+                $Credtoken = New-Object System.Management.Automation.PSCredential($UserId, $Password)
+                
+                # Create and import the session
+                $Session = New-PSSession -Name EXO -ConfigurationName Microsoft.Exchange -ConnectionUri 'https://outlook.office365.com/PowerShell-LiveId?BasicAuthToOAuthConversion=true' -Credential $Credtoken -SessionOption $Global:PSsettings -Authentication Basic -AllowRedirection -ErrorAction Stop
+                Import-Module (Import-PSSession $Session -AllowClobber) -Global -WarningAction 'SilentlyContinue'
             }
-            catch 
+            else 
             {
-                Write-Host "$CurrentProperty"
-                if (!("Microsoft.Exchange.Management.ExoPowershellModule" -in (Get-Module).Name))
-                {
-                    Import-Module $((Get-ChildItem -Path $($env:LOCALAPPDATA + "\Apps\2.0\") -Filter Microsoft.Exchange.Management.ExoPowershellModule.dll -Recurse).FullName | `
-                        Where-Object { $_ -notmatch "_none_" } | Select-Object -First 1) -Global -DisableNameChecking -Force -ErrorAction SilentlyContinue
+                try {
+                    $null = Get-OrganizationConfig -ErrorAction Stop
                 }
-
-                $errordescr = $null
-                if (($null -eq $Global:EXOSession )-or ($Global:EXOSession.State -eq "Closed") -or ($Global:EXOSession.State -eq "Broken"))
+                catch 
                 {
-                    $Global:EXOSession = New-ExoPSSession -UserPrincipalName $global:UserPrincipalName -PSSessionOption $PSsettings -ErrorVariable errordescr -ErrorAction Stop
-                    $CurrentError = $errordescr.exception 
-                    Import-Module (Import-PSSession $EXOSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue
-                    $null = Get-OrganizationConfig -ErrorAction SilentlyContinue -ErrorVariable errordescr
-                    $CurrentError = $errordescr.exception.message + $Global:Error[0]
+                    Get-PSSession -name EXO -ErrorAction SilentlyContinue | Remove-PSSession -Confirm:$false
+                
+                    # Build the auth information
+                    $Authorization = "Bearer {0}" -f $Token.AccessToken
+                    $UserId = ($Token.UserInfo.DisplayableId).tostring()
+                    
+                    # create the "basic" token to send to O365 EXO
+                    $Password = ConvertTo-SecureString -AsPlainText $Authorization -Force
+                    $Credtoken = New-Object System.Management.Automation.PSCredential($UserId, $Password)
+                    
+                    # Create and import the session
+                    $Session = New-PSSession -Name EXO -ConfigurationName Microsoft.Exchange -ConnectionUri 'https://outlook.office365.com/PowerShell-LiveId?BasicAuthToOAuthConversion=true' -Credential $Credtoken -SessionOption $Global:PSsettings -Authentication Basic -AllowRedirection -ErrorAction Stop
+                    Import-Module (Import-PSSession $Session -AllowClobber) -Global -WarningAction 'SilentlyContinue'
                 }
             }
-            &$Global:CredentialValidation
         }
-        while (($Try -le 2) -and ($Global:Error)) 
+        elseif ($global:MfaOption -eq 1)
+        {
+             # The loop for re-entering credentials in case they are wrong and for re-connecting
+            Do {
+                
+
+                $try++
+
+                try 
+                {
+                    $null = Get-OrganizationConfig -ErrorAction Stop
+                }
+                catch 
+                {
+                        Write-Host "$CurrentProperty"
+                        if (!("Microsoft.Exchange.Management.ExoPowershellModule" -in (Get-Module).Name))
+                        {
+                            Import-Module $((Get-ChildItem -Path $($env:LOCALAPPDATA + "\Apps\2.0\") -Filter Microsoft.Exchange.Management.ExoPowershellModule.dll -Recurse).FullName | `
+                                Where-Object { $_ -notmatch "_none_" } | Select-Object -First 1) -Global -DisableNameChecking -Force -ErrorAction SilentlyContinue
+                        }
+        
+                        $errordescr = $null
+                        if (($null -eq $Global:EXOSession )-or ($Global:EXOSession.State -eq "Closed") -or ($Global:EXOSession.State -eq "Broken"))
+                        {
+                            $Global:EXOSession = New-ExoPSSession -UserPrincipalName $global:UserPrincipalName -PSSessionOption $PSsettings -ErrorVariable errordescr -ErrorAction Stop
+                            $CurrentError = $errordescr.exception 
+                            Import-Module (Import-PSSession $EXOSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue
+                            $null = Get-OrganizationConfig -ErrorAction SilentlyContinue -ErrorVariable errordescr
+                            $CurrentError = $errordescr.exception.message + $Global:Error[0]
+                        }
+
+                }
+                &$Global:CredentialValidation
+            } while (($Try -le 2) -and ($Global:Error)) 
+        }
         &$Global:DisplayConnect
     }
 
@@ -497,20 +628,64 @@ Function Connect-O365PS { # Function to connecto to O365 services
 
     # Connect to EOP
     "EOP" {
-                $Global:Error.Clear();
-                If ($null -eq $Global:O365Cred) {
-                        &$Global:UserCredential
-                }
-                # The loop for re-entering credentials in case they are wrong and for re-connecting
-                
-                $CurrentProperty = "Connect EOP"
+       # Defining the banner variable and clear the errors
+       $CurrentProperty = "Connect EOP"
+       $Global:Error.Clear();
+       $Global:banner = "Exchange Online Protection PowerShell - Modern"
+
+       if ($global:MfaOption -eq 2)
+       {
+           $token = Get-TokenFromCache("EXO")
+           if ($null -eq $token)
+           {
+               $token = Get-Token("EXO")
+               Get-PSSession -name EOP -ErrorAction SilentlyContinue | Remove-PSSession -Confirm:$false
+               
+               # Build the auth information
+               $Authorization = "Bearer {0}" -f $Token.AccessToken
+               $UserId = ($Token.UserInfo.DisplayableId).tostring()
+               
+               # create the "basic" token to send to O365 EXO
+               $Password = ConvertTo-SecureString -AsPlainText $Authorization -Force
+               $Credtoken = New-Object System.Management.Automation.PSCredential($UserId, $Password)
+               
+               # Create and import the session
+               $Session = New-PSSession -Name EOP -ConfigurationName Microsoft.Exchange -ConnectionUri 'https://ps.protection.outlook.com/PowerShell-LiveId?BasicAuthToOAuthConversion=true' -Credential $Credtoken -SessionOption $Global:PSsettings -Authentication Basic -AllowRedirection -ErrorAction Stop
+               Import-Module (Import-PSSession $Session -AllowClobber) -Global -WarningAction 'SilentlyContinue'
+           }
+           else 
+           {
+               try {
+                   $null = Get-OrganizationConfig -ErrorAction Stop
+               }
+               catch 
+               {
+                   Get-PSSession -name EOP -ErrorAction SilentlyContinue | Remove-PSSession -Confirm:$false
+               
+                   # Build the auth information
+                   $Authorization = "Bearer {0}" -f $Token.AccessToken
+                   $UserId = ($Token.UserInfo.DisplayableId).tostring()
+                   
+                   # create the "basic" token to send to O365 EXO
+                   $Password = ConvertTo-SecureString -AsPlainText $Authorization -Force
+                   $Credtoken = New-Object System.Management.Automation.PSCredential($UserId, $Password)
+                   
+                   # Create and import the session
+                   $Session = New-PSSession -Name EOP -ConfigurationName Microsoft.Exchange -ConnectionUri 'https://ps.protection.outlook.com/PowerShell-LiveId?BasicAuthToOAuthConversion=true' -Credential $Credtoken -SessionOption $Global:PSsettings -Authentication Basic -AllowRedirection -ErrorAction Stop
+                   Import-Module (Import-PSSession $Session -AllowClobber) -Global -WarningAction 'SilentlyContinue'
+               }
+           }
+       }
+       elseif ($global:MfaOption -eq 1)
+       {
+            # The loop for re-entering credentials in case they are wrong and for re-connecting
                 Do {
                         # Defining the banner variable and clear the errors
                         $Global:Error.Clear();
                         $Global:banner = "Exchange Online Protection PowerShell"
                         $try++
                         # Creating EOP PS session
-                        $Global:EOPSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://ps.protection.outlook.com/powershell-liveid" -Credential $global:O365Cred -Authentication "Basic" -AllowRedirection -SessionOption $PSsettings -ErrorVariable errordescr -ErrorAction SilentlyContinue 
+                        $Global:EOPSession = New-PSSession -ConfigurationName EOP -ConnectionUri "https://ps.protection.outlook.com/powershell-liveid" -Credential $global:O365Cred -Authentication "Basic" -AllowRedirection -SessionOption $PSsettings -ErrorVariable errordescr -ErrorAction SilentlyContinue 
                         $CurrentError = $errordescr.exception
                         Import-Module (Import-PSSession $EOPSession  -AllowClobber -DisableNameChecking ) -Global -DisableNameChecking  -ErrorAction SilentlyContinue
                         # Connection Errors check (mostly for wrong credentials reasons)
@@ -518,15 +693,63 @@ Function Connect-O365PS { # Function to connecto to O365 services
                         $Global:Domain = Get-AcceptedDomain | Where-Object {$_.name -like "*.onmicrosoft.com" } | Where-Object {$_.name -notlike "*mail.onmicrosoft.com"} 
             }
             while (($Try -le 2) -and ($Global:Error)) 
-            
-            &$Global:DisplayConnect
+        }
+        &$Global:DisplayConnect
     }
 
     # Connect to Compliance Center Online
     "SCC" {
-# The loop for re-entering credentials in case they are wrong and for re-connecting
-        $CurrentProperty = "Connect Security&Compliance"
+    # The loop for re-entering credentials in case they are wrong and for re-connecting
+    # Defining the banner variable and clear the errors
+    $CurrentProperty = "Connect SCC"
+    $Global:Error.Clear();
+    $Global:banner = "Security & Compliance Online PowerShell - Modern"
+
+    if ($global:MfaOption -eq 2)
+    {
+        $token = Get-TokenFromCache("EXO")
+        if ($null -eq $token)
+        {
+            $token = Get-Token("EXO")
+            Get-PSSession -name SCC -ErrorAction SilentlyContinue | Remove-PSSession -Confirm:$false
+            
+            # Build the auth information
+            $Authorization = "Bearer {0}" -f $Token.AccessToken
+            $UserId = ($Token.UserInfo.DisplayableId).tostring()
+            
+            # create the "basic" token to send to O365 EXO
+            $Password = ConvertTo-SecureString -AsPlainText $Authorization -Force
+            $Credtoken = New-Object System.Management.Automation.PSCredential($UserId, $Password)
+            
+            # Create and import the session
+            $Session = New-PSSession -Name SCC -ConfigurationName Microsoft.Exchange -ConnectionUri 'https://ps.compliance.protection.outlook.com/PowerShell-LiveId?BasicAuthToOAuthConversion=true' -Credential $Credtoken -SessionOption $Global:PSsettings -Authentication Basic -AllowRedirection -ErrorAction Stop
+            Import-Module (Import-PSSession $Session -AllowClobber) -Global -WarningAction 'SilentlyContinue' -Prefix cc
+        }
+        else 
+        {
+            try {
+                $null = Get-OrganizationConfig -ErrorAction Stop
+            }
+            catch 
+            {
+                Get-PSSession -name SCC -ErrorAction SilentlyContinue | Remove-PSSession -Confirm:$false
+            
+                # Build the auth information
+                $Authorization = "Bearer {0}" -f $Token.AccessToken
+                $UserId = ($Token.UserInfo.DisplayableId).tostring()
                 
+                # create the "basic" token to send to O365 EXO
+                $Password = ConvertTo-SecureString -AsPlainText $Authorization -Force
+                $Credtoken = New-Object System.Management.Automation.PSCredential($UserId, $Password)
+                
+                # Create and import the session
+                $Session = New-PSSession -Name SCC -ConfigurationName Microsoft.Exchange -ConnectionUri 'https://outlook.office365.com/PowerShell-LiveId?BasicAuthToOAuthConversion=true' -Credential $Credtoken -SessionOption $Global:PSsettings -Authentication Basic -AllowRedirection -ErrorAction Stop
+                Import-Module (Import-PSSession $Session -AllowClobber) -Global -WarningAction 'SilentlyContinue'
+            }
+        }
+    }
+    elseif ($global:MfaOption -eq 1)
+    {
         Do {
             # Defining the banner variable and clear the errors
             $Global:Error.Clear();
@@ -558,8 +781,8 @@ Function Connect-O365PS { # Function to connecto to O365 services
                 }
             }
             &$Global:CredentialValidation
-        }
-        while (($Try -le 2) -and ($Global:Error)) 
+        } while (($Try -le 2) -and ($Global:Error)) 
+    }
         &$Global:DisplayConnect
     }
     
@@ -634,32 +857,60 @@ Function Connect-O365PS { # Function to connecto to O365 services
 
     # Connect to AIPService PowerShell
     "AIPService" {
-        do
+        # Defining the banner variable and clear the errors
+        $Global:Error.Clear();
+        $Global:banner = "AIP PowerShell"
+        $CurrentProperty = "Connect AIP"
+        
+        if ($global:MfaOption -eq 2)
         {
-            $Global:Error.Clear();
-            $Global:banner = "AIPService PowerShell"
-            $errordescr = $null
-            $try++
-            try
-            {
-                $null = Get-AipServiceConfiguration -ErrorAction Stop
+            if (!(Get-Module AIPService)) {
+                Import-Module AIPService -Global -DisableNameChecking  -ErrorAction SilentlyContinue 
             }
-            catch 
+            $token = Get-TokenFromCache("AIPService")
+            if ($null -eq $token)
             {
-                Write-Host "$CurrentProperty"
-                if (!("AIPService" -in (Get-Module).name))
-                {
-                    Import-Module AIPService -Global -DisableNameChecking  -ErrorAction SilentlyContinue
+                $token = Get-Token("AIPService")
+                Connect-AipService -AccessToken $token.AccessToken -ErrorAction SilentlyContinue | Out-Null
+            }
+            else 
+            {
+                try {
+                    $null = Get-AipServiceConfiguration -ErrorAction Stop
                 }
-                $errordescr = $null
-                $Global:Error.Clear();
-                Connect-AipService -ErrorVariable errordescr -ErrorAction SilentlyContinue
-                $null = Get-AipServiceConfiguration -ErrorVariable errordescr -ErrorAction SilentlyContinue 
-                $CurrentError = $errordescr.exception.message
+                catch 
+                {
+                    Connect-AipService -AccessToken $token.AccessToken -ErrorAction SilentlyContinue | Out-Null
+                }
             }
-            &$Global:CredentialValidation
         }
-        while (($Try -le 2) -and ($null -ne $Global:Error)) 
+        elseif ($global:MfaOption -eq 1) {
+            do
+            {
+                $Global:Error.Clear();
+                $Global:banner = "AIPService PowerShell"
+                $errordescr = $null
+                $try++
+                try
+                {
+                    $null = Get-AipServiceConfiguration -ErrorAction Stop
+                }
+                catch 
+                {
+                    Write-Host "$CurrentProperty"
+                    if (!("AIPService" -in (Get-Module).name))
+                    {
+                        Import-Module AIPService -Global -DisableNameChecking  -ErrorAction SilentlyContinue
+                    }
+                    $errordescr = $null
+                    $Global:Error.Clear();
+                    Connect-AipService -ErrorVariable errordescr -ErrorAction SilentlyContinue
+                    $null = Get-AipServiceConfiguration -ErrorVariable errordescr -ErrorAction SilentlyContinue 
+                    $CurrentError = $errordescr.exception.message
+                }
+                &$Global:CredentialValidation
+            } while (($Try -le 2) -and ($null -ne $Global:Error)) 
+        }
         &$Global:DisplayConnect
     }
   }
