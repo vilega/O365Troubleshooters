@@ -490,8 +490,15 @@ $ExportPath\EXOAdminAuditLogs.csv"
 
     $AdminAuditNotification = $null | ConvertTo-Html -PostContent $AdminAuditNotificationString -PreContent "<h2 class=`"ResultNotOk`">Admin Audit Logs</h2>"
 
+    $GlobalAdminsSignInAuditLogsNotificationString = "We have exported the following sign-in logs for global admins:<br?
+    &emsp;AllSignInAuditLogs_$ts.csv - contains all audit sign-in log for global admins<br>
+    &emsp;FailSignInAuditLogs_$ts.csv - contains fail audit sign-in log for global admins<br>
+    These logs can be found in file:<br>
+    $ExportPath\EXOAdminAuditLogs.csv"
+    $GlobalAdminsSignInAuditLogsNotification = $null | ConvertTo-Html -PostContent $GlobalAdminsSignInAuditLogsNotificationString -PreContent "<h2 class=`"ResultNotOk`">Admin Audit Sign-in Logs</h2>"
+    
     $Report = ConvertTo-Html -Head $header -Body "$ReportTitle $GlobalAdminsWithIssues $HiddenInboxRulesWarning $InboxRules $OrganizationMailboxAuditDisabledWarning `
-                                $MailboxAuditBypassGAs $MailboxAuditDisabledGAs $AdminAuditNotification $BlockedSenderReasons $TransportRules $InboundConnectors $OutboundConnectors $JournalRules" `
+                                $MailboxAuditBypassGAs $MailboxAuditDisabledGAs $AdminAuditNotification $GlobalAdminsSignInAuditLogsNotification $BlockedSenderReasons $TransportRules $InboundConnectors $OutboundConnectors $JournalRules" `
                                 -Title "Compromised Investigation" -PreContent "<p>Creation Date: $now</p>"
 
     $Report | Out-File "$ExportPath\CompromisedReport_$ts.htm"

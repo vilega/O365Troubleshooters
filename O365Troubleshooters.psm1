@@ -66,6 +66,8 @@ Function Connect-O365PS { # Function to connecto to O365 services
     $Try = 0
     $global:errordesc = $null
     $Global:O365Cred=$null
+    . $script:modulePath\ActionPlans\Connect-ServicesWithTokens.ps1 
+
     
 #region Module Checks
 
@@ -286,7 +288,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
       do 
       {
 
-        Write-Host "Do your account require MFA to authenticate? (y/n))" -ForegroundColor Blue
+        Write-Host "Do your account require MFA to authenticate? (y/n): " -ForegroundColor Cyan -NoNewline
         $mfa =Read-Host 
         $mfa = $mfa.ToLower()
         if ($mfa -eq "y")
@@ -432,7 +434,15 @@ Function Connect-O365PS { # Function to connecto to O365 services
         $Global:Error.Clear();
         $Global:banner = "AzureADPreview PowerShell"
         $CurrentProperty = "Connect AzureADPreview"
-        if ($global:MfaOption -eq 2)
+        
+        # Temporary: Forcing to connect to AzureAD only with promts
+        # With AADGraph token Get-AzureADAuditSignInLogs fails with: Object reference not set to an instance of an object
+        # With both AADGraph and MSGraph is failing with: 
+        # User missing required MsGraph permission to access this API, please get any of the following permission for the user: AuditLog.Read.All
+        #$global:MfaOption
+        # 1 - Modern with MFA
+        # 2 - Modern with no MFA (not checking to avoid connection based on AADGraph - checked against 3 should happen)
+        if ($global:MfaOption -eq 3)
         {
             if (!(Get-Module AzureADPreview)) {
                 Import-Module AzureADPreview -Global -DisableNameChecking  -ErrorAction SilentlyContinue 
@@ -454,7 +464,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
                 }
             }
         }
-        elseif ($global:MfaOption -eq 1) {
+        elseif (($global:MfaOption -eq 1) -or ($global:MfaOption -eq 2)) {
             Do {
                 $errordescr = $null
                 $try++
@@ -979,6 +989,8 @@ Function Set-GlobalVariables {
         #Write-Host "Please note that depening the Office 365 Services we need to connect, you might be asked to re-add the UserPrincipalName in another Authentication Form!" -ForegroundColor Yellow
         #Start-Sleep -Seconds 5
     #}
+
+    
 }
 
 function Get-ValidEmailAddress([string]$EmailAddressType)

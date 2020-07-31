@@ -12,7 +12,7 @@
 RootModule = '.\O365Troubleshooters.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.0.0.12'
+ModuleVersion = '2.0.0.13'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -33,7 +33,12 @@ Copyright = '(c) 2020 vilega@microsoft.com. All rights reserved.'
 Description = 'Office 365 Troubleshooters module has been designed to help Office 365 Administrators to do troubleshooting on Office 365 services. 
 The module will be monthly updated with new features and improve existing ones.
 The project is available at https://github.com/vilega/O365Troubleshooters
-PowerShell 7 is not supported as some Office 365 connections modules are not yet compatible!'
+PowerShell 7 is not supported as some Office 365 connections modules are not yet compatible!
+
+The following steps can be used to execute:
+Install-Module O365Troubleshooters #(only needed when first running)
+Import-Module O365Troubleshooters -force
+Start-O365Troubleshooters'
 
 # Minimum version of the Windows PowerShell engine required by this module
 PowerShellVersion = '5.1'
@@ -104,6 +109,8 @@ FileList = @(
     'ActionPlans\Start-RbacTools.ps1'
     'ActionPlans\Start-UnifiedAuditLogSearch.ps1'
     'ActionPlans\Get-X500FromImceaexNdr.ps1'
+    'ActionPlans\Connect-ServicesWithTokens.ps1'
+    '.\Resources\O365Troubleshooters-Logo.png'
 )
 
 # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
@@ -125,7 +132,8 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = '
-        2.0.0.11 - Added Tool: Transform IMCEAEX (old LegacyExchangeDN) to X500 address
+        2.0.0.12 - Implemented one prompt only for modern (except AzureAdPreview), Implemeneted Compromised Investigation with HTML report
+        2.0.0.12 - Added Tool: Transform IMCEAEX (old LegacyExchangeDN) to X500 address
         2.0.0.11 - Fixed export of AzureAD Audit SignIn Logs
         2.0.0.10 - Fixed issue with Decode SafeLinks URL
         2.0.0.7 - Added Azure Sign in logs
