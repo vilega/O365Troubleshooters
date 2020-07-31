@@ -48,7 +48,7 @@ function Get-Token {
     while ($authResult.IsCompleted -ne $true) { Start-Sleep -Milliseconds 500}
     if (!($authResult.IsFaulted -eq $false)) 
     {
-        switch ($Result.Exception.InnerException.ErrorCode) 
+        switch ($authResult.Exception.InnerException.ErrorCode) 
         {
             failed_to_acquire_token_silently 
             {
@@ -83,8 +83,7 @@ function Get-Token {
     return $authResult.Result
 }
 
-function Get-TokenFromCache
-{
+function Get-TokenFromCache {
     param (
         [Parameter(Mandatory = $true)]
         [ValidateSet("EXO","AzureGraph","AIPService")]
