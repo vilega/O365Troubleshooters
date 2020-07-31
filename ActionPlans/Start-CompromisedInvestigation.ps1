@@ -490,7 +490,7 @@ $ExportPath\EXOAdminAuditLogs.csv"
 
     $AdminAuditNotification = $null | ConvertTo-Html -PostContent $AdminAuditNotificationString -PreContent "<h2 class=`"ResultNotOk`">Admin Audit Logs</h2>"
 
-    $GlobalAdminsSignInAuditLogsNotificationString = "We have exported the following sign-in logs for global admins:<br?
+    $GlobalAdminsSignInAuditLogsNotificationString = "We have exported the following sign-in logs for global admins:<br>
     &emsp;AllSignInAuditLogs_$ts.csv - contains all audit sign-in log for global admins<br>
     &emsp;FailSignInAuditLogs_$ts.csv - contains fail audit sign-in log for global admins<br>
     These logs can be found in file:<br>
