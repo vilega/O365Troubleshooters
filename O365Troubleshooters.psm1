@@ -66,6 +66,8 @@ Function Connect-O365PS { # Function to connecto to O365 services
     $Try = 0
     $global:errordesc = $null
     $Global:O365Cred=$null
+    . $script:modulePath\ActionPlans\Connect-ServicesWithTokens.ps1 
+
     
 #region Module Checks
 
@@ -988,7 +990,7 @@ Function Set-GlobalVariables {
         #Start-Sleep -Seconds 5
     #}
 
-    . $script:modulePath\ActionPlans\Connect-ServicesWithTokens.ps1
+    
 }
 
 function Get-ValidEmailAddress([string]$EmailAddressType)
