@@ -373,7 +373,7 @@ Function Start-CompromisedMain
     Clear-Host
 
     #Connect to O365 Workloads
-    $Workloads = "Exo2", "MSOL", "AzureADPreview"#, "AAD", "SCC"
+    $Workloads = "Exo", "MSOL", "AzureADPreview"#, "AAD", "SCC"
     
     Connect-O365PS $Workloads
 
