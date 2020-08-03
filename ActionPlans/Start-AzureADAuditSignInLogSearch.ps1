@@ -9,7 +9,7 @@ Function Search-AzureAdSignInAudit {
         $endD = Get-Date 
         $endDate = "$($endD.Year)-$($endD.Month)-$($endD.Day)"
 
-        if (!([string]::IsNullOrEmpty($userIds)))
+        if ([string]::IsNullOrEmpty($upn))
         {
             $filterAll = "createdDateTime ge $startDate and createdDateTime le $endDate"
             $filterFail = "createdDateTime ge $startDate and createdDateTime le $endDate and status/errorCode ne 0"
