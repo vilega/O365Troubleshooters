@@ -6,8 +6,8 @@ try
 {
     $decodedURL = [System.Web.HttpUtility]::UrlDecode($encodedURL)
     #$decodedURL = (($decodedURL -Split "url=")[1] -split "&data=;")[0]
-    $decodedURL -match "url=(\S+)&data=\S+"
-    $decodedURL = $Matches[1]
+    if($decodedURL -match "url=(\S+)&data=\S+"){$decodedURL = $Matches[1]}
+    elseif($decodedURL -match "url=(\S+)&amp;data"){$decodedURL = $Matches[1]}
 }
 catch
 {
