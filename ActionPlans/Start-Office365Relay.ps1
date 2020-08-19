@@ -767,7 +767,11 @@ Answer"
 }
 #endregion Office365RelayDependencies
 
-#region Office365Relay main script
+
+function Start-Office365Relay {
+	[CmdletBinding()]
+    param ()
+
     Clear-Host
 
     $SendMailMessageDisclaimer ="
@@ -799,4 +803,4 @@ See https://aka.ms/SendMailMessage for more information.`r`n"
     $RuntimeChoiceCounter = 1
     $Office365RelayErrorList = @()
     Get-MainMenu
-#endregion Office365Relay main script
+}
