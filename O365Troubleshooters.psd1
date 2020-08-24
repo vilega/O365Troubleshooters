@@ -99,6 +99,7 @@ FileList = @(
     'ActionPlans\Export-ExoQuarantineMessages.ps1'
     'ActionPlans\Start-AllUsersWithAllRoles.ps1'
     'ActionPlans\Start-AzureADAuditSignInLogSearch.ps1'
+    'ActionPlans\Start-MailboxMigrationAnalyzer.ps1'
     'ActionPlans\Start-CompromisedInvestigation.ps1'
     'ActionPlans\Start-DecodeSafeLinksURL.ps1'
     'ActionPlans\Start-ExchangeOnlineAuditSearch.ps1'

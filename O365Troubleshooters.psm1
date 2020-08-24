@@ -1375,16 +1375,17 @@ Function Start-O365TroubleshootersMenu {
     $menu=@"
     1  Encryption: Office Message Encryption General Troubleshooting
     2  Mail Flow: SMTP Relay Test
-    3  Security: Compromised Tenant Investigation
-    4  Tools: Exchange Online Audit Search
-    5  Tools: Unified Logging Audit Search
-    6  Tools: Azure AD Audit Sign In Log Search
-    7  Tools: Find all users with a specific RBAC Role
-    8  Tools: Find all users with all RBAC Roles
-    9  Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox
-    10 Tools: Decode SafeLinks URL
-    11 Tools: Export Quarantine Messages
-    12 Tools: Transform IMCEAEX (old LegacyExchangeDN) to X500 address
+    3  Migration: Analyze Mailbox move (Hybrid migration)
+    4  Security: Compromised Tenant Investigation
+    5  Tools: Exchange Online Audit Search
+    6  Tools: Unified Logging Audit Search
+    7  Tools: Azure AD Audit Sign In Log Search
+    8  Tools: Find all users with a specific RBAC Role
+    9  Tools: Find all users with all RBAC Roles
+    10 Tools: Export All Available Mailbox Diagnostic Logs for a given mailbox
+    11 Tools: Decode SafeLinks URL
+    12 Tools: Export Quarantine Messages
+    13 Tools: Transform IMCEAEX (old LegacyExchangeDN) to X500 address
     Q  Quit
      
     Select a task by number or Q to quit
@@ -1409,50 +1410,54 @@ Switch ($r) {
     }
 
     "3" {
+        Write-Host "Action Plan: Mailbox Migration (Hybrid move)" -ForegroundColor Green
+        . $script:modulePath\ActionPlans\Start-MailboxMigrationAnalyzer.ps1
+    }
+    "4" {
         Write-Host "Action Plan: Compromised Tenant" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-CompromisedInvestigation.ps1
         Start-CompromisedMain
     }
-    "4" {
+    "5" {
         Write-Host "Tools: Exchange Online Audit Search" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-ExchangeOnlineAuditSearch.ps1
         Start-ExchangeOnlineAuditSearch
     }
-    "5" {
+    "6" {
         Write-Host "Tools: Unified Logging Audit Search" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-UnifiedAuditLogSearch.ps1
     }
-    "6" {
+    "7" {
         Write-Host "Tools: Azure AD Audit Sign In Log Search" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-AzureADAuditSignInLogSearch.ps1
         Start-AzureADAuditSignInLogSearch
     }   
-    "7" {
+    "8" {
         Write-Host "Tools: Find all users with a specific RBAC Role" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-FindUserWithSpecificRbacRole.ps1
     }
-    "8" {
+    "9" {
         Write-Host "Tools: Find all users with all RBAC Role" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-AllUsersWithAllRoles.ps1
     }
     
-    "9" {
-        Write-Host "Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox" -ForegroundColor Green
+    "10" {
+        Write-Host "Tools: Export All Available Mailbox Diagnostic Logs for a given mailbox" -ForegroundColor Green
         Start-Sleep -Seconds 3
         . $script:modulePath\ActionPlans\Start-MailboxDiagnosticLogs.ps1
     }
      
-    "10" {
+    "11" {
         Write-Host "Tools: Decode SafeLinks URL" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-DecodeSafeLinksURL.ps1
     }
 
-    "11" {
+    "12" {
         Write-Host "Tools: Export Quarantine Message" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Export-ExoQuarantineMessages.ps1
     }
 
-    "12" {
+    "13" {
         Write-Host "Tools: Transform IMCEAEX (old LegacyExchangeDN) to X500 address" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Get-X500FromImceaexNDR.ps1
     }
