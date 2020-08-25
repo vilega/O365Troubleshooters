@@ -20,9 +20,19 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# This script is analyzing the migration reports
+# Description:
+    ### This script is analyzing the migration reports
 
-# Author: Cristian Dimofte
+# Author:
+    ### Cristian Dimofte
+
+# Versions:
+    #####################################################################
+    # Version   # Date          # Description                           #
+    #####################################################################
+    # 1.0       # 08/28/2020    # Initial script                        #
+    #           #               #                                       #
+    #####################################################################
 
 
 ##############################
@@ -48,13 +58,14 @@ function Show-MailboxMigrationMenu {
 
 1 => If you have the migration logs in an .xml file
 2 => If you want to connect to Exchange Online in order to collect the logs
-3 => If you need to connect to Exchange On-Premises and collect the logs
 B => Back to Action plans
 
 Select a task by number, or, B to go back to main menu: 
 "@
 
     Write-Log -function "MailboxMigration - Show-MailboxMigrationMenu" -step "Loading the menu" -Description "Success"
+
+    Clear-Host
 
     Write-Host $MailboxMigrationMenu -ForegroundColor White -NoNewline
     $SwitchFromKeyboard = Read-Host
@@ -71,15 +82,7 @@ Select a task by number, or, B to go back to main menu:
         ### If "2" is selected, the script will connect you to Exchange Online
         "2" {
             Write-Log -function "MailboxMigration - Show-MailboxMigrationMenu" -step "Loading option 2" -Description "Success"
-            #Selected-ConnectToExchangeOnlineOption
-            Write-Host "Option 2. selected"
-        }
- 
-        ### If "3" is selected, you started the script from On-Premises Exchange Management Shell
-        "3" {
-            Write-Log -function "MailboxMigration - Show-MailboxMigrationMenu" -step "Loading option 3" -Description "Success"
-            #Selected-ConnectToExchangeOnPremisesOption
-            Write-Host "Option 3. selected"
+            Selected-ConnectToExchangeOnlineOption
         }
 
         ### If "B" is selected, move back to the "O365TroubleshootersMenu"
@@ -88,7 +91,7 @@ Select a task by number, or, B to go back to main menu:
             Start-O365TroubleshootersMenu
          }
  
-        ### If you selected anything different than "1", "2", "3" or "B", the Menu will reload
+        ### If you selected anything different than "1", "2" or "B", the Menu will reload
         default {
             Write-Host "You selected an option that is not present in the menu (Value inserted from keyboard: `"$SwitchFromKeyboard`")" -ForegroundColor Yellow
             Write-Host "Press any key to re-load the menu"
@@ -280,7 +283,24 @@ function Collect-MigrationLogs {
     Param (
         [parameter(Mandatory=$true,
         ParameterSetName="XMLFile")]
-        [string]$XMLFile
+        [string]
+        $XMLFile,
+        [Parameter(ParameterSetName = "ConnectToExchangeOnline", Mandatory = $true)]
+        [switch]$ConnectToExchangeOnline,
+    
+        [Parameter(ParameterSetName = "ConnectToExchangeOnPremises", Mandatory = $true)]
+        [switch]$ConnectToExchangeOnPremises,
+    
+        [Parameter(ParameterSetName = "ConnectToExchangeOnline", Mandatory = $false)]
+        [Parameter(ParameterSetName = "ConnectToExchangeOnPremises", Mandatory = $false)]
+        [string[]]$AffectedUsers,
+        
+        [Parameter(ParameterSetName = "ConnectToExchangeOnline", Mandatory = $false)]
+        [ValidateSet("Hybrid", "IMAP", "Cutover", "Staged")]
+        [string]$MigrationType,
+    
+        [Parameter(ParameterSetName = "ConnectToExchangeOnline", Mandatory = $false)]
+        [string]$AdminAccount
     )
     
     if ($XMLFile) {
@@ -297,11 +317,35 @@ function Collect-MigrationLogs {
 
             $null = $script:LogsToAnalyze.Add($LogEntry)
         }
+        $TheEnvironment = "FromFile"
+        $LogFrom = "FromFile"
+        $LogType = "FromFile"
+        $TheMigrationType = "FromFile"
+    }
+    elseif ($ConnectToExchangeOnline) {
+        ### Connecting to Exchange Online in order to collect the needed/correct mailbox migration logs
+        #Write-Host "This part is not yet implemented" -ForegroundColor Red
+
+        if ($MigrationType -eq "Hybrid") {
+            Collect-MoveRequestStatistics -AffectedUsers $AffectedUsers
+            $LogType = "MoveRequestStatistics"
+        }
+        elseif ($MigrationType -eq "IMAP") {
+            Collect-SyncRequestStatistics -AffectedUsers $AffectedUsers
+            $LogType = "SyncRequestStatistics"
+        }
+        elseif (($MigrationType -eq "Cutover") -or ($MigrationType -eq "Staged")) {
+            Collect-MigrationUserStatistics -AffectedUsers $AffectedUsers
+            $LogType = "MigrationUserStatistics"
+        }
+        $TheEnvironment = "Exchange Online"
+        $LogFrom = "FromExchangeOnline"
+        $TheMigrationType = $MigrationType
     }
 
     if ($script:LogsToAnalyze) {
         foreach ($LogEntry in $script:LogsToAnalyze) {
-            $TheInfo = Create-MoveObject -MigrationLogs $LogEntry -TheEnvironment FromFile -LogFrom FromFile -LogType FromFile -MigrationType FromFile
+            $TheInfo = Create-MoveObject -MigrationLogs $LogEntry -TheEnvironment $TheEnvironment -LogFrom $LogFrom -LogType $LogType -MigrationType $TheMigrationType
             $null = $script:ParsedLogs.Add($TheInfo)
         }
     }
@@ -520,6 +564,378 @@ Function DurationtoSeconds
 }
 
 
+### <summary>
+### Selected-ConnectToExchangeOnlineOption function is used to connect to Exchange Online, and collect from there the mailbox migration logs,
+### for the affected user, by running the correct commands, based on the migration type
+### </summary>
+### <param name="AffectedUser">AffectedUser represents the affected user for which we collect the mailbox migration logs </param>
+### <param name="MigrationType">MigrationType represents the migration type for which we collect the mailbox migration logs </param>
+### <param name="TheAdminAccount">TheAdminAccount represents username of an Admin that we will use in order to connect to Exchange Online </param>
+function Selected-ConnectToExchangeOnlineOption {
+
+    Connect-O365PS "EXO"
+
+    Write-Log -function "MailboxMigration - Selected-ConnectToExchangeOnlineOption" -step "Trying to collect the AffectedUser..." -Description "Success"
+    [string]$AffectedUsers = Ask-ForDetailsAboutUser -NumberOfChecks 1
+
+    [System.Collections.ArrayList]$PrimarySMTPAddresses = @()
+    $TheRecipients = Find-TheRecipient -TheEnvironment 'Exchange Online' -TheAffectedUsers $AffectedUsers
+
+    foreach ($Recipient in $TheRecipients) {
+        $null = $PrimarySMTPAddresses.Add($($Recipient.PrimarySMTPAddress))
+    }
+
+    [string]$TheAddresses = ""
+    [int]$Counter = 0
+    if ($($PrimarySMTPAddresses.Count) -eq 0) {
+        Write-Log -function "MailboxMigration - Selected-ConnectToExchangeOnlineOption" -step "Get list of PrimarySMTPAddresses of the affected users" -Description "We were unable to find any valid SMTP Address to be used for further investigation"
+        throw "We were unable to find any valid SMTP Address to be used for further investigation"
+    }
+    elseif ($($PrimarySMTPAddresses.Count) -eq 1) {
+        $TheAddresses = $PrimarySMTPAddresses[0]
+    }
+    elseif ($($PrimarySMTPAddresses.Count) -gt 1) {
+        foreach ($PrimarySMTPAddress in $PrimarySMTPAddresses) {
+            if ($Counter -eq 0) {
+                [string]$TheAddresses = $PrimarySMTPAddress
+                $Counter++
+            }
+            elseif (($Counter -le $($PrimarySMTPAddresses.Count))) {
+                [string]$TheAddresses = $TheAddresses + ", $PrimarySMTPAddress"
+                $Counter++
+            }
+        }
+    }
+
+    Collect-MigrationLogs -ConnectToExchangeOnline -MigrationType "Hybrid" -AdminAccount $TheAdminAccount -AffectedUsers $PrimarySMTPAddresses
+
+}
+
+
+### <summary>
+### Ask-ForDetailsAboutUser function is used to collect the Affected user.
+### </summary>
+### <param name="NumberOfChecks">NumberOfChecks is used in order to provide different messages when collecting the affected user
+### for the first time, or if you are re-asking for the affected user </param>
+function Ask-ForDetailsAboutUser {
+    [CmdletBinding()]
+    Param
+    (
+        [Parameter(Mandatory=$true)]
+        [int]
+        $NumberOfChecks
+    )    
+
+    Write-Host
+    if ($NumberOfChecks -eq "1") {
+        ### Asking for the affected user, for the first time
+        Write-Log -function "MailboxMigration - Ask-ForDetailsAboutUser" -step "Asking to provide the affected user. Iteration 1" -Description "Success"
+        Write-Host "Please provide the username of the affected user (Eg.: " -NoNewline -ForegroundColor Cyan
+        Write-Host "User1@contoso.com" -NoNewline -ForegroundColor White
+        Write-Host "): " -NoNewline -ForegroundColor Cyan
+        $TheUserName = Read-Host
+        $NumberOfChecks++
+        Write-Log -function "MailboxMigration - Ask-ForDetailsAboutUser" -step "The affected user provided is: $TheUserName" -Description "Success"
+    }
+    else {
+        ### Re-asking for the affected user
+        Write-Log -function "MailboxMigration - Ask-ForDetailsAboutUser" -step "Re-asking to provide the affected user. Iteration $NumberOfChecks" -Description "Success"
+        Write-Host "Please provide again the username of the affected user (Eg.: " -NoNewline -ForegroundColor Cyan
+        Write-Host "User1@contoso.com" -NoNewline -ForegroundColor White
+        Write-Host "): " -NoNewline -ForegroundColor Cyan
+        $TheUserName = Read-Host
+        Write-Log -function "MailboxMigration - Ask-ForDetailsAboutUser" -step "The affected user provided is: $TheUserName" -Description "Success"
+    }
+
+    ### Validating if the user provided is the affected user
+    Write-Host
+    Write-Host "You entered " -NoNewline -ForegroundColor Cyan
+    Write-Host "$TheUserName" -NoNewline -ForegroundColor White
+    Write-Host " as being the affected user. Is this correct?" -ForegroundColor Cyan
+    Write-Host "`t[Y] Yes     [N] No      (default is `"Y`"): " -NoNewline -ForegroundColor White
+    $ReadFromKeyboard = Read-Host
+
+    [bool]$TheKey = $true
+    Switch ($ReadFromKeyboard) 
+    { 
+      Y {$TheKey=$true} 
+      N {$TheKey=$false} 
+      Default {$TheKey=$true} 
+    }
+
+    if ($TheKey) {
+        ### Received confirmation that the user provided is the affected user.
+        Write-Log -function "MailboxMigration - Ask-ForDetailsAboutUser" -step "Got confirmation that `"$TheUserName`" is indeed the affected user" -Description "Success"
+    }
+    else {
+        ### The user provided is not the affected user. Asking again for the affected user.
+        Write-Log -function "MailboxMigration - Ask-ForDetailsAboutUser" -step "`"$TheUserName`" is not the affected user. Starting over the process of asking for the affected user" -Description "Success"
+        [string]$TheUserName = Ask-ForDetailsAboutUser -NumberOfChecks $NumberOfChecks
+    }
+
+    ### The function will return the affected user
+    return $TheUserName
+}
+
+
+
+function Find-TheRecipient {
+    [CmdletBinding()]
+    Param (
+        [ValidateSet("Exchange Online", "Exchange OnPremises")]
+        [string]
+        $TheEnvironment,
+        [string[]]
+        $TheAffectedUsers
+    )
+
+    [System.Collections.ArrayList]$Recipients = @()
+    foreach ($User in $TheAffectedUsers) {
+        $TheCommand = Create-CommandToInvoke -TheEnvironment $TheEnvironment -CommandFor "Recipient"
+        try {
+            Write-Log -function "MailboxMigration - Find-TheRecipient" -step "Collecting `"Get-Recipient`" for `"$User`"" -Description "Success"
+            $ExpressionResults = Invoke-Expression $($TheCommand.FullCommand)
+            Write-Log -function "MailboxMigration - Find-TheRecipient" -step "We were able to identify the recipient in $TheEnvironment for `"$User`".`n`tPrimarySmtpAddress:`t$($ExpressionResults.PrimarySmtpAddress)`n`tExchangeGuid:`t`t$($ExpressionResults.ExchangeGuid)`n`tRecipientType:`t`t$($ExpressionResults.RecipientType)`n`tRecipientTypeDetails:`t$($ExpressionResults.RecipientTypeDetails)" -Description "Success"
+            Write-Log -function "MailboxMigration - Find-TheRecipient" -step "From now on, we will use its PrimarySMTPAddress, `"$($ExpressionResults.PrimarySmtpAddress)`", when providing details about `"$User`"" -Description "Success"
+
+            $null = $Recipients.Add($ExpressionResults)
+        }
+        catch {
+            Write-Log -function "MailboxMigration - Find-TheRecipient" -step "Unable to identify the Recipient using information you provided (`"$User`")" -Description "Success"
+        }
+    }
+
+    if ($($Recipients.Count) -eq 0){
+        Write-Log -function "MailboxMigration - Find-TheRecipient" -step "No recipients in the Organization" -Description "We were unable to identify any Recipients in your organization, for the users you provided"
+        throw "We were unable to identify any Recipients in your organization, for the users you provided"
+    }
+    else {
+        return $Recipients
+    }
+    
+}
+
+
+
+### <summary>
+### Create-CommandToInvoke function is used to create the exact command to run, in order to collect the correct migration logs
+### </summary>
+### <param name="TheEnvironment">TheEnvironment represents the environment in which the command will run </param>
+function Create-CommandToInvoke {
+    param (
+        [ValidateSet("Exchange Online", "Exchange OnPremises")]
+        [string]
+        $TheEnvironment,
+        [ValidateSet("MoveRequestStatistics", "MoveRequest", "MigrationUserStatistics", "MigrationUser", "MigrationBatch", "SyncRequestStatistics", "SyncRequest", "MailboxStatistics", "Recipient")]
+        [string]
+        $CommandFor
+    )
+    
+    $TheResultantCommand = New-Object PSObject
+
+    if ($TheEnvironment -eq "Exchange Online") {
+        if ($CommandFor -eq "MoveRequestStatistics") {
+            $TheResultantCommand | Add-Member -NotePropertyName Command -NotePropertyValue ("Get-"+ $script:EXOCommandsPrefix + "MoveRequestStatistics")
+            [string]$TheCommand = "Get-"+ $script:EXOCommandsPrefix + "MoveRequestStatistics `$User -IncludeReport -DiagnosticInfo `"showtimeslots, showtimeline, verbose`" -ErrorAction Stop"
+            $TheResultantCommand | Add-Member -NotePropertyName FullCommand -NotePropertyValue $TheCommand
+        }
+        elseif ($CommandFor -eq "MoveRequest") {
+            $TheResultantCommand | Add-Member -NotePropertyName Command -NotePropertyValue ("Get-"+ $script:EXOCommandsPrefix + "MoveRequest")
+            [string]$TheCommand = "Get-"+ $script:EXOCommandsPrefix + "MoveRequest `$User -ErrorAction Stop"
+            $TheResultantCommand | Add-Member -NotePropertyName FullCommand -NotePropertyValue $TheCommand
+        }
+        elseif ($CommandFor -eq "MigrationUserStatistics") {
+            $TheResultantCommand | Add-Member -NotePropertyName Command -NotePropertyValue ("Get-"+ $script:EXOCommandsPrefix + "MigrationUserStatistics")
+            [string]$TheCommand = "Get-"+ $script:EXOCommandsPrefix + "MigrationUserStatistics `$User -IncludeSkippedItems -IncludeReport -DiagnosticInfo `"showtimeslots, showtimeline, verbose`" -ErrorAction Stop"
+            $TheResultantCommand | Add-Member -NotePropertyName FullCommand -NotePropertyValue $TheCommand
+        }
+        elseif ($CommandFor -eq "MigrationUser") {
+            $TheResultantCommand | Add-Member -NotePropertyName Command -NotePropertyValue ("Get-"+ $script:EXOCommandsPrefix + "MigrationUser")
+            [string]$TheCommand = "Get-"+ $script:EXOCommandsPrefix + "MigrationUser `$User -ErrorAction Stop"
+            $TheResultantCommand | Add-Member -NotePropertyName FullCommand -NotePropertyValue $TheCommand
+        }
+        elseif ($CommandFor -eq "MigrationBatch") {
+            <#
+            $TheResultantCommand | Add-Member -NotePropertyName Command -NotePropertyValue ("Get-"+ $script:EXOCommandsPrefix + "MigrationBatch")
+            [string]$TheCommand = "(Get-"+ $script:EXOCommandsPrefix + "MigrationBatch `$User -IncludeReport -DiagnosticInfo `"showtimeslots, showtimeline, verbose`" -ErrorAction Stop"
+            $TheResultantCommand | Add-Member -NotePropertyName FullCommand -NotePropertyValue $TheCommand
+            #>
+        }
+        elseif ($CommandFor -eq "SyncRequestStatistics") {
+            $TheResultantCommand | Add-Member -NotePropertyName Command -NotePropertyValue ("Get-"+ $script:EXOCommandsPrefix + "SyncRequestStatistics")
+            [string]$TheCommand = "Get-"+ $script:EXOCommandsPrefix + "SyncRequestStatistics `$User -IncludeReport -DiagnosticInfo `"showtimeslots, showtimeline, verbose`" -ErrorAction Stop"
+            $TheResultantCommand | Add-Member -NotePropertyName FullCommand -NotePropertyValue $TheCommand
+        }
+        elseif ($CommandFor -eq "SyncRequest") {
+            $TheResultantCommand | Add-Member -NotePropertyName Command -NotePropertyValue ("Get-"+ $script:EXOCommandsPrefix + "SyncRequest")
+            [string]$TheCommand = "Get-"+ $script:EXOCommandsPrefix + "SyncRequest -Mailbox `$User -ErrorAction Stop"
+            $TheResultantCommand | Add-Member -NotePropertyName FullCommand -NotePropertyValue $TheCommand
+        }
+        elseif ($CommandFor -eq "MailboxStatistics") {
+            $TheResultantCommand | Add-Member -NotePropertyName Command -NotePropertyValue ("Get-"+ $script:EXOCommandsPrefix + "MailboxStatistics")
+            [string]$TheCommand = "(Get-"+ $script:EXOCommandsPrefix + "MailboxStatistics `$User -IncludeMoveReport -IncludeMoveHistory -ErrorAction Stop).MoveHistory | where {[string]`$(`$_.WorkloadType) -eq `"Onboarding`"} | select -First 1"
+            $TheResultantCommand | Add-Member -NotePropertyName FullCommand -NotePropertyValue $TheCommand
+        }
+        elseif ($CommandFor -eq "Recipient") {
+            $TheResultantCommand | Add-Member -NotePropertyName Command -NotePropertyValue ("Get-"+ $script:EXOCommandsPrefix + "Recipient")
+            [string]$TheCommand = "Get-"+ $script:EXOCommandsPrefix + "Recipient `$User -ResultSize Unlimited -ErrorAction Stop"
+            $TheResultantCommand | Add-Member -NotePropertyName FullCommand -NotePropertyValue $TheCommand
+        }
+    }
+    else {
+        if ($CommandFor -eq "MailboxStatistics") {
+            $TheResultantCommand | Add-Member -NotePropertyName Command -NotePropertyValue ("Get-"+ $script:ExOnPremCommandsPrefix + "MailboxStatistics")
+            [string]$TheCommand = "(Get-"+ $script:ExOnPremCommandsPrefix + "MailboxStatistics `$User -IncludeMoveReport -IncludeMoveHistory -ErrorAction Stop).MoveHistory | where {[string]`$(`$_.WorkloadType) -eq `"Offboarding`"} | select -First 1"
+            $TheResultantCommand | Add-Member -NotePropertyName FullCommand -NotePropertyValue $TheCommand
+        }
+        elseif ($CommandFor -eq "Recipient") {
+            $TheResultantCommand | Add-Member -NotePropertyName Command -NotePropertyValue ("Get-"+ $script:ExOnPremCommandsPrefix + "Recipient")
+            [string]$TheCommand = "Get-"+ $script:ExOnPremCommandsPrefix + "Recipient `$User -ResultSize Unlimited -ErrorAction Stop"
+            $TheResultantCommand | Add-Member -NotePropertyName FullCommand -NotePropertyValue $TheCommand            
+        }
+    }
+
+    return $TheResultantCommand
+}
+
+
+
+function Collect-MoveRequestStatistics {
+    param (
+        [string[]]
+        $AffectedUsers
+    )
+
+    Write-Log -function "MailboxMigration - Collect-MoveRequestStatistics" -step "Collecting Get-MoveRequestStatistics for each Affected users" -Description "Success"
+    $TheCommand = Create-CommandToInvoke -TheEnvironment 'Exchange Online' -CommandFor "MoveRequestStatistics"
+
+    if ($($TheCommand.Command)) {
+        foreach ($User in $AffectedUsers) {
+            try {
+                $null = Get-Command $($TheCommand.Command) -ErrorAction Stop
+                Write-Log -function "MailboxMigration - Collect-MoveRequestStatistics" -step "Running the following command:`n`t$($TheCommand.FullCommand.Replace("`$User", "$User"))" -Description "Success"
+                try {
+                    $ExpressionResults = Invoke-Expression $($TheCommand.FullCommand)
+                    Write-Log -function "MailboxMigration - Collect-MoveRequestStatistics" -step "MoveRequestStatistics successfully collected for `"$User`" user" -Description "Success"
+                    $LogEntry = New-Object PSObject
+                    $LogEntry | Add-Member -NotePropertyName PrimarySMTPAddress -NotePropertyValue $User
+                    $LogEntry | Add-Member -NotePropertyName MigrationType -NotePropertyValue "Hybrid"
+                    $LogEntry | Add-Member -NotePropertyName LogType -NotePropertyValue "MoveRequestStatistics"
+                    $LogEntry | Add-Member -NotePropertyName Logs -NotePropertyValue $ExpressionResults
+                    $void = $script:LogsToAnalyze.Add($LogEntry)
+                    [string]$Path = $script:TheWorkingDirectorySavedData + "\EXO_MoveRequestStatistics_" + [string]$User + ".xml"
+                    $LogEntry | Export-Clixml $Path -Force
+                }
+                catch {
+                    Write-Log -function "MailboxMigration - Collect-MoveRequestStatistics" -step "We were unable to collect MoveRequestStatistics for `"$User`" user" -Description "Error"
+                }
+            }
+            catch {                
+                Write-Log -function "MailboxMigration - Collect-MoveRequestStatistics" -step "You do not have permissions to run `"$($TheCommand.Command)`" command" -Description "Error"
+                #Collect-MoveRequest -AffectedUsers $AffectedUsers
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+function JustFor-Testing {
+    Write-Host
+    Write-Host "Details from the mailbox migration log:" -ForegroundColor Green
+
+    foreach ($Entry in $script:ParsedLogs) {
+        if ($($Entry.DetailsAboutTheMove.PrimarySMTPAddress) -eq "FromFile")
+        {
+            #Write-Log "[INFO] || Providing details of the migration from the file you provided"
+            Write-Host "[INFO] || Providing details of the migration from the file you provided"
+        }
+        else {
+            #Write-Log "[INFO] || Providing details of the migration for $($Entry.DetailsAboutTheMove.PrimarySMTPAddress)"
+            Write-Host "[INFO] || Providing details of the migration for $($Entry.DetailsAboutTheMove.PrimarySMTPAddress)"
+        }
+
+        if ($($Entry.DetailsAboutTheMove.PrimarySMTPAddress)) {
+            Write-Host "PrimarySMTPAddress: " -ForegroundColor Cyan
+            Write-Host "$($Entry.DetailsAboutTheMove.PrimarySMTPAddress)" -ForegroundColor White
+            #Write-Log ("PrimarySMTPAddress: `n$($Entry.DetailsAboutTheMove.PrimarySMTPAddress)") -NonInteractive $true
+            Write-Host
+        }
+
+        if ($($Entry.BasicInformation)) {
+            Write-Host "Basic Information: " -ForegroundColor Cyan
+            $($Entry.BasicInformation)
+            #Write-Log ("Basic Information: `n$($Entry.BasicInformation)") -NonInteractive $true
+            Write-Host
+        }
+
+        if ($($Entry.PerformanceStatistics)) {
+            Write-Host "Performance Statistics: " -ForegroundColor Cyan
+            $($Entry.PerformanceStatistics)
+            #Write-Log ("Performance Statistics: `n$($Entry.PerformanceStatistics)") -NonInteractive $true
+            Write-Host
+        }
+
+        if ($($Entry.Timeline.timelineMinute)) {
+            Write-Host "Details about timeline, by minute: " -ForegroundColor Cyan
+            $TheEntriesToDisplay = $($Entry.Timeline.timelineMinute)
+            $TheEntriesToDisplay | sort Milliseconds -Descending | select -First 5 | ft -AutoSize
+            $TheSortedEntriesToDisplay = $TheEntriesToDisplay | sort Milliseconds -Descending | select -First 50
+            #Write-Log ("Details about timeline, by month: `n$TheSortedEntriesToDisplay") -NonInteractive $true
+            Write-Host
+        }
+
+        if ($($Entry.Timeline.timelineHour)) {
+            Write-Host "Details about timeline, by hour: " -ForegroundColor Cyan
+            $TheEntriesToDisplay = $($Entry.Timeline.timelineHour)
+            $TheEntriesToDisplay | sort Milliseconds -Descending | select -First 5 | ft -AutoSize
+            $TheSortedEntriesToDisplay = $TheEntriesToDisplay | sort Milliseconds -Descending | select -First 50
+            #Write-Log ("Details about timeline, by month: `n$TheSortedEntriesToDisplay") -NonInteractive $true
+            Write-Host
+        }
+
+        if ($($Entry.Timeline.timelineDay)) {
+            Write-Host "Details about timeline, by Day: " -ForegroundColor Cyan
+            $TheEntriesToDisplay = $($Entry.Timeline.timelineDay)
+            $TheEntriesToDisplay | sort Milliseconds -Descending | select -First 5 | ft -AutoSize
+            <#foreach ($timelineMonthSortedEntry in $TheEntriesToDisplay) {
+                Write-Host 
+                Write-Host "`t$($timelineMonthSortedEntry.State): " -ForegroundColor Cyan -NoNewline
+                Write-Host "`t$($timelineMonthSortedEntry.Milliseconds)" -ForegroundColor White -NoNewline
+                $ThePercent = (([int]$($timelineMonthSortedEntry.Milliseconds)/[int]$TheDurationMilliseconds)*100).ToString("#.##")
+                Write-Host " ($ThePercent `%)"
+            }#>
+            $TheSortedEntriesToDisplay = $TheEntriesToDisplay | sort Milliseconds -Descending | select -First 50
+            #Write-Log ("Details about timeline, by month: `n$TheSortedEntriesToDisplay") -NonInteractive $true
+            Write-Host
+        }
+
+        if ($($Entry.Timeline.timelineMonth)) {
+            Write-Host "Details about timeline, by month: " -ForegroundColor Cyan
+            $TheEntriesToDisplay = $($Entry.Timeline.timelineMonth)
+            $TheEntriesToDisplay | sort Milliseconds -Descending | select -First 5 | ft -AutoSize
+            <#foreach ($timelineMonthSortedEntry in $TheEntriesToDisplay) {
+                Write-Host 
+                Write-Host "`t$($timelineMonthSortedEntry.State): " -ForegroundColor Cyan -NoNewline
+                Write-Host "`t$($timelineMonthSortedEntry.Milliseconds)" -ForegroundColor White -NoNewline
+                $ThePercent = (([int]$($timelineMonthSortedEntry.Milliseconds)/[int]$TheDurationMilliseconds)*100).ToString("#.##")
+                Write-Host " ($ThePercent `%)"
+            }#>
+            $TheSortedEntriesToDisplay = $TheEntriesToDisplay | sort Milliseconds -Descending | select -First 50
+            #Write-Log ("Details about timeline, by month: `n$TheSortedEntriesToDisplay") -NonInteractive $true
+            Write-Host
+        }
+
+        Write-Host
+    }
+}
+
 #endregion Functions
 
 
@@ -528,98 +944,10 @@ Function DurationtoSeconds
 ###############
 #region Main script
 
-Clear-Host
-
 Write-Log -function "Show-MailboxMigrationMenu" -step "Main script" -Description "Success"
 Show-MailboxMigrationMenu
 
-Write-Host
-Write-Host "Details from the mailbox migration log:" -ForegroundColor Green
-
-foreach ($Entry in $script:ParsedLogs) {
-    if ($($Entry.DetailsAboutTheMove.PrimarySMTPAddress) -eq "FromFile")
-    {
-        #Write-Log "[INFO] || Providing details of the migration from the file you provided"
-        Write-Host "[INFO] || Providing details of the migration from the file you provided"
-    }
-    else {
-        #Write-Log "[INFO] || Providing details of the migration for $($Entry.DetailsAboutTheMove.PrimarySMTPAddress)"
-        Write-Host "[INFO] || Providing details of the migration for $($Entry.DetailsAboutTheMove.PrimarySMTPAddress)"
-    }
-
-    if ($($Entry.DetailsAboutTheMove.PrimarySMTPAddress)) {
-        Write-Host "PrimarySMTPAddress: " -ForegroundColor Cyan
-        Write-Host "$($Entry.DetailsAboutTheMove.PrimarySMTPAddress)" -ForegroundColor White
-        #Write-Log ("PrimarySMTPAddress: `n$($Entry.DetailsAboutTheMove.PrimarySMTPAddress)") -NonInteractive $true
-        Write-Host
-    }
-
-    if ($($Entry.BasicInformation)) {
-        Write-Host "Basic Information: " -ForegroundColor Cyan
-        $($Entry.BasicInformation)
-        #Write-Log ("Basic Information: `n$($Entry.BasicInformation)") -NonInteractive $true
-        Write-Host
-    }
-
-    if ($($Entry.PerformanceStatistics)) {
-        Write-Host "Performance Statistics: " -ForegroundColor Cyan
-        $($Entry.PerformanceStatistics)
-        #Write-Log ("Performance Statistics: `n$($Entry.PerformanceStatistics)") -NonInteractive $true
-        Write-Host
-    }
-
-    if ($($Entry.Timeline.timelineMinute)) {
-        Write-Host "Details about timeline, by minute: " -ForegroundColor Cyan
-        $TheEntriesToDisplay = $($Entry.Timeline.timelineMinute)
-        $TheEntriesToDisplay | sort Milliseconds -Descending | select -First 5 | ft -AutoSize
-        $TheSortedEntriesToDisplay = $TheEntriesToDisplay | sort Milliseconds -Descending | select -First 50
-        #Write-Log ("Details about timeline, by month: `n$TheSortedEntriesToDisplay") -NonInteractive $true
-        Write-Host
-    }
-
-    if ($($Entry.Timeline.timelineHour)) {
-        Write-Host "Details about timeline, by hour: " -ForegroundColor Cyan
-        $TheEntriesToDisplay = $($Entry.Timeline.timelineHour)
-        $TheEntriesToDisplay | sort Milliseconds -Descending | select -First 5 | ft -AutoSize
-        $TheSortedEntriesToDisplay = $TheEntriesToDisplay | sort Milliseconds -Descending | select -First 50
-        #Write-Log ("Details about timeline, by month: `n$TheSortedEntriesToDisplay") -NonInteractive $true
-        Write-Host
-    }
-
-    if ($($Entry.Timeline.timelineDay)) {
-        Write-Host "Details about timeline, by Day: " -ForegroundColor Cyan
-        $TheEntriesToDisplay = $($Entry.Timeline.timelineDay)
-        $TheEntriesToDisplay | sort Milliseconds -Descending | select -First 5 | ft -AutoSize
-        <#foreach ($timelineMonthSortedEntry in $TheEntriesToDisplay) {
-            Write-Host 
-            Write-Host "`t$($timelineMonthSortedEntry.State): " -ForegroundColor Cyan -NoNewline
-            Write-Host "`t$($timelineMonthSortedEntry.Milliseconds)" -ForegroundColor White -NoNewline
-            $ThePercent = (([int]$($timelineMonthSortedEntry.Milliseconds)/[int]$TheDurationMilliseconds)*100).ToString("#.##")
-            Write-Host " ($ThePercent `%)"
-        }#>
-        $TheSortedEntriesToDisplay = $TheEntriesToDisplay | sort Milliseconds -Descending | select -First 50
-        #Write-Log ("Details about timeline, by month: `n$TheSortedEntriesToDisplay") -NonInteractive $true
-        Write-Host
-    }
-
-    if ($($Entry.Timeline.timelineMonth)) {
-        Write-Host "Details about timeline, by month: " -ForegroundColor Cyan
-        $TheEntriesToDisplay = $($Entry.Timeline.timelineMonth)
-        $TheEntriesToDisplay | sort Milliseconds -Descending | select -First 5 | ft -AutoSize
-        <#foreach ($timelineMonthSortedEntry in $TheEntriesToDisplay) {
-            Write-Host 
-            Write-Host "`t$($timelineMonthSortedEntry.State): " -ForegroundColor Cyan -NoNewline
-            Write-Host "`t$($timelineMonthSortedEntry.Milliseconds)" -ForegroundColor White -NoNewline
-            $ThePercent = (([int]$($timelineMonthSortedEntry.Milliseconds)/[int]$TheDurationMilliseconds)*100).ToString("#.##")
-            Write-Host " ($ThePercent `%)"
-        }#>
-        $TheSortedEntriesToDisplay = $TheEntriesToDisplay | sort Milliseconds -Descending | select -First 50
-        #Write-Log ("Details about timeline, by month: `n$TheSortedEntriesToDisplay") -NonInteractive $true
-        Write-Host
-    }
-
-    Write-Host
-}
+JustFor-Testing
 
 
 #endregion Main script
