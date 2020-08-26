@@ -1355,6 +1355,133 @@ Function Read-Key{
 
 }
 
+
+### <summary>
+### Export-ReportToHTML function is used to convert any kind of report to HTML file
+### </summary>
+### <param name="ReportTitle">ReportTitle represents the title of the Report </param>
+### <param name="TheObjectToConvertToHTML">
+###     TheObjectToConvertToHTML represents the object that need to be converted to HTML
+###         Its structure is:
+###             [string]$Header - Contains the header of the data that will be added to the HTML file
+###             [string]$HeaderColor - Contains the header of the data that will be added to the HTML file (accepted values are "Green" or "Red")
+###             [string]$Description - Contains description of the data that will be added to the HTML file
+###             [string]$DataType - Contains the data type of the data that need to be added into the HTML file (it can be: "Table", "String")
+###             [ArrayList]/[String]$EffectiveData - Contains the effective data that need to be added into a HTML file
+###             [String]$TableType - If EffectiveData is table, we need to know how to list it (accepted values: "List" = Vertical, "Table" = Horizontal)
+### </param>
+Function Export-ReportToHTML {
+    param(
+        [Parameter(Mandatory=$false)]
+        [string]$ReportTitle,
+
+        [Parameter(Mandatory=$false)]
+        [System.Collections.ArrayList]$TheObjectToConvertToHTML
+        
+    )
+
+    ### Create header of the HTML file
+    $header = @"
+<!--HTML file created by O365Troubleshooters-->
+<title>$ReportTitle</title>
+<style>
+
+    h1 {
+        font-family: Arial, Helvetica, sans-serif;
+        color: #e68a00;
+        font-size: 28px;
+    }
+    
+    h2 {
+        font-family: Arial, Helvetica, sans-serif;
+        color: #000099;
+        font-size: 16px;
+    }
+
+    h3 {
+        font-family: Arial, Helvetica, sans-serif;
+        color: #000099;
+        font-size: 12px;
+    }
+
+    .Green {
+        color: #008000;
+    }
+    
+    .Red {
+        color: #ff0000;
+    }
+
+    .Black {
+        color: #000000;
+    }
+        
+   table {
+		font-size: 12px;
+		border: 0px; 
+		font-family: Arial, Helvetica, sans-serif;
+	} 
+	
+    td {
+		padding: 4px;
+		margin: 0px;
+		border: 0;
+	}
+	
+    th {
+        background: #395870;
+        background: linear-gradient(#49708f, #293f50);
+        color: #fff;
+        font-size: 11px;
+        text-transform: uppercase;
+        padding: 10px 15px;
+        vertical-align: middle;
+	}
+
+    tbody tr:nth-child(even) {
+        background: #f0f0f2;
+    }
+
+        #CreationDate {
+
+        font-family: Arial, Helvetica, sans-serif;
+        color: #ff3300;
+        font-size: 12px;
+
+    }
+</style>
+<a href="https://www.powershellgallery.com/packages/O365Troubleshooters" target="_blank">
+    <img src="$script:modulePath\Resources\O365Troubleshooters-Logo.png" alt="O365Troubleshooters" width="173" height="128">
+</a>
+<img src=>
+"@
+
+    [int]$i = 0
+    [string]$TheBody = ""
+    foreach ($Entry in $TheObjectToConvertToHTML) {
+        if ($Entry.DataType -eq "String") {
+            $TheValue = ConvertTo-Html -PreContent "<h2 class=`"$($Entry.HeaderColor)`">`n`n$($Entry.Header)</h2><h3 class=`"Black`">`n$($Entry.Description)`n</h3>" -PostContent $($Entry.EffectiveData)
+        }
+        else {
+            $TheValue = $($Entry.EffectiveData) | ConvertTo-Html -As $($Entry.TableType) -PreContent "<h2 class=`"$($Entry.HeaderColor)`">`n`n$($Entry.Header)</h2><h3 class=`"Black`">`n$($Entry.Description)`n</h3>"
+        }
+        New-Variable -Name "TheEntry$i" -Value $TheValue
+        $TheBody = $TheBody + "`$TheEntry$i "
+        $i++
+    }
+    
+    $TheCommand = "ConvertTo-Html -Head `$header -Body `"$TheBody`" -PreContent `"`<p`>Creation Date: `$((Get-date).ToUniversalTime()) UTC`<`/p`>`""
+    $Report = Invoke-Expression $TheCommand
+
+    $ExportPath = "$global:WSPath\HTMLReports"
+    mkdir $ExportPath -Force|Out-Null
+    $ts= get-date -Format yyyyMMdd_HHmmss
+
+    $FilePath = $ExportPath + "\" + $ReportTitle + "_" + $ts + ".html"
+
+    $Report | Out-File $FilePath
+}
+
 Function    Start-O365Troubleshooters
 {
     param(

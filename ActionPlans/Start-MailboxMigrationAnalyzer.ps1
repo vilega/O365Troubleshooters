@@ -839,6 +839,40 @@ function Collect-MoveRequestStatistics {
 }
 
 
+function Export-MailboxMigrationReportToHTML {
+    
+    [System.Collections.ArrayList]$TheObjectToConvertToHTML = @()
+
+    foreach ($Entry in $script:ParsedLogs) {
+        $TheObject = New-Object PSObject
+            $TheObject | Add-Member -NotePropertyName Header -NotePropertyValue "Basic Information"
+            $TheObject | Add-Member -NotePropertyName HeaderColor -NotePropertyValue "Red"
+            $TheObject | Add-Member -NotePropertyName Description -NotePropertyValue "This is the description of `"Basic Information`""
+            $TheObject | Add-Member -NotePropertyName DataType -NotePropertyValue "ArrayList"
+            $TheObject | Add-Member -NotePropertyName EffectiveData -NotePropertyValue $($Entry.BasicInformation)
+            $TheObject | Add-Member -NotePropertyName TableType -NotePropertyValue "List"
+        $null = $TheObjectToConvertToHTML.Add($TheObject)
+
+        $TheObject = New-Object PSObject
+            $TheObject | Add-Member -NotePropertyName Header -NotePropertyValue "Test String entry"
+            $TheObject | Add-Member -NotePropertyName HeaderColor -NotePropertyValue "Green"
+            $TheObject | Add-Member -NotePropertyName Description -NotePropertyValue "This is the description of `"Test String entry`""
+            $TheObject | Add-Member -NotePropertyName DataType -NotePropertyValue "String"
+            $TheObject | Add-Member -NotePropertyName EffectiveData -NotePropertyValue "This is just a test string added to the HTML report"
+        $null = $TheObjectToConvertToHTML.Add($TheObject)
+
+        $TheObject = New-Object PSObject
+            $TheObject | Add-Member -NotePropertyName Header -NotePropertyValue "Performance Statistics"
+            $TheObject | Add-Member -NotePropertyName HeaderColor -NotePropertyValue "Black"
+            $TheObject | Add-Member -NotePropertyName Description -NotePropertyValue "This is the description of `"Performance Statistics`""
+            $TheObject | Add-Member -NotePropertyName DataType -NotePropertyValue "ArrayList"
+            $TheObject | Add-Member -NotePropertyName EffectiveData -NotePropertyValue $($Entry.PerformanceStatistics)
+            $TheObject | Add-Member -NotePropertyName TableType -NotePropertyValue "List"
+        $null = $TheObjectToConvertToHTML.Add($TheObject)
+    }
+
+    Export-ReportToHTML -ReportTitle "Mailbox Migration Report" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
+}
 
 
 
@@ -947,7 +981,9 @@ function JustFor-Testing {
 Write-Log -function "Show-MailboxMigrationMenu" -step "Main script" -Description "Success"
 Show-MailboxMigrationMenu
 
-JustFor-Testing
+#JustFor-Testing
 
+Write-Host "Creating the HTML Report"
+Export-MailboxMigrationReportToHTML
 
 #endregion Main script
