@@ -1355,6 +1355,205 @@ Function Read-Key{
 
 }
 
+
+### <summary>
+### Export-ReportToHTML function is used to convert any kind of report to HTML file
+### </summary>
+### <param name="FilePath">FilePath represents the Full path of the .html file that will be saved by this function </param>
+### <param name="ReportTitle">ReportTitle represents the title of the Report </param>
+### <param name="TheObjectToConvertToHTML">
+###     TheObjectToConvertToHTML represents the object that need to be converted to HTML
+###         Its structure is:
+###             [string]$Header - Contains the header of the data that will be added to the HTML file
+###             [string]$HeaderColor - Contains the header of the data that will be added to the HTML file (accepted values are "Green" or "Red")
+###             [string]$Description - Contains description of the data that will be added to the HTML file
+###             [string]$DataType - Contains the data type of the data that need to be added into the HTML file (it can be: "Table", "String")
+###             [ArrayList]/[String]$EffectiveData - Contains the effective data that need to be added into a HTML file
+###             [String]$TableType - If EffectiveData is table, we need to know how to list it (accepted values: "List" = Vertical, "Table" = Horizontal)
+### </param>
+Function Export-ReportToHTML {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$FilePath,
+
+        [Parameter(Mandatory=$false)]
+        [string]$ReportTitle,
+
+        [Parameter(Mandatory=$true)]
+        [System.Collections.ArrayList]$TheObjectToConvertToHTML
+
+    )
+
+    ### Create header of the HTML file
+    $header = @"
+<!--HTML file created by O365Troubleshooters-->
+<title>$ReportTitle</title>
+<style>
+    h1 {
+        font-family: Arial, Helvetica, sans-serif;
+        color: #e68a00;
+        font-size: 28px;
+    }
+    
+    h2 {
+        font-family: Arial, Helvetica, sans-serif;
+        color: #000099;
+        font-size: 16px;
+    }
+
+    h3 {
+        font-family: Arial, Helvetica, sans-serif;
+        color: #000099;
+        font-size: 12px;
+    }
+
+    .Green {
+        color: #008000;
+    }
+    
+    .Red {
+        color: #ff0000;
+    }
+
+    .Black {
+        color: #000000;
+    }
+        
+   table {
+		font-size: 12px;
+		border: 0px; 
+		font-family: Arial, Helvetica, sans-serif;
+	} 
+	
+    td {
+		padding: 4px;
+		margin: 0px;
+		border: 0;
+	}
+	
+    th {
+        background: #395870;
+        background: linear-gradient(#49708f, #293f50);
+        color: #fff;
+        font-size: 11px;
+        text-transform: uppercase;
+        padding: 10px 15px;
+        vertical-align: middle;
+    }
+    
+    tbody tr:nth-child(even) {
+        background: #f0f0f2;
+    }
+
+    #CreationDate {
+        font-family: Arial, Helvetica, sans-serif;
+        color: #ff3300;
+        font-size: 12px;
+    }
+</style>
+<a href="https://www.powershellgallery.com/packages/O365Troubleshooters" target="_blank">
+    <img src="$script:modulePath\Resources\O365Troubleshooters-Logo.png" alt="O365Troubleshooters" width="173" height="128">
+</a>
+<img src=>
+"@
+
+    [int]$i = 0
+    [string]$TheBody = ""
+    
+    ### For each scenario, convert the data to HTML
+    foreach ($Entry in $TheObjectToConvertToHTML) {
+        if ($Entry.DataType -eq "String") {
+            $TheValue = ConvertTo-Html -PreContent "<h2 class=`"$($Entry.HeaderColor)`">`n`n$($Entry.Header)</h2><h3 class=`"Black`">`n$($Entry.Description)`n</h3>" -PostContent $($Entry.EffectiveData)
+        }
+        else {
+            $TheValue = $($Entry.EffectiveData) | ConvertTo-Html -As $($Entry.TableType) -PreContent "<h2 class=`"$($Entry.HeaderColor)`">`n`n$($Entry.Header)</h2><h3 class=`"Black`">`n$($Entry.Description)`n</h3>"
+        }
+
+        ### Create a new dynamic variable in which to add the content converted to HTML
+        New-Variable -Name "TheEntry$i" -Value $TheValue
+
+        ## Create the body of the HTML file
+        $TheBody = $TheBody + "`$TheEntry$i "
+
+        $i++
+    }
+
+    ### Create the command that will help in converting the entire content to HTML
+    $TheCommand = "ConvertTo-Html -Head `$header -Body `"$TheBody`" -PreContent `"`<p`>Creation Date: `$((Get-date).ToUniversalTime()) UTC`<`/p`>`""
+
+    ### Run the command, in order to create the HTML report
+    $Report = Invoke-Expression $TheCommand
+
+    ### Export the HTML report to the specific location
+    $Report | Out-File $FilePath
+}
+
+
+### <summary>
+### Prepare-ObjectForHTMLReport function is used to prepare the objects to be converted to HTML file
+### </summary>
+### <param name="Header">Header represents the header of the section</param>
+### <param name="HeaderColor">HeaderColor represents the color of the header of the section (valid values to use: "Black", "Green" or "Red")</param>
+### <param name="Description">Description represents the description for the section</param>
+### <param name="DataType">DataType represents the type of data for the section (valid values to use: "ArrayList" or "String")</param>
+### <param name="EffectiveDataString">EffectiveDataString represents the effective data. This is the data used in case the DataType is "String"</param>
+### <param name="EffectiveDataArrayList">EffectiveDataArrayList represents the effective data. This is the data used in case the DataType is "ArrayList"</param>
+### <param name="TableType">TableType represents the type of table HTML should list.
+###         This is available only if DataType is "ArrayList" (valid values to use: "List" or "Table")</param>
+###
+### <returns>TheObject - this is the object in which data that need to be converted to HTML is stored</returns>
+function Prepare-ObjectForHTMLReport {
+param (
+
+    [Parameter(ParameterSetName = "String", Mandatory=$false)]
+    [Parameter(ParameterSetName = "ArrayList", Mandatory=$false)]
+    [string]$Header,
+
+    [Parameter(ParameterSetName = "String", Mandatory=$false)]
+    [Parameter(ParameterSetName = "ArrayList", Mandatory=$false)]
+    [ValidateSet("Black", "Green", "Red")]
+    [string]$HeaderColor,
+
+    [Parameter(ParameterSetName = "String", Mandatory=$false)]
+    [Parameter(ParameterSetName = "ArrayList", Mandatory=$false)]
+    [string]$Description,
+
+    [Parameter(ParameterSetName = "String", Mandatory=$false)]
+    [Parameter(ParameterSetName = "ArrayList", Mandatory=$false)]
+    [ValidateSet("ArrayList", "String")]
+    [string]$DataType,
+
+    [Parameter(ParameterSetName = "String", Mandatory=$false)]
+    [string]$EffectiveDataString,
+
+    [Parameter(ParameterSetName = "ArrayList", Mandatory=$false)]
+    [PSCustomObject]$EffectiveDataArrayList,
+
+    [Parameter(ParameterSetName = "ArrayList", Mandatory=$false)]
+    [ValidateSet("List", "Table")]
+    [string]$TableType
+)
+
+    ###Create the object, with all needed Properties, that will be used to convert into an HTML report
+    $TheObject = New-Object PSObject
+        $TheObject | Add-Member -NotePropertyName Header -NotePropertyValue $Header
+        $TheObject | Add-Member -NotePropertyName HeaderColor -NotePropertyValue $HeaderColor
+        $TheObject | Add-Member -NotePropertyName Description -NotePropertyValue $Description
+        $TheObject | Add-Member -NotePropertyName DataType -NotePropertyValue $DataType
+        if ($DataType -eq "ArrayList") {
+            $TheObject | Add-Member -NotePropertyName EffectiveData -NotePropertyValue $EffectiveDataArrayList
+            $TheObject | Add-Member -NotePropertyName TableType -NotePropertyValue $TableType
+        }
+        else {
+            $TheObject | Add-Member -NotePropertyName EffectiveData -NotePropertyValue $EffectiveDataString
+        }
+
+    ### Return the created object
+    return $TheObject
+
+}
+
+
 Function    Start-O365Troubleshooters
 {
     param(
