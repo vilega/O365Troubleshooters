@@ -1461,10 +1461,8 @@ Function Export-ReportToHTML {
 <img src=>
 "@
 
-    $ReportTitle = "<h1>$ReportTitle</h1>"
-
     [int]$i = 0
-    [string]$TheBody = "$ReportTitle"
+    [string]$TheBody = "<h1>$ReportTitle</h1>"
     
     ### For each scenario, convert the data to HTML
     foreach ($Entry in $TheObjectToConvertToHTML) {
