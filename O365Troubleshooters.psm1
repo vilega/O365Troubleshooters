@@ -1360,12 +1360,13 @@ Function Read-Key{
 ### Export-ReportToHTML function is used to convert any kind of report to HTML file
 ### </summary>
 ### <param name="FilePath">FilePath represents the Full path of the .html file that will be saved by this function </param>
-### <param name="ReportTitle">ReportTitle represents the title of the Report </param>
+### <param name="PageTitle">PageTitle represents the title of the Report. This will appear in the browser tab</param>
+### <param name="ReportTitle">ReportTitle represents the title of the Report. This will appear inside the report, as a descriptive title of the report</param>
 ### <param name="TheObjectToConvertToHTML">
 ###     TheObjectToConvertToHTML represents the object that need to be converted to HTML
 ###         Its structure is:
-###             [string]$Header - Contains the header of the data that will be added to the HTML file
-###             [string]$HeaderColor - Contains the header of the data that will be added to the HTML file (accepted values are "Green" or "Red")
+###             [string]$SectionTitle - Contains the header of the data that will be added to the HTML file
+###             [string]$SectionTitleColor - Contains the header of the data that will be added to the HTML file (accepted values are "Green" or "Red")
 ###             [string]$Description - Contains description of the data that will be added to the HTML file
 ###             [string]$DataType - Contains the data type of the data that need to be added into the HTML file (it can be: "Table", "String")
 ###             [ArrayList]/[String]$EffectiveData - Contains the effective data that need to be added into a HTML file
@@ -1375,6 +1376,9 @@ Function Export-ReportToHTML {
     param(
         [Parameter(Mandatory=$true)]
         [string]$FilePath,
+
+        [Parameter(Mandatory=$false)]
+        [string]$PageTitle,
 
         [Parameter(Mandatory=$false)]
         [string]$ReportTitle,
@@ -1387,7 +1391,7 @@ Function Export-ReportToHTML {
     ### Create header of the HTML file
     $header = @"
 <!--HTML file created by O365Troubleshooters-->
-<title>$ReportTitle</title>
+<title>$PageTitle</title>
 <style>
     h1 {
         font-family: Arial, Helvetica, sans-serif;
@@ -1458,19 +1462,19 @@ Function Export-ReportToHTML {
 "@
 
     [int]$i = 0
-    [string]$TheBody = ""
+    [string]$TheBody = "<h1>$ReportTitle</h1>"
     
     ### For each scenario, convert the data to HTML
     foreach ($Entry in $TheObjectToConvertToHTML) {
         if ($Entry.DataType -eq "String") {
-            $TheValue = ConvertTo-Html -PreContent "<h2 class=`"$($Entry.HeaderColor)`">`n`n$($Entry.Header)</h2><h3 class=`"Black`">`n$($Entry.Description)`n</h3>" -PostContent $($Entry.EffectiveData)
+            $TheValue = ConvertTo-Html -PreContent "<h2 class=`"$($Entry.SectionTitleColor)`">`n`n$($Entry.SectionTitle)</h2><h3 class=`"Black`">`n$($Entry.Description)`n</h3>" -PostContent $($Entry.EffectiveData)
         }
         else {
-            $TheValue = $($Entry.EffectiveData) | ConvertTo-Html -As $($Entry.TableType) -PreContent "<h2 class=`"$($Entry.HeaderColor)`">`n`n$($Entry.Header)</h2><h3 class=`"Black`">`n$($Entry.Description)`n</h3>"
+            $TheValue = $($Entry.EffectiveData) | ConvertTo-Html -As $($Entry.TableType) -PreContent "<h2 class=`"$($Entry.SectionTitleColor)`">`n`n$($Entry.SectionTitle)</h2><h3 class=`"Black`">`n$($Entry.Description)`n</h3>"
         }
 
         ### Adding sections in the body of the HTML report
-        $TheBody = $TheBody + $TheValue
+        $TheBody = $TheBody  + " " + $TheValue
 
         $i++
     }
@@ -1498,7 +1502,6 @@ Function Export-ReportToHTML {
 ### <returns>TheObject - this is the object in which data that need to be converted to HTML is stored</returns>
 function Prepare-ObjectForHTMLReport {
 param (
-
     [Parameter(ParameterSetName = "String", Mandatory=$false)]
     [Parameter(ParameterSetName = "ArrayList", Mandatory=$false)]
     [string]$SectionTitle,
@@ -1530,8 +1533,8 @@ param (
 
     ###Create the object, with all needed Properties, that will be used to convert into an HTML report
     $TheObject = New-Object PSObject
-        $TheObject | Add-Member -NotePropertyName Header -NotePropertyValue $Header
-        $TheObject | Add-Member -NotePropertyName HeaderColor -NotePropertyValue $HeaderColor
+        $TheObject | Add-Member -NotePropertyName SectionTitle -NotePropertyValue $SectionTitle
+        $TheObject | Add-Member -NotePropertyName SectionTitleColor -NotePropertyValue $SectionTitleColor
         $TheObject | Add-Member -NotePropertyName Description -NotePropertyValue $Description
         $TheObject | Add-Member -NotePropertyName DataType -NotePropertyValue $DataType
         if ($DataType -eq "ArrayList") {
@@ -1666,6 +1669,4 @@ Switch ($r) {
         Start-O365TroubleshootersMenu 
      }
     } 
-
-
 }
