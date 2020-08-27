@@ -1469,20 +1469,14 @@ Function Export-ReportToHTML {
             $TheValue = $($Entry.EffectiveData) | ConvertTo-Html -As $($Entry.TableType) -PreContent "<h2 class=`"$($Entry.HeaderColor)`">`n`n$($Entry.Header)</h2><h3 class=`"Black`">`n$($Entry.Description)`n</h3>"
         }
 
-        ### Create a new dynamic variable in which to add the content converted to HTML
-        New-Variable -Name "TheEntry$i" -Value $TheValue
-
-        ## Create the body of the HTML file
-        $TheBody = $TheBody + "`$TheEntry$i "
+        ### Adding sections in the body of the HTML report
+        $TheBody = $TheBody + $TheValue
 
         $i++
     }
 
-    ### Create the command that will help in converting the entire content to HTML
-    $TheCommand = "ConvertTo-Html -Head `$header -Body `"$TheBody`" -PreContent `"`<p`>Creation Date: `$((Get-date).ToUniversalTime()) UTC`<`/p`>`""
-
-    ### Run the command, in order to create the HTML report
-    $Report = Invoke-Expression $TheCommand
+    ### Create the report to convert the entire content to HTML
+    $Report = ConvertTo-Html -Head $header -Body $TheBody -PreContent "<p>Creation Date: $((Get-date).ToUniversalTime()) UTC</p>"
 
     ### Export the HTML report to the specific location
     $Report | Out-File $FilePath
@@ -1492,8 +1486,8 @@ Function Export-ReportToHTML {
 ### <summary>
 ### Prepare-ObjectForHTMLReport function is used to prepare the objects to be converted to HTML file
 ### </summary>
-### <param name="Header">Header represents the header of the section</param>
-### <param name="HeaderColor">HeaderColor represents the color of the header of the section (valid values to use: "Black", "Green" or "Red")</param>
+### <param name="SectionTitle">SectionTitle represents the header of the section</param>
+### <param name="SectionTitleColor">SectionTitleColor represents the color of the header of the section (valid values to use: "Black", "Green" or "Red")</param>
 ### <param name="Description">Description represents the description for the section</param>
 ### <param name="DataType">DataType represents the type of data for the section (valid values to use: "ArrayList" or "String")</param>
 ### <param name="EffectiveDataString">EffectiveDataString represents the effective data. This is the data used in case the DataType is "String"</param>
@@ -1507,12 +1501,12 @@ param (
 
     [Parameter(ParameterSetName = "String", Mandatory=$false)]
     [Parameter(ParameterSetName = "ArrayList", Mandatory=$false)]
-    [string]$Header,
+    [string]$SectionTitle,
 
     [Parameter(ParameterSetName = "String", Mandatory=$false)]
     [Parameter(ParameterSetName = "ArrayList", Mandatory=$false)]
     [ValidateSet("Black", "Green", "Red")]
-    [string]$HeaderColor,
+    [string]$SectionTitleColor,
 
     [Parameter(ParameterSetName = "String", Mandatory=$false)]
     [Parameter(ParameterSetName = "ArrayList", Mandatory=$false)]
