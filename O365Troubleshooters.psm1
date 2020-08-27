@@ -1482,6 +1482,70 @@ Function Export-ReportToHTML {
     $Report | Out-File $FilePath
 }
 
+
+### <summary>
+### Prepare-ObjectForHTMLReport function is used to prepare the objects to be converted to HTML file
+### </summary>
+### <param name="Header">Header represents the header of the section</param>
+### <param name="HeaderColor">HeaderColor represents the color of the header of the section (valid values to use: "Black", "Green" or "Red")</param>
+### <param name="Description">Description represents the description for the section</param>
+### <param name="DataType">DataType represents the type of data for the section (valid values to use: "ArrayList" or "String")</param>
+### <param name="EffectiveDataString">EffectiveDataString represents the effective data. This is the data used in case the DataType is "String"</param>
+### <param name="EffectiveDataArrayList">EffectiveDataArrayList represents the effective data. This is the data used in case the DataType is "ArrayList"</param>
+### <param name="TableType">TableType represents the type of table HTML should list.
+###         This is available only if DataType is "ArrayList" (valid values to use: "List" or "Table")</param>
+###
+### <returns>TheObject - this is the object in which data that need to be converted to HTML is stored</returns>
+function Prepare-ObjectForHTMLReport {
+param (
+
+    [Parameter(ParameterSetName = "String", Mandatory=$false)]
+    [Parameter(ParameterSetName = "ArrayList", Mandatory=$false)]
+    [string]$Header,
+
+    [Parameter(ParameterSetName = "String", Mandatory=$false)]
+    [Parameter(ParameterSetName = "ArrayList", Mandatory=$false)]
+    [ValidateSet("Black", "Green", "Red")]
+    [string]$HeaderColor,
+
+    [Parameter(ParameterSetName = "String", Mandatory=$false)]
+    [Parameter(ParameterSetName = "ArrayList", Mandatory=$false)]
+    [string]$Description,
+
+    [Parameter(ParameterSetName = "String", Mandatory=$false)]
+    [Parameter(ParameterSetName = "ArrayList", Mandatory=$false)]
+    [ValidateSet("ArrayList", "String")]
+    [string]$DataType,
+
+    [Parameter(ParameterSetName = "String", Mandatory=$false)]
+    [string]$EffectiveDataString,
+
+    [Parameter(ParameterSetName = "ArrayList", Mandatory=$false)]
+    [PSCustomObject]$EffectiveDataArrayList,
+
+    [Parameter(ParameterSetName = "ArrayList", Mandatory=$false)]
+    [ValidateSet("List", "Table")]
+    [string]$TableType
+)
+
+    $TheObject = New-Object PSObject
+        $TheObject | Add-Member -NotePropertyName Header -NotePropertyValue $Header
+        $TheObject | Add-Member -NotePropertyName HeaderColor -NotePropertyValue $HeaderColor
+        $TheObject | Add-Member -NotePropertyName Description -NotePropertyValue $Description
+        $TheObject | Add-Member -NotePropertyName DataType -NotePropertyValue $DataType
+        if ($DataType -eq "ArrayList") {
+            $TheObject | Add-Member -NotePropertyName EffectiveData -NotePropertyValue $EffectiveDataArrayList
+            $TheObject | Add-Member -NotePropertyName TableType -NotePropertyValue $TableType
+        }
+        else {
+            $TheObject | Add-Member -NotePropertyName EffectiveData -NotePropertyValue $EffectiveDataString
+        }
+
+    return $TheObject
+
+}
+
+
 Function    Start-O365Troubleshooters
 {
     param(
