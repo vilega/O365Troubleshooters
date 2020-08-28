@@ -324,6 +324,8 @@ function Collect-MigrationLogs {
         }
         $TheEnvironment = "FromFile"
         $LogFrom = "FromFile"
+        $CommandRanToCollect = "FromFile"
+        $FileLocation = $XMLFile
         $LogType = "FromFile"
         $TheMigrationType = "FromFile"
     }
@@ -334,14 +336,20 @@ function Collect-MigrationLogs {
         if ($MigrationType -eq "Hybrid") {
             Collect-MoveRequestStatistics -AffectedUsers $AffectedUsers
             $LogType = "MoveRequestStatistics"
+            $CommandRanToCollect = "MoveRequestStatistics"
+            $FileLocation = ""
         }
         elseif ($MigrationType -eq "IMAP") {
             Collect-SyncRequestStatistics -AffectedUsers $AffectedUsers
             $LogType = "SyncRequestStatistics"
+            $CommandRanToCollect = "SyncRequestStatistics"
+            $FileLocation = ""
         }
         elseif (($MigrationType -eq "Cutover") -or ($MigrationType -eq "Staged")) {
             Collect-MigrationUserStatistics -AffectedUsers $AffectedUsers
             $LogType = "MigrationUserStatistics"
+            $CommandRanToCollect = "MigrationUserStatistics"
+            $FileLocation = ""
         }
         $TheEnvironment = "Exchange Online"
         $LogFrom = "FromExchangeOnline"
@@ -350,7 +358,7 @@ function Collect-MigrationLogs {
 
     if ($script:LogsToAnalyze) {
         foreach ($LogEntry in $script:LogsToAnalyze) {
-            $TheInfo = Create-MoveObject -MigrationLogs $LogEntry -TheEnvironment $TheEnvironment -LogFrom $LogFrom -LogType $LogType -MigrationType $TheMigrationType
+            $TheInfo = Create-MoveObject -MigrationLogs $LogEntry -TheEnvironment $TheEnvironment -LogFrom $LogFrom -CommandRanToCollect $CommandRanToCollect -FileLocation $FileLocation -LogType $LogType -MigrationType $TheMigrationType
             $null = $script:ParsedLogs.Add($TheInfo)
         }
     }
@@ -367,6 +375,10 @@ function Create-MoveObject {
         [ValidateSet("FromFile", "FromExchangeOnline", "FromExchangeOnPremises")]
         [string]$LogFrom,
 
+        [string]$CommandRanToCollect,
+
+        [string]$FileLocation,
+
         [ValidateSet("MoveRequestStatistics", "MoveRequest", "MigrationUserStatistics", "MigrationUser", "MigrationBatch", "SyncRequestStatistics", "SyncRequest", "MailboxStatistics", "FromFile")]
         [string]$LogType,
 
@@ -379,38 +391,40 @@ function Create-MoveObject {
 
     # Create the Result object that will be used to store all results
     $MoveAnalysis = New-Object PSObject
-    $OrderedFields | foreach {$MoveAnalysis | Add-Member -Name $_ -Value $null -MemberType NoteProperty}
+        $OrderedFields | foreach {
+            $MoveAnalysis | Add-Member -Name $_ -Value $null -MemberType NoteProperty
+        }
 
-    # Pull everything that we need, that is common to all status types
-    $MoveAnalysis.BasicInformation        = New-BasicInformation -RequestStats $($MigrationLogs.Logs)
-    $MoveAnalysis.PerformanceStatistics   = New-PerformanceStatistics -RequestStats $($MigrationLogs.Logs)
-    $MoveAnalysis.FailureSummary          = New-FailureSummary -RequestStats $($MigrationLogs.Logs)
-<#    
-    ##$MoveAnalysis.FailureStatistics       = New-FailureStatistics -FailureSummaries $MoveAnalysis.FailureSummary
-    ##$MoveAnalysis.LargeItemSummary        = New-LargeItemSummary -RequestStats $($MigrationLogs.Logs)
-    ##$MoveAnalysis.BadItemSummary          = New-BadItemSummary -RequestStats $($MigrationLogs.Logs)
-    # Add fields that are not printed in the analysis
-    $MoveAnalysis | Add-Member -NotePropertyName Report -NotePropertyValue $($MigrationLogs.Logs.Report)
-    $MoveAnalysis | Add-Member -NotePropertyName DiagnosticInfo -NotePropertyValue $($MigrationLogs.Logs.DiagnosticInfo)
-    $timelineMonth = Build-TimeTrackerTable -MrsJob $($MigrationLogs.Logs) -Aggregation Month
-    $timelineDay = Build-TimeTrackerTable -MrsJob $($MigrationLogs.Logs) -Aggregation Day
-    $timelineHour = Build-TimeTrackerTable -MrsJob $($MigrationLogs.Logs) -Aggregation Hour
-    $timelineMinute = Build-TimeTrackerTable -MrsJob $($MigrationLogs.Logs) -Aggregation Minute
-    $Timeline = New-Object PSObject
-    $Timeline | Add-Member -NotePropertyName timelineMonth -NotePropertyValue $timelineMonth
-    $Timeline | Add-Member -NotePropertyName timelineDay -NotePropertyValue $timelineDay
-    $Timeline | Add-Member -NotePropertyName timelineHour -NotePropertyValue $timelineHour
-    $Timeline | Add-Member -NotePropertyName timelineMinute -NotePropertyValue $timelineMinute
-    $MoveAnalysis | Add-Member -NotePropertyName Timeline -NotePropertyValue $Timeline
-#>
-    $DetailsAboutTheMove = New-Object PSObject
-    $DetailsAboutTheMove | Add-Member -NotePropertyName Environment -NotePropertyValue $TheEnvironment
-    $DetailsAboutTheMove | Add-Member -NotePropertyName LogFrom -NotePropertyValue $LogFrom
-    $DetailsAboutTheMove | Add-Member -NotePropertyName LogType -NotePropertyValue $LogType
-    $DetailsAboutTheMove | Add-Member -NotePropertyName MigrationType -NotePropertyValue $MigrationType
-    $DetailsAboutTheMove | Add-Member -NotePropertyName PrimarySMTPAddress -NotePropertyValue $($MigrationLogs.Name)
+        # Pull everything that we need, that is common to all status types
+        $MoveAnalysis.BasicInformation        = New-BasicInformation -RequestStats $($MigrationLogs.Logs)
+        $MoveAnalysis.PerformanceStatistics   = New-PerformanceStatistics -RequestStats $($MigrationLogs.Logs)
+        $MoveAnalysis.FailureSummary          = New-FailureSummary -RequestStats $($MigrationLogs.Logs)
+    <#    
+        ##$MoveAnalysis.FailureStatistics       = New-FailureStatistics -FailureSummaries $MoveAnalysis.FailureSummary
+        ##$MoveAnalysis.LargeItemSummary        = New-LargeItemSummary -RequestStats $($MigrationLogs.Logs)
+        ##$MoveAnalysis.BadItemSummary          = New-BadItemSummary -RequestStats $($MigrationLogs.Logs)
+        # Add fields that are not printed in the analysis
+        $MoveAnalysis | Add-Member -NotePropertyName Report -NotePropertyValue $($MigrationLogs.Logs.Report)
+        $MoveAnalysis | Add-Member -NotePropertyName DiagnosticInfo -NotePropertyValue $($MigrationLogs.Logs.DiagnosticInfo)
+        $timelineMonth = Build-TimeTrackerTable -MrsJob $($MigrationLogs.Logs) -Aggregation Month
+        $timelineDay = Build-TimeTrackerTable -MrsJob $($MigrationLogs.Logs) -Aggregation Day
+        $timelineHour = Build-TimeTrackerTable -MrsJob $($MigrationLogs.Logs) -Aggregation Hour
+        $timelineMinute = Build-TimeTrackerTable -MrsJob $($MigrationLogs.Logs) -Aggregation Minute
+        $Timeline = New-Object PSObject
+        $Timeline | Add-Member -NotePropertyName timelineMonth -NotePropertyValue $timelineMonth
+        $Timeline | Add-Member -NotePropertyName timelineDay -NotePropertyValue $timelineDay
+        $Timeline | Add-Member -NotePropertyName timelineHour -NotePropertyValue $timelineHour
+        $Timeline | Add-Member -NotePropertyName timelineMinute -NotePropertyValue $timelineMinute
+        $MoveAnalysis | Add-Member -NotePropertyName Timeline -NotePropertyValue $Timeline
+    #>
+        $DetailsAboutTheMove = New-Object PSObject
+            $DetailsAboutTheMove | Add-Member -NotePropertyName Environment -NotePropertyValue $TheEnvironment
+            $DetailsAboutTheMove | Add-Member -NotePropertyName LogFrom -NotePropertyValue $LogFrom
+            $DetailsAboutTheMove | Add-Member -NotePropertyName LogType -NotePropertyValue $LogType
+            $DetailsAboutTheMove | Add-Member -NotePropertyName MigrationType -NotePropertyValue $MigrationType
+            $DetailsAboutTheMove | Add-Member -NotePropertyName PrimarySMTPAddress -NotePropertyValue $($MigrationLogs.Name)
 
-    $MoveAnalysis | Add-Member -NotePropertyName DetailsAboutTheMove -NotePropertyValue $DetailsAboutTheMove
+            $MoveAnalysis | Add-Member -NotePropertyName DetailsAboutTheMove -NotePropertyValue $DetailsAboutTheMove
     return $MoveAnalysis
 
 }
@@ -819,13 +833,16 @@ function Collect-MoveRequestStatistics {
                     $ExpressionResults = Invoke-Expression $($TheCommand.FullCommand)
                     Write-Log -function "MailboxMigration - Collect-MoveRequestStatistics" -step "MoveRequestStatistics successfully collected for `"$User`" user" -Description "Success"
                     $LogEntry = New-Object PSObject
-                    $LogEntry | Add-Member -NotePropertyName PrimarySMTPAddress -NotePropertyValue $User
-                    $LogEntry | Add-Member -NotePropertyName MigrationType -NotePropertyValue "Hybrid"
-                    $LogEntry | Add-Member -NotePropertyName LogType -NotePropertyValue "MoveRequestStatistics"
-                    $LogEntry | Add-Member -NotePropertyName Logs -NotePropertyValue $ExpressionResults
+                        $LogEntry | Add-Member -NotePropertyName PrimarySMTPAddress -NotePropertyValue $User
+                        $LogEntry | Add-Member -NotePropertyName MigrationType -NotePropertyValue "Hybrid"
+                        $LogEntry | Add-Member -NotePropertyName LogType -NotePropertyValue "MoveRequestStatistics"
+                        $LogEntry | Add-Member -NotePropertyName Logs -NotePropertyValue $ExpressionResults
+                        $LogEntry | Add-Member -NotePropertyName $CommandRanToCollect -NotePropertyValue $TheCommand
                     $void = $script:LogsToAnalyze.Add($LogEntry)
-                    [string]$Path = $script:TheWorkingDirectorySavedData + "\EXO_MoveRequestStatistics_" + [string]$User + ".xml"
-                    $LogEntry | Export-Clixml $Path -Force
+                    [string]$XMLPath = $ExportPath + "\MoveRequestStatistics_" + [string]$User + ".xml"
+                    [string]$ZIPPath = $ExportPath + "\MoveRequestStatistics_" + [string]$User + ".zip"
+                    $LogEntry | Export-Clixml $XMLPath -Force
+                    Compress-Archive -LiteralPath $XMLPath -DestinationPath $ZIPPath
                 }
                 catch {
                     Write-Log -function "MailboxMigration - Collect-MoveRequestStatistics" -step "We were unable to collect MoveRequestStatistics for `"$User`" user" -Description "Error"
@@ -838,6 +855,9 @@ function Collect-MoveRequestStatistics {
         }
     }
 }
+
+
+
 
 
 ### <summary>
