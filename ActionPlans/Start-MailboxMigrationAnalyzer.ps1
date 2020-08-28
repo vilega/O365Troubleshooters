@@ -48,7 +48,7 @@
 [System.Collections.ArrayList]$script:ParsedLogs = @()
 
 ### Get the timestamp from the time the scenario was accessed
-[string]$ts = get-date -Format yyyyMMdd_HHmmss
+[string]$ts = Get-Date -Format yyyyMMdd_HHmmss
 
 ### Create the location where to save logs related to MailboxMigration scenario
 [string]$ExportPath = "$global:WSPath\MailboxMigration_$ts"
@@ -58,7 +58,6 @@ $null = New-Item -ItemType Directory -Path $ExportPath -Force
 ### <summary>
 ### Show-MailboxMigrationMenu function is used if the script is started without any parameters
 ### </summary>
-### <param name="WorkingDirectory">WorkingDirectory parameter is used get the location on which the LogFile will be created.</param>
 function Show-MailboxMigrationMenu {
 
     $MailboxMigrationMenu=@"
@@ -850,19 +849,20 @@ function Export-MailboxMigrationReportToHTML {
 
     foreach ($Entry in $script:ParsedLogs) {
 
-        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle "Basic Information" -SectionTitleColor "Red" -Description "This is the description of `"Basic Information`"" -DataType "ArrayList" -EffectiveDataArrayList $($Entry.BasicInformation) -TableType "List"
+        [string]$SectionTitle = "Basic Information"
+        [string]$Description = "Below are the `"Basic Information`" for $($.Entry.BasicInformation.Alias)'s migration"
+        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $($Entry.BasicInformation) -TableType "List"
         $null = $TheObjectToConvertToHTML.Add($TheCommand)
 
-        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle "Test String entry" -SectionTitleColor "Green" -Description "This is the description of `"Test String entry`"" -DataType "String" -EffectiveDataString "This is just a test string added to the HTML report"
-        $null = $TheObjectToConvertToHTML.Add($TheCommand)
-
-        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle "Performance Statistics" -SectionTitleColor "Black" -Description "This is the description of `"Performance Statistics`"" -DataType "ArrayList" -EffectiveDataArrayList $($Entry.PerformanceStatistics) -TableType "List"
+        [string]$SectionTitle = "Performance Statistics"
+        [string]$Description = "Below are the `"Performance Statistics`" for $($.Entry.BasicInformation.Alias)'s migration"
+        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $($Entry.PerformanceStatistics) -TableType "List"
         $null = $TheObjectToConvertToHTML.Add($TheCommand)
 
     }
 
     [string]$FilePath = $ExportPath + "\MailboxMigration_Hybrid_SummaryReport.html"
-    Export-ReportToHTML -FilePath $FilePath -ReportTitle "Mailbox Migration Report" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
+    Export-ReportToHTML -FilePath $FilePath -PageTitle "Mailbox Migration Report" -ReportTitle "Mailbox Migration - Hybrid - Summary Report" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
 }
 
 
@@ -961,6 +961,22 @@ function JustFor-Testing {
     }
 }
 
+function Start-MailboxMigrationMainScript {
+
+    Write-Log -function "MailboxMigration - Start-MailboxMigrationMainScript" -step "Show-MailboxMigrationMenu" -Description "Success"
+    Show-MailboxMigrationMenu
+
+    Write-Log -function "MailboxMigration - Start-MailboxMigrationMainScript" -step "Export-MailboxMigrationReportToHTML" -Description "Success"
+    Export-MailboxMigrationReportToHTML
+
+    Write-Log -function "MailboxMigration - Start-MailboxMigrationMainScript" -step "Read-Key" -Description "Success"
+    Read-Key
+
+    Write-Log -function "MailboxMigration - Start-MailboxMigrationMainScript" -step "Start-O365TroubleshootersMenu" -Description "Success"
+    Start-O365TroubleshootersMenu
+
+}
+
 #endregion Functions
 
 
@@ -969,13 +985,15 @@ function JustFor-Testing {
 ###############
 #region Main script
 
-Write-Log -function "Show-MailboxMigrationMenu" -step "Main script" -Description "Success"
-Show-MailboxMigrationMenu
-
-Export-MailboxMigrationReportToHTML
-
-Read-Key
-
-Start-O365TroubleshootersMenu
+try {
+    Write-Log -function "MailboxMigration" -step "Start-MailboxMigrationMainScript" -Description "Success"
+    Start-MailboxMigrationMainScript
+}
+catch {
+    Write-Log -function "MailboxMigration" -step "MainScript" -Description "$_"
+    Write-Log -function "MailboxMigration" -step "MainScript" -Description "Error. Script will now exit"
+    Write-Host "[ERROR] || $_" -ForegroundColor Red
+    Write-Host "[ERROR] || Script will now exit" -ForegroundColor Red
+}
 
 #endregion Main script
