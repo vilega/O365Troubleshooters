@@ -54,6 +54,12 @@
 [string]$ExportPath = "$global:WSPath\MailboxMigration_$ts"
 $null = New-Item -ItemType Directory -Path $ExportPath -Force
 
+### Create the PSObject in which to store details about the log used to provide report
+$Script:DetailsAboutMigrationLog = New-Object PSObject
+    $Script:DetailsAboutMigrationLog | Add-Member -NotePropertyName XMLFullName -NotePropertyValue ""
+    # $Script:DetailsAboutMigrationLog | Add-Member -NotePropertyName XMLShortName -NotePropertyValue "" ###  Not implemented yet
+    # $Script:DetailsAboutMigrationLog | Add-Member -NotePropertyName ZipFullName -NotePropertyValue "" ### Not implemented yet
+    $Script:DetailsAboutMigrationLog | Add-Member -NotePropertyName CommandUsedToCollectLogs -NotePropertyValue ""
 
 ### <summary>
 ### Show-MailboxMigrationMenu function is used if the script is started without any parameters
@@ -68,7 +74,7 @@ function Show-MailboxMigrationMenu {
     Select a task by number, or, B to go back to main menu: 
 "@
 
-    Write-Log -function "MailboxMigration - Show-MailboxMigrationMenu" -step "Loading the menu" -Description "Success"
+    Write-Log -function "MailboxMigration - Show-MailboxMigrationMenu" -step "Loading the mailbox migration menu" -Description "Success"
 
     Clear-Host
 
@@ -148,6 +154,7 @@ function Selected-FileOption {
     else {
         ### TheMigrationLogs variable will represent MigrationLogs collected using the Collect-MigrationLogs function.
         Write-Log -function "MailboxMigration - Selected-FileOption" -step "Start analyze of data from `"$FilePath`" file" -Description "Success"
+        Create-DetailsAboutMigrationOutput -InfoCollectedFrom XMLFile -XMLPath $PathOfXMLFile
         Collect-MigrationLogs -XMLFile $PathOfXMLFile
     }
 }
@@ -286,23 +293,22 @@ function Ask-ForXMLPath {
 function Collect-MigrationLogs {
     [CmdletBinding()]
     Param (
-        [parameter(Mandatory=$true,
-        ParameterSetName="XMLFile")]
-        [string]
-        $XMLFile,
+        [parameter(ParameterSetName="XMLFile", Mandatory=$true)]
+        [string]$XMLFile,
+
         [Parameter(ParameterSetName = "ConnectToExchangeOnline", Mandatory = $true)]
         [switch]$ConnectToExchangeOnline,
 
-        [Parameter(ParameterSetName = "ConnectToExchangeOnPremises", Mandatory = $true)]
-        [switch]$ConnectToExchangeOnPremises,
+#        [Parameter(ParameterSetName = "ConnectToExchangeOnPremises", Mandatory = $true)] ### not implemented yet
+#        [switch]$ConnectToExchangeOnPremises, ### not implemented yet
 
         [Parameter(ParameterSetName = "ConnectToExchangeOnline", Mandatory = $false)]
-        [Parameter(ParameterSetName = "ConnectToExchangeOnPremises", Mandatory = $false)]
+#        [Parameter(ParameterSetName = "ConnectToExchangeOnPremises", Mandatory = $false)]  ### not implemented yet
         [string[]]$AffectedUsers,
 
         [Parameter(ParameterSetName = "ConnectToExchangeOnline", Mandatory = $false)]
         [ValidateSet("Hybrid", "IMAP", "Cutover", "Staged")]
-        [string]$MigrationType,
+        [string]$MigrationType = "Hybrid",
 
         [Parameter(ParameterSetName = "ConnectToExchangeOnline", Mandatory = $false)]
         [string]$AdminAccount
@@ -365,6 +371,20 @@ function Collect-MigrationLogs {
 }
 
 
+### <summary>
+### Create-MoveObject function is used to create the custom MoveObject used to analyze the migration
+### </summary>
+### <param name="MigrationLogs">MigrationLogs represents the migration logs that need to be parsed </param>
+### <param name="TheEnvironment">TheEnvironment represents the environment from which the logs were collected.
+###         For the moment they came from Exchange Online, or from .xml file </param>
+### <param name="LogFrom">LogFrom represents the environment from which the logs were collected.
+###         For the moment they came from Exchange Online, or from .xml file </param>
+### <param name="CommandRanToCollect">CommandRanToCollect represents the exact command ran to collect the logs </param>
+### <param name="FileLocation">FileLocation represents the FullName of the .xml file from where the migration log was imported </param>
+### <param name="LogType">LogType represents the type of the migration log.
+###         For the moment the expected values are "FromFile" or "MoveRequestStatistics" </param>
+### <param name="MigrationType">MigrationType represents migration type of the logs collected </param>
+### <return $MoveAnalysis>MoveAnalysis represents the object containing all parsed logs that need to be listed in the report </return>
 function Create-MoveObject {
     param (
         $MigrationLogs,
@@ -387,7 +407,7 @@ function Create-MoveObject {
     )
 
     # List of fields to output
-    [Array]$OrderedFields = "BasicInformation","PerformanceStatistics","FailureSummary","FailureStatistics","LargeItemSummary","BadItemSummary","MailboxVerification"
+    [Array]$OrderedFields = "MailboxInformation","BasicInformation","ExtendedMoveInfo","PerformanceStatistics","FailureSummary","FailureStatistics","LargeItemSummary","BadItemSummary", "MailboxVerificationIfMissingItems","MailboxVerificationAll"
 
     # Create the Result object that will be used to store all results
     $MoveAnalysis = New-Object PSObject
@@ -396,27 +416,17 @@ function Create-MoveObject {
         }
 
         # Pull everything that we need, that is common to all status types
-        $MoveAnalysis.BasicInformation        = New-BasicInformation -RequestStats $($MigrationLogs.Logs)
-        $MoveAnalysis.PerformanceStatistics   = New-PerformanceStatistics -RequestStats $($MigrationLogs.Logs)
-        $MoveAnalysis.FailureSummary          = New-FailureSummary -RequestStats $($MigrationLogs.Logs)
-    <#    
-        ##$MoveAnalysis.FailureStatistics       = New-FailureStatistics -FailureSummaries $MoveAnalysis.FailureSummary
-        ##$MoveAnalysis.LargeItemSummary        = New-LargeItemSummary -RequestStats $($MigrationLogs.Logs)
-        ##$MoveAnalysis.BadItemSummary          = New-BadItemSummary -RequestStats $($MigrationLogs.Logs)
-        # Add fields that are not printed in the analysis
-        $MoveAnalysis | Add-Member -NotePropertyName Report -NotePropertyValue $($MigrationLogs.Logs.Report)
-        $MoveAnalysis | Add-Member -NotePropertyName DiagnosticInfo -NotePropertyValue $($MigrationLogs.Logs.DiagnosticInfo)
-        $timelineMonth = Build-TimeTrackerTable -MrsJob $($MigrationLogs.Logs) -Aggregation Month
-        $timelineDay = Build-TimeTrackerTable -MrsJob $($MigrationLogs.Logs) -Aggregation Day
-        $timelineHour = Build-TimeTrackerTable -MrsJob $($MigrationLogs.Logs) -Aggregation Hour
-        $timelineMinute = Build-TimeTrackerTable -MrsJob $($MigrationLogs.Logs) -Aggregation Minute
-        $Timeline = New-Object PSObject
-        $Timeline | Add-Member -NotePropertyName timelineMonth -NotePropertyValue $timelineMonth
-        $Timeline | Add-Member -NotePropertyName timelineDay -NotePropertyValue $timelineDay
-        $Timeline | Add-Member -NotePropertyName timelineHour -NotePropertyValue $timelineHour
-        $Timeline | Add-Member -NotePropertyName timelineMinute -NotePropertyValue $timelineMinute
-        $MoveAnalysis | Add-Member -NotePropertyName Timeline -NotePropertyValue $Timeline
-    #>
+        $MoveAnalysis.MailboxInformation                    = New-MailboxInformation -RequestStats $($MigrationLogs.Logs)
+        $MoveAnalysis.BasicInformation                      = New-BasicInformation -RequestStats $($MigrationLogs.Logs)
+        $MoveAnalysis.ExtendedMoveInfo                      = New-ExtendedMoveInfo -RequestStats $($MigrationLogs.Logs)
+        $MoveAnalysis.PerformanceStatistics                 = New-PerformanceStatistics -RequestStats $($MigrationLogs.Logs)
+        $MoveAnalysis.FailureSummary                        = New-FailureSummary -RequestStats $($MigrationLogs.Logs)
+        $MoveAnalysis.FailureStatistics                     = New-FailureStatistics -RequestStats $($MigrationLogs.Logs)
+        $MoveAnalysis.LargeItemSummary                      = New-LargeItemSummary -RequestStats $($MigrationLogs.Logs)
+        $MoveAnalysis.BadItemSummary                        = New-BadItemSummary -RequestStats $($MigrationLogs.Logs)
+        $MoveAnalysis.MailboxVerificationIfMissingItems     = New-MailboxVerificationIfMissingItems -RequestStats $($MigrationLogs.Logs)
+        $MoveAnalysis.MailboxVerificationAll                = New-MailboxVerificationAll -RequestStats $($MigrationLogs.Logs)
+
         $DetailsAboutTheMove = New-Object PSObject
             $DetailsAboutTheMove | Add-Member -NotePropertyName Environment -NotePropertyValue $TheEnvironment
             $DetailsAboutTheMove | Add-Member -NotePropertyName LogFrom -NotePropertyValue $LogFrom
@@ -424,15 +434,18 @@ function Create-MoveObject {
             $DetailsAboutTheMove | Add-Member -NotePropertyName MigrationType -NotePropertyValue $MigrationType
             $DetailsAboutTheMove | Add-Member -NotePropertyName PrimarySMTPAddress -NotePropertyValue $($MigrationLogs.Name)
 
-            $MoveAnalysis | Add-Member -NotePropertyName DetailsAboutTheMove -NotePropertyValue $DetailsAboutTheMove
-    return $MoveAnalysis
+        $MoveAnalysis | Add-Member -NotePropertyName DetailsAboutTheMove -NotePropertyValue $DetailsAboutTheMove
 
+    return $MoveAnalysis
 }
 
 
-# Create the Basic Information object and populate it with the baseline values
-Function New-BasicInformation
-{
+### <summary>
+### New-MailboxInformation function is used to list mailbox information (Alias, DisplayName, ExchangeGUID)
+### </summary>
+### <param name="RequestStats">RequestStats represents the migration logs that need to be parsed, in order to extract the information about the mailbox </param>
+### <return PSObject>The function returns a PSObject with information about the mailbox </return>
+Function New-MailboxInformation {
     Param(
         [Parameter(Mandatory = $true)]
         $RequestStats
@@ -440,49 +453,138 @@ Function New-BasicInformation
 
     # Build all properties to be added to the oubject
     New-Object PSObject -Property ([ordered]@{
-        Alias           = $RequestStats.Alias 
-        ExchangeGuid    = $RequestStats.ExchangeGuid
-        Created         = $RequestStats.QueuedTimestamp
-        Completed       = $RequestStats.CompletionTimeStamp
-        Failed          = $RequestStats.FailureTimeStamp
-        Direction       = ([String]$RequestStats.Direction)
-        Status          = ([String]$RequestStats.Status)
-        StatusDetail    = ([String]$RequestStats.StatusDetail)
-        Workload        = ([String]$RequestStats.Workloadtype)
-        Flags           = ([String]$RequestStats.Flags)
-        SourceServer    = $RequestStats.SourceServer
-        SourceVersion   = $RequestStats.SourceVersion
-        SourceDatabase  = $RequestStats.SourceDatabase
-        TargetServer    = $RequestStats.TargetServer
-        TargetVersion   = $RequestStats.TargetVersion
-        TargetDatabase  = $RequestStats.TargetDatabase
-        MRSProxy        = $RequestStats.RemoteHostName
-        RemoteDatabase  = $RequestStats.RemoteDatabaseName
-        Protected       = $RequestStats.Protect
-        BadItemLimit    = ([int][String]$RequestStats.BadItemLimit)
-        LargeItemLimit  = ([int][String]$RequestStats.LargeItemLimit)
-        #Failures        = $RequestStats.Report.Failures
-        BadItems        = $RequestStats.Report.BadItems
-        LargeItems      = $RequestStats.Report.LargeItems
+        Alias           = [string]$RequestStats.Alias
+        DisplayName     = [string]$RequestStats.DisplayName
+        ExchangeGuid    = [string]$RequestStats.ExchangeGuid
     })
 }
 
 
+### <summary>
+### New-BasicInformation function is used to list basic information related to the migration
+### </summary>
+### <param name="RequestStats">RequestStats represents the migration logs that need to be parsed, in order to extract the information about the mailbox </param>
+### <return PSObject>The function returns a PSObject containing basic information about the mailbox migration </return>
+Function New-BasicInformation {
+    Param(
+        [Parameter(Mandatory = $true)]
+        $RequestStats
+    )
 
-# Build the stats for performance
-Function New-PerformanceStatistics
-{
+    [string]$TheDirection = ""
+    if (($($RequestStats.WorkloadType.ToString()) -eq "Onboarding") -and ($($RequestStats.RequestStyle.ToString()) -eq "CrossOrg")) {
+        $TheDirection   = "On-Premises to Exchange Online"
+    }
+    elseif (($($RequestStats.WorkloadType.ToString()) -eq "Offboarding") -and ($($RequestStats.RequestStyle.ToString()) -eq "CrossOrg")) {
+        $TheDirection   = "On-Premises to Exchange Online"
+    }
+    else {
+        $TheDirection   = ([String]$RequestStats.Flags)
+    }
+
+    # Build all properties to be added to the oubject
+    New-Object PSObject -Property ([ordered]@{
+        Status                                      = ([String]$RequestStats.Status)
+        DataConsistencyScore                        = [string]$RequestStats.DataConsistencyScore
+        
+        ### Need to provide details about DataConsistencyScoringFactors
+        # [string]$DataConsistencyScoringFactors = ""
+        # foreach ($Factor in $RequestStats.DataConsistencyScoringFactors) {
+        #   $DataConsistencyScoringFactors   = $DataConsistencyScoringFactors + [string]$Factor
+        # }
+        # DataConsistencyScoringFactors = $DataConsistencyScoringFactors
+        
+        BadItemLimit                                = ([int][String]$RequestStats.BadItemLimit)
+        BadItemsEncountered                         = ([int][String]$RequestStats.BadItemsEncountered)
+        LargeItemLimit                              = ([int][String]$RequestStats.LargeItemLimit)
+        LargeItemsEncountered                       = ([int][String]$RequestStats.LargeItemsEncountered)
+        BatchName                                   = [string]$RequestStats.BatchName
+        Created                                     = $RequestStats.QueuedTimestamp
+        Completed                                   = $RequestStats.CompletionTimeStamp
+        OverallDuration                             = [string]$RequestStats.OverallDuration
+        TotalInProgressDuration                     = [string]$RequestStats.TotalInProgressDuration
+        TotalSuspendedDuration                      = [string]$RequestStats.TotalSuspendedDuration
+        TotalFailedDuration                         = [string]$RequestStats.TotalFailedDuration
+        TotalQueuedDuration                         = [string]$RequestStats.TotalQueuedDuration
+        TotalTransientFailureDuration               = [string]$RequestStats.TotalTransientFailureDuration
+        TotalStalledDueToContentIndexingDuration    = [string]$RequestStats.TotalStalledDueToContentIndexingDuration
+        TotalStalledDueToMdbReplicationDuration     = [string]$RequestStats.TotalStalledDueToMdbReplicationDuration
+        TotalStalledDueToMailboxLockedDuration      = [string]$RequestStats.TotalStalledDueToMailboxLockedDuration
+        TotalStalledDueToReadThrottle               = [string]$RequestStats.TotalStalledDueToReadThrottle
+        TotalStalledDueToWriteThrottle              = [string]$RequestStats.TotalStalledDueToWriteThrottle
+        TotalStalledDueToReadCpu                    = [string]$RequestStats.TotalStalledDueToReadCpu
+        TotalStalledDueToWriteCpu                   = [string]$RequestStats.TotalStalledDueToWriteCpu
+        TotalStalledDueToReadUnknown                = [string]$RequestStats.TotalStalledDueToReadUnknown
+        TotalStalledDueToWriteUnknown               = [string]$RequestStats.TotalStalledDueToWriteUnknown
+        Direction                                   = $TheDirection
+        Flags                                       = ([String]$RequestStats.Flags)
+        RemoteHostName                              = [string]$RequestStats.RemoteHostName
+        "TotalMailboxSize (bytes)"                  = Get-Bytes -datasize $RequestStats.TotalMailboxSize
+        TotalMailboxItemCount                       = [string]$RequestStats.TotalMailboxItemCount
+        "TotalPrimarySize (bytes)"                  = Get-Bytes -datasize $RequestStats.TotalPrimarySize
+        TotalPrimaryItemCount                       = [string]$RequestStats.TotalPrimaryItemCount
+        "TotalArchiveSize (bytes)"                  = Get-Bytes -datasize $RequestStats.TotalArchiveSize
+        TotalArchiveItemCount                       = [string]$RequestStats.TotalArchiveItemCount
+        TargetDeliveryDomain                        = [string]$RequestStats.TargetDeliveryDomain
+        SourceEndpointGuid                          = [string]$RequestStats.SourceEndpointGuid
+        SourceVersion                               = [string]$RequestStats.SourceVersion
+        SourceDatabase                              = [string]$RequestStats.SourceDatabase
+        SourceServer                                = [string]$RequestStats.SourceServer
+        SourceArchiveDatabase                       = [string]$RequestStats.SourceArchiveDatabase
+        SourceArchiveVersion                        = [string]$RequestStats.SourceArchiveVersion
+        SourceArchiveServer                         = [string]$RequestStats.SourceArchiveServer
+        TargetVersion                               = [string]$RequestStats.TargetVersion
+        TargetDatabase                              = [string]$RequestStats.TargetDatabase
+        TargetServer                                = [string]$RequestStats.TargetServer
+        TargetArchiveDatabase                       = [string]$RequestStats.TargetArchiveDatabase
+        TargetArchiveVersion                        = [string]$RequestStats.TargetArchiveVersion
+        TargetArchiveServer                         = [string]$RequestStats.TargetArchiveServer
+        FailureCode                                 = [string]$RequestStats.FailureCode
+        FailureType                                 = [string]$RequestStats.FailureType
+        FailureSide                                 = [string]$RequestStats.FailureSide
+        FailureTimestamp                            = [string]$RequestStats.FailureTimestamp
+        LastFailure                                 = [string]$RequestStats.LastFailure
+    })
+}
+
+
+### <summary>
+### New-ExtendedMoveInfo function is used to list extended information related to the migration
+### </summary>
+### <param name="RequestStats">RequestStats represents the migration logs that need to be parsed, in order to extract the information about the mailbox </param>
+### <return PSObject>The function returns a PSObject containing extended information about the mailbox migration </return>
+Function New-ExtendedMoveInfo {
+    Param(
+        [Parameter(Mandatory = $true)]
+        $RequestStats
+    )
+
+    # Build all properties to be added to the oubject
+    New-Object PSObject -Property ([ordered]@{
+        TotalStalledDueToMailboxLockedDuration      = [string]$RequestStats.TotalStalledDueToMailboxLockedDuration
+        FailureSide                                 = [string]$RequestStats.FailureSide
+        PercentComplete                             = [int][string]$RequestStats.PercentComplete
+        Protected                                   = [string]$RequestStats.Protect
+        StatusDetail                                = [string]$RequestStats.StatusDetail
+        WorkloadType                                = [string]$RequestStats.WorkloadType
+        BytesTransferred                            = Get-Bytes -datasize $RequestStats.BytesTransferred
+    })
+}
+
+
+### <summary>
+### New-PerformanceStatistics function is used to list performance statistics related to the migration
+### </summary>
+### <param name="RequestStats">RequestStats represents the migration logs that need to be parsed, in order to extract the information about the mailbox </param>
+### <return PSObject>The function returns a PSObject containing performance statistics about the mailbox migration </return>
+Function New-PerformanceStatistics {
     Param(
         [Parameter(Mandatory = $true)]
         $RequestStats
     )
 
     New-Object PSObject -Property ([ordered]@{
-        MigrationDuration         = $RequestStats.TotalInProgressDuration
-        ##TotalGBTransferred        = (Get-Bytes $RequestStats.BytesTransferred) / 1GB
-        PercentComplete           = $RequestStats.PercentComplete
-        ##DataTransferRateMBPerHour = Eval-Safe { (((Get-Bytes $RequestStats.BytesTransferred) / 1MB) / (DurationtoSeconds $RequestStats.TotalInProgressDuration)) * 3600 }
-        ##DataTransferRateGBPerHour = Eval-Safe { (((Get-Bytes $RequestStats.BytesTransferred) / 1GB) / (DurationtoSeconds $RequestStats.TotalInProgressDuration)) * 3600 }
+        MigrationDuration         = [string]$RequestStats.TotalInProgressDuration
         AverageSourceLatency      = Eval-Safe { $RequestStats.report.sessionstatistics.sourcelatencyinfo.average }
         AverageDestinationLatency = Eval-Safe { $RequestStats.report.sessionstatistics.destinationlatencyinfo.average }
         SourceSideDuration        = Eval-Safe { $RequestStats.Report.SessionStatistics.SourceProviderInfo.TotalDuration }
@@ -493,14 +595,19 @@ Function New-PerformanceStatistics
         PercentDurationQueued     = Eval-Safe { ((DurationToSeconds $RequestStats.TotalQueuedDuration) / (DurationtoSeconds $RequestStats.OverallDuration)) * 100 } -DefaultValue 0
         PercentDurationLocked     = Eval-Safe { ((DurationToSeconds $RequestStats.TotalStalledDueToMailboxLockedDuration) / (DurationtoSeconds $RequestStats.OverallDuration)) * 100 } -DefaultValue 0
         PercentDurationTransient  = Eval-Safe { ((DurationToSeconds $RequestStats.TotalTransientFailureDuration) / (DurationtoSeconds $RequestStats.OverallDuration)) * 100 } -DefaultValue 0
+        DataTransferRateBytesPerHour = Eval-Safe { ((Get-Bytes $RequestStats.BytesTransferred) / (DurationtoSeconds $RequestStats.TotalInProgressDuration)) * 3600 }
+        DataTransferRateMBPerHour = Eval-Safe { (((Get-Bytes $RequestStats.BytesTransferred) / 1MB) / (DurationtoSeconds $RequestStats.TotalInProgressDuration)) * 3600 }
+        DataTransferRateGBPerHour = Eval-Safe { (((Get-Bytes $RequestStats.BytesTransferred) / 1GB) / (DurationtoSeconds $RequestStats.TotalInProgressDuration)) * 3600 }
     })
 }
 
 
-
-# Creates an object with just the failure message and timestamp
-Function New-FailureSummary
-{
+### <summary>
+### New-FailureSummary function is used to list a summary of failures found in the migration log
+### </summary>
+### <param name="RequestStats">RequestStats represents the migration logs that need to be parsed, in order to extract the information about the mailbox </param>
+### <return $compactFailures>The function returns an Array containing summary about failures found in the mailbox migration log </return>
+Function New-FailureSummary {
     Param(
         [Parameter(Mandatory = $true)]
         $RequestStats
@@ -513,7 +620,7 @@ Function New-FailureSummary
     if ($RequestStats.report.failures -eq $null)
     {
         $compactFailures += New-Object PSObject -Property @{
-            TimeStamp = [DateTime]::MinValue
+            TimeStamp = "None"
             FailureType = "No Failures Found"
         }
     }
@@ -541,10 +648,210 @@ Function New-FailureSummary
 }
 
 
-# Evaluates an expression and returns the result
-# if an exception is thrown, returns a default value
-Function Eval-Safe
-{
+### <summary>
+### New-LargeItemSummary function is used to list a summary of large items found in the migration log
+### </summary>
+### <param name="RequestStats">RequestStats represents the migration logs that need to be parsed, in order to extract the information about the mailbox </param>
+### <return $compactLargeItems>The function returns an Array containing summary about large items found in the mailbox migration log </return>
+Function New-LargeItemSummary {
+    Param(
+        [Parameter(Mandatory = $true)]
+        $RequestStats
+    )
+
+    # Create the object
+    $compactLargeItems = @()
+
+    # If we have no failures make sure we write something
+    if ($($RequestStats.Report.LargeItems) -eq $null)
+    {
+        $compactLargeItems += New-Object PSObject -Property @{
+            TimeStamp = "None"
+            FailureType = "No Large Items Found"
+        }
+    }
+    # Pull out just what we want in the compact report
+    else
+    {
+        $compactLargeItems += $($RequestStats.Report.LargeItems) | Select-object -Property TimeStamp, ItemSize, SizeLimit, FolderName, Subject
+    }
+
+    $compactLargeItems = $compactLargeItems | sort-Object -Property timestamp
+
+    Return $compactLargeItems
+}
+
+
+### <summary>
+### New-BadItemSummary function is used to list a summary of bad items found in the migration log
+### </summary>
+### <param name="RequestStats">RequestStats represents the migration logs that need to be parsed, in order to extract the information about the mailbox </param>
+### <return $compactBadItems>The function returns an Array containing summary about bad items found in the mailbox migration log </return>
+Function New-BadItemSummary {
+    Param(
+        [Parameter(Mandatory = $true)]
+        $RequestStats
+    )
+
+    # Create the object
+    $compactBadItems = @()
+
+    # If we have no failures make sure we write something
+    if ($($RequestStats.Report.BadItems) -eq $null)
+    {
+        $compactBadItems += New-Object PSObject -Property @{
+            TimeStamp = "None"
+            FailureType = "No Bad Items Found"
+        }
+    }
+    # Pull out just what we want in the compact report
+    else
+    {
+        $compactBadItems += $($RequestStats.Report.Failures) | Select-object -Property TimeStamp, FailureType, Message
+    }
+
+    $compactBadItems = $compactBadItems | sort-Object -Property timestamp
+
+    Return $compactBadItems
+}
+
+
+### <summary>
+### New-FailureStatistics function is used to list statistics of failures found in the migration log
+### </summary>
+### <param name="RequestStats">RequestStats represents the migration logs that need to be parsed, in order to extract the information about the mailbox </param>
+### <return $FailureStatistics>The function returns an ArrayList containing statistics of failures found in the mailbox migration log </return>
+function New-FailureStatistics {
+    Param(
+        [Parameter(Mandatory = $true)]
+        $RequestStats
+    )
+
+    [System.Collections.ArrayList]$FailureStatistics = @()
+    if ($RequestStats.Report.Failures) {
+        $GroupedFailures = $RequestStats.Report.Failures | group FailureType | select Name, Count
+        
+        foreach ($Failure in $GroupedFailures) {
+            $TheObject = New-Object PSObject
+                $TheObject | Add-Member -NotePropertyName FailureType -NotePropertyValue $($Failure.Name)
+                $TheObject | Add-Member -NotePropertyName FailureCount -NotePropertyValue $($Failure.Count)
+            
+            $null = $FailureStatistics.Add($TheObject)
+        }
+    }
+    else {
+        $TheObject = New-Object PSObject
+            $TheObject | Add-Member -NotePropertyName FailureType -NotePropertyValue "No Failures"
+            $TheObject | Add-Member -NotePropertyName FailureCount -NotePropertyValue "None"
+        
+        $null = $FailureStatistics.Add($TheObject)
+    }
+
+    return $FailureStatistics
+}
+
+
+### <summary>
+### New-MailboxVerificationIfMissingItems function is used to list missing items found during the mailbox verification process
+### </summary>
+### <param name="RequestStats">RequestStats represents the migration logs that need to be parsed, in order to extract the information about the mailbox </param>
+### <return $MailboxVerificationEntries>The function returns an ArraryList containing the list of missing items found during the mailbox verification process </return>
+function New-MailboxVerificationIfMissingItems {
+    Param(
+        [Parameter(Mandatory = $true)]
+        $RequestStats
+    )
+    
+    [System.Collections.ArrayList]$MailboxVerificationEntries = @()
+
+    if (-not($($RequestStats.Status) -like "*Completed*")) {
+        $TheObject = New-Object PSObject
+            $TheObject | Add-Member -NotePropertyName EntryType -NotePropertyValue "Mailbox Verification Summary"
+            $TheObject | Add-Member -NotePropertyName EntryValue -NotePropertyValue "Migration not completed"
+
+        $null = $MailboxVerificationEntries.Add($TheObject)
+    }
+    else {
+        $GroupedMailboxVerificationEntries = $RequestStats.Report.MailboxVerification | where {($($_.Source.Count) -ne $($_.Target.Count)) -or ($($_.Corrupt.Count) -ne 0) -or ($($_.Large.Count) -ne 0) -or ($($_.Skipped.Count) -ne 0)} | select Source, Target, Corrupt, Large, Skipped, FolderIsMissing, FolderIsMisplaced, FolderSourcePath, FolderTargetPath
+        
+        if ($GroupedMailboxVerificationEntries) {
+            foreach ($MailboxVerificationEntry in $GroupedMailboxVerificationEntries) {
+                $TheObject = New-Object PSObject
+                    $TheObject | Add-Member -NotePropertyName Source -NotePropertyValue $($MailboxVerificationEntry.Source)
+                    $TheObject | Add-Member -NotePropertyName Target -NotePropertyValue $($MailboxVerificationEntry.Target)
+                    $TheObject | Add-Member -NotePropertyName Corrupt -NotePropertyValue $($MailboxVerificationEntry.Corrupt)
+                    $TheObject | Add-Member -NotePropertyName Large -NotePropertyValue $($MailboxVerificationEntry.Large)
+                    $TheObject | Add-Member -NotePropertyName Skipped -NotePropertyValue $($MailboxVerificationEntry.Skipped)
+                    $TheObject | Add-Member -NotePropertyName FolderIsMissing -NotePropertyValue $($MailboxVerificationEntry.FolderIsMissing)
+                    $TheObject | Add-Member -NotePropertyName FolderIsMisplaced -NotePropertyValue $($MailboxVerificationEntry.FolderIsMisplaced)
+                    $TheObject | Add-Member -NotePropertyName FolderSourcePath -NotePropertyValue $($MailboxVerificationEntry.FolderSourcePath)
+                    $TheObject | Add-Member -NotePropertyName FolderTargetPath -NotePropertyValue $($MailboxVerificationEntry.FolderTargetPath)
+                        
+                $null = $MailboxVerificationEntries.Add($TheObject)
+            }
+        }
+        else {
+            $TheObject = New-Object PSObject
+                $TheObject | Add-Member -NotePropertyName EntryType -NotePropertyValue "Mailbox Verification Summary"
+                $TheObject | Add-Member -NotePropertyName EntryValue -NotePropertyValue "Mailbox verification completed. All folders are up-to-date after migration."
+            
+            $null = $MailboxVerificationEntries.Add($TheObject)
+        }
+    }
+
+    return $MailboxVerificationEntries
+}
+
+
+### <summary>
+### New-MailboxVerificationAll function is used to list all items found during the mailbox verification process
+### </summary>
+### <param name="RequestStats">RequestStats represents the migration logs that need to be parsed, in order to extract the information about the mailbox </param>
+### <return $MailboxVerificationEntries>The function returns an ArraryList containing all items found during the mailbox verification process </return>
+function New-MailboxVerificationAll {
+    Param(
+        [Parameter(Mandatory = $true)]
+        $RequestStats
+    )
+    
+    [System.Collections.ArrayList]$MailboxVerificationEntries = @()
+    if (-not($($RequestStats.Status) -like "*Completed*")) {
+        $TheObject = New-Object PSObject
+            $TheObject | Add-Member -NotePropertyName EntryType -NotePropertyValue "Mailbox Verification Summary"
+            $TheObject | Add-Member -NotePropertyName EntryValue -NotePropertyValue "Migration not completed"
+
+        $null = $MailboxVerificationEntries.Add($TheObject)
+    }
+    else {
+        $GroupedMailboxVerificationEntries = $RequestStats.Report.MailboxVerification | select Source, Target, Corrupt, Large, Skipped, FolderIsMissing, FolderIsMisplaced, FolderSourcePath, FolderTargetPath
+        
+        foreach ($MailboxVerificationEntry in $GroupedMailboxVerificationEntries) {
+            $TheObject = New-Object PSObject
+                $TheObject | Add-Member -NotePropertyName Source -NotePropertyValue $($MailboxVerificationEntry.Source)
+                $TheObject | Add-Member -NotePropertyName Target -NotePropertyValue $($MailboxVerificationEntry.Target)
+                $TheObject | Add-Member -NotePropertyName Corrupt -NotePropertyValue $($MailboxVerificationEntry.Corrupt)
+                $TheObject | Add-Member -NotePropertyName Large -NotePropertyValue $($MailboxVerificationEntry.Large)
+                $TheObject | Add-Member -NotePropertyName Skipped -NotePropertyValue $($MailboxVerificationEntry.Skipped)
+                $TheObject | Add-Member -NotePropertyName FolderIsMissing -NotePropertyValue $($MailboxVerificationEntry.FolderIsMissing)
+                $TheObject | Add-Member -NotePropertyName FolderIsMisplaced -NotePropertyValue $($MailboxVerificationEntry.FolderIsMisplaced)
+                $TheObject | Add-Member -NotePropertyName FolderSourcePath -NotePropertyValue $($MailboxVerificationEntry.FolderSourcePath)
+                $TheObject | Add-Member -NotePropertyName FolderTargetPath -NotePropertyValue $($MailboxVerificationEntry.FolderTargetPath)
+                
+            $null = $MailboxVerificationEntries.Add($TheObject)
+        }
+    }
+
+    return $MailboxVerificationEntries
+}
+
+
+### <summary>
+### Eval-Safe function evaluates an expression and returns the result. If an exception is thrown, returns a default value
+### </summary>
+### <param name="Expression">Expression represents the expression that need to be evaluated </param>
+### <param name="DefaultValue">DefaultValue represents the value that will be returned in case of exception </param>
+### <return result of the evaluation, or the default value>The function returns result of the evaluation, or the default value </return>
+Function Eval-Safe {
     param(
         [Parameter(Mandatory=$true)]
         [ScriptBlock]$Expression,
@@ -565,18 +872,65 @@ Function Eval-Safe
 }
 
 
-# Returns totalseconds or 0 for durations
-# This operates against: System.TimeSpan, M.E.Data.EnhancedTimeSpan and Deserialized.M.E.Data.EnhancedTimeSpan
-Function DurationtoSeconds
-{
+### <summary>
+### DurationtoSeconds function transforms a time value in seconds
+### </summary>
+### <param name="time">Time represents the time value that need to be transformed in seconds </param>
+### <return the value of "time" transformed in seconds>The function returns the value of "time" transformed in seconds </return>
+Function DurationtoSeconds {
     Param(
         [Parameter(Mandatory = $false)]
         $time = $null
     )
 
-    if ($time -eq $null) { 0 }
-    else { $time.TotalSeconds }
+    if ($time -eq $null) {
+        0
+    }
+    else {
+        $time.TotalSeconds
+    }
 }
+
+
+### <summary>
+### Get-Bytes function transforms a size value to Bytes
+### </summary>
+### <param name="datasize">datasize represents the size that need to be transformed in Bytes </param>
+### <return the value of "datasize" transformed in Bytes>The function returns the value of "datasize" transformed in Bytes </return>
+Function Get-Bytes {
+    param ($datasize)
+
+    if ($datasize) {
+        try
+        {
+            $datasize.tobytes()
+        }
+        catch [Exception]
+        {
+            Parse-ByteQuantifiedSize $datasize
+        }
+    }
+}
+
+### <summary>
+### Parse-ByteQuantifiedSize function transforms a size value to Bytes
+### </summary>
+### <param name="SerializedSize">SerializedSize represents the size that need to be transformed in Bytes </param>
+### <return the value of "SerializedSize" transformed in Bytes>The function returns the value of "SerializedSize" transformed in Bytes </return>
+Function Parse-ByteQuantifiedSize {
+    param ([Parameter(Mandatory = $true)][string]$SerializedSize)
+
+    $result =  [regex]::Match($SerializedSize, '[^\(]+\((([0-9]+),?)+ bytes\)', [Text.RegularExpressions.RegexOptions]::Compiled)
+    if ($result.Success)
+    {
+        [string]$extractedSize = ""
+        $result.Groups[2].Captures | %{ $extractedSize += $_.Value }
+        return [long]$extractedSize
+    }
+
+    return [long]0
+}
+
 
 
 ### <summary>
@@ -622,7 +976,7 @@ function Selected-ConnectToExchangeOnlineOption {
         }
     }
 
-    Collect-MigrationLogs -ConnectToExchangeOnline -MigrationType "Hybrid" -AdminAccount $TheAdminAccount -AffectedUsers $PrimarySMTPAddresses
+    Collect-MigrationLogs -ConnectToExchangeOnline -AffectedUsers $PrimarySMTPAddresses
 
 }
 
@@ -694,6 +1048,13 @@ function Ask-ForDetailsAboutUser {
 
 
 
+### <summary>
+### Find-TheRecipient function is used to get output of Get-Recipient
+### </summary>
+### <param name="TheEnvironment">TheEnvironment represents the environment where to run the command.
+###         For the moment, we collect this just from Exchange Online </param>
+### <param name="TheAffectedUsers">TheAffectedUsers represents the list of users for which to run Get-Recipient command </param>
+### <return $Recipients>The function returns the list of Get-Recipient output </return>
 function Find-TheRecipient {
     [CmdletBinding()]
     Param (
@@ -729,7 +1090,6 @@ function Find-TheRecipient {
     }
 
 }
-
 
 
 ### <summary>
@@ -814,7 +1174,10 @@ function Create-CommandToInvoke {
 }
 
 
-
+### <summary>
+### Collect-MoveRequestStatistics function is used to get output of Get-MoveRequestStatistics
+### </summary>
+### <param name="AffectedUsers">AffectedUsers represents the list of users for which to run Get-MoveRequestStatistics command </param>
 function Collect-MoveRequestStatistics {
     param (
         [string[]]
@@ -829,6 +1192,8 @@ function Collect-MoveRequestStatistics {
             try {
                 $null = Get-Command $($TheCommand.Command) -ErrorAction Stop
                 Write-Log -function "MailboxMigration - Collect-MoveRequestStatistics" -step "Running the following command:`n`t$($TheCommand.FullCommand.Replace("`$User", "$User"))" -Description "Success"
+                Create-DetailsAboutMigrationOutput -InfoCollectedFrom MoveRequestStatistics -CommandUsedToCollectLogs $($TheCommand.FullCommand.Replace("`$User", "$User"))
+
                 try {
                     $ExpressionResults = Invoke-Expression $($TheCommand.FullCommand)
                     Write-Log -function "MailboxMigration - Collect-MoveRequestStatistics" -step "MoveRequestStatistics successfully collected for `"$User`" user" -Description "Success"
@@ -837,12 +1202,13 @@ function Collect-MoveRequestStatistics {
                         $LogEntry | Add-Member -NotePropertyName MigrationType -NotePropertyValue "Hybrid"
                         $LogEntry | Add-Member -NotePropertyName LogType -NotePropertyValue "MoveRequestStatistics"
                         $LogEntry | Add-Member -NotePropertyName Logs -NotePropertyValue $ExpressionResults
-                        $LogEntry | Add-Member -NotePropertyName $CommandRanToCollect -NotePropertyValue $TheCommand
+                        # $LogEntry | Add-Member -NotePropertyName $CommandRanToCollect -NotePropertyValue $TheCommand
                     $void = $script:LogsToAnalyze.Add($LogEntry)
-                    [string]$XMLPath = $ExportPath + "\MoveRequestStatistics_" + [string]$User + ".xml"
-                    [string]$ZIPPath = $ExportPath + "\MoveRequestStatistics_" + [string]$User + ".zip"
-                    $LogEntry | Export-Clixml $XMLPath -Force
-                    Compress-Archive -LiteralPath $XMLPath -DestinationPath $ZIPPath
+
+                    # [string]$XMLPath = $ExportPath + "\MoveRequestStatistics_" + [string]$User + ".xml"  ### Not implemented yet
+                    # [string]$ZIPPath = $ExportPath + "\MoveRequestStatistics_" + [string]$User + ".zip"  ### Not implemented yet
+                    # $LogEntry | Export-Clixml $XMLPath -Force  ### Not implemented yet
+                    # Compress-Archive -LiteralPath $XMLPath -DestinationPath $ZIPPath ### Not implemented yet
                 }
                 catch {
                     Write-Log -function "MailboxMigration - Collect-MoveRequestStatistics" -step "We were unable to collect MoveRequestStatistics for `"$User`" user" -Description "Error"
@@ -857,9 +1223,6 @@ function Collect-MoveRequestStatistics {
 }
 
 
-
-
-
 ### <summary>
 ### Export-MailboxMigrationReportToHTML function is used to create the object that will be converted to HTML report
 ### </summary>
@@ -867,16 +1230,151 @@ function Export-MailboxMigrationReportToHTML {
 
     [System.Collections.ArrayList]$TheObjectToConvertToHTML = @()
 
+    if ($Script:DetailsAboutMigrationLog.XMLFullName) {
+        [string]$TheString = "Current report was created based on the information we've collected from <b>$($Script:DetailsAboutMigrationLog.XMLFullName)</b>."
+    }
+    elseif ($Script:DetailsAboutMigrationLog.CommandUsedToCollectLogs) {
+        [string]$TheString = "Current report was created based on the information we've collected using the <b>$($Script:DetailsAboutMigrationLog.CommandUsedToCollectLogs)</b> command."
+    }
+
+    ### Section "Details about log used to provide report"
+    [string]$SectionTitle = "Details of log used to provide report"
+    [string]$Description = "In this section you'll get details about the log used in order to create the current report."
+    [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString $TheString
+    $null = $TheObjectToConvertToHTML.Add($TheCommand)
+
     foreach ($Entry in $script:ParsedLogs) {
 
-        [string]$SectionTitle = "Basic Information"
-        [string]$Description = "Below are the `"Basic Information`" for $($Entry.BasicInformation.Alias)'s migration`<p`>`&nbsp*`&nbspThe title of this section is colored in Red in case the <u>Status</u> of the migration is <u>Failed</u>"
-        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $($Entry.BasicInformation) -TableType "List"
+        ### Section "Mailbox Information"
+        [string]$SectionTitle = "Mailbox Information"
+        [string]$Description = "Below are the `"Mailbox Information`" for <u>$($Entry.MailboxInformation.Alias)</u>'s migration"
+        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $($Entry.MailboxInformation) -TableType "List"
         $null = $TheObjectToConvertToHTML.Add($TheCommand)
 
+        ### Section "Basic Information"
+        if ($($Entry.BasicInformation.Status) -eq "Failed") {
+            $SectionTitleColor = "Red"
+        }
+        elseif ($($Entry.BasicInformation.Status) -eq "Completed") {
+            $SectionTitleColor = "Green"
+        }
+        else {
+            $SectionTitleColor = "Black"
+        }
+
+        [string]$SectionTitle = "Basic Information"
+        [string]$Description = "Below are the `"Basic Information`" for <u>$($Entry.MailboxInformation.Alias)</u>'s migration`<p`>`&nbsp*`&nbspThe title of this section is colored in Red in case the <u>Status</u> of the migration is <u>Failed</u>"
+        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $($Entry.BasicInformation) -TableType "List"
+        $null = $TheObjectToConvertToHTML.Add($TheCommand)
+
+        ### Section "Extended Move Info"
+        if ($($Entry.ExtendedMoveInfo.StatusDetail) -like "*Fail*") {
+            $SectionTitleColor = "Red"
+        }
+        elseif ($($Entry.ExtendedMoveInfo.StatusDetail) -eq "Completed") {
+            $SectionTitleColor = "Green"
+        }
+        else {
+            $SectionTitleColor = "Black"
+        }
+
+        [string]$SectionTitle = "Extended Move Info"
+        [string]$Description = "Below are the `"Extended Move Info`" for <u>$($Entry.MailboxInformation.Alias)</u>'s migration`<p`>`&nbsp*`&nbspThe title of this section is colored in Red in case the <u>StatusDetail</u> of the migration contains <u>Failed</u> in it"
+        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $($Entry.ExtendedMoveInfo) -TableType "List"
+        $null = $TheObjectToConvertToHTML.Add($TheCommand)
+
+        ### Section "Performance Statistics"
         [string]$SectionTitle = "Performance Statistics"
-        [string]$Description = "Below are the `"Performance Statistics`" for $($Entry.BasicInformation.Alias)'s migration"
+        [string]$Description = "Below are the `"Performance Statistics`" for <u>$($Entry.MailboxInformation.Alias)</u>'s migration"
         [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $($Entry.PerformanceStatistics) -TableType "List"
+        $null = $TheObjectToConvertToHTML.Add($TheCommand)
+
+        ### Section "Large Items Summary"
+        if ($($Entry.LargeItemSummary.TimeStamp) -ne "None") {
+            $SectionTitleColor = "Red"
+        }
+        else {
+            $SectionTitleColor = "Green"
+        }
+
+        [string]$SectionTitle = "Large Items Summary"
+        [string]$Description = "Below are the `"Large Items Summary`" for <u>$($Entry.MailboxInformation.Alias)</u>'s migration`<p`>`&nbsp*`&nbspThe title of this section is colored in Red in case the migration contains at least one Large item"
+        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $($Entry.LargeItemSummary) -TableType "Table"
+        $null = $TheObjectToConvertToHTML.Add($TheCommand)
+
+        ### Section "Bad Items Summary"
+        if ($($Entry.BadItemSummary.TimeStamp) -ne "None") {
+            $SectionTitleColor = "Red"
+        }
+        else {
+            $SectionTitleColor = "Green"
+        }
+
+        [string]$SectionTitle = "Bad Items Summary"
+        [string]$Description = "Below are the `"Bad Items Summary`" for <u>$($Entry.MailboxInformation.Alias)</u>'s migration`<p`>`&nbsp*`&nbspThe title of this section is colored in Red in case the migration contains at least one Bad item"
+        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $($Entry.BadItemSummary) -TableType "Table"
+        $null = $TheObjectToConvertToHTML.Add($TheCommand)
+
+        ### Section "Mailbox Verification - If Missing Items"
+        if ($($Entry.MailboxVerificationIfMissingItems.EntryValue)) {
+            if ($($Entry.MailboxVerificationIfMissingItems.EntryValue) -eq "Migration not completed") {
+                $SectionTitleColor = "Black"
+            }
+            elseif ($($Entry.MailboxVerificationIfMissingItems.EntryValue) -eq "Mailbox verification completed. All folders are up-to-date after migration.") {
+                $SectionTitleColor = "Green"
+            }
+
+            $TableType = "Table"
+        }
+        else {
+            $SectionTitleColor = "Red"
+            $TableType = "List"
+        }
+
+        [string]$SectionTitle = "Mailbox Verification - List Missing Items"
+        [string]$Description = "Below are the `"Missing items found during Mailbox verification`" for <u>$($Entry.MailboxInformation.Alias)</u>'s migration`<p`>`&nbsp*`&nbspThe title of this section is colored in Red in case the migration contains at least one missing item"
+        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $($Entry.MailboxVerificationIfMissingItems) -TableType $TableType
+        $null = $TheObjectToConvertToHTML.Add($TheCommand)
+
+        ### Section "Mailbox Verification - All Items"
+        if ($($Entry.MailboxVerificationAll.EntryValue)) {
+            $TableType = "Table"
+        }
+        else {
+            $TableType = "List"
+        }
+
+        [string]$SectionTitle = "Mailbox Verification - List All Items"
+        [string]$Description = "Below are the details about `"All items found during Mailbox verification`" for <u>$($Entry.MailboxInformation.Alias)</u>'s migration"
+        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $($Entry.MailboxVerificationAll) -TableType $TableType
+        $null = $TheObjectToConvertToHTML.Add($TheCommand)
+
+        ### Section "Failure Statistics"
+        if ($($Entry.FailureStatistics.FailureCount) -ne "None") {
+            $SectionTitleColor = "Red"
+        }
+        else {
+            $SectionTitleColor = "Green"
+        }
+
+        [string]$SectionTitle = "Failure Statistics"
+        [string]$Description = "Below are the `"Failure Statistics`" for <u>$($Entry.MailboxInformation.Alias)</u>'s migration`<p`>`&nbsp*`&nbspThe title of this section is colored in Red in case the migration contains at least one Failure"
+        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $($Entry.FailureStatistics) -TableType "Table"
+        $null = $TheObjectToConvertToHTML.Add($TheCommand)
+
+        ### Section "Failure Summary"
+        if ($($Entry.FailureSummary.TimeStamp)) {
+            if ($($Entry.FailureSummary.TimeStamp) -ne "None") {
+                $SectionTitleColor = "Red"
+            }
+        }
+        else {
+            $SectionTitleColor = "Green"
+        }
+
+        [string]$SectionTitle = "Failure Summary"
+        [string]$Description = "Below are the `"Failure Summary`" for <u>$($Entry.MailboxInformation.Alias)</u>'s migration`<p`>`&nbsp*`&nbspThe title of this section is colored in Red in case the migration contains at least one Failure"
+        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $($Entry.FailureSummary) -TableType "Table"
         $null = $TheObjectToConvertToHTML.Add($TheCommand)
 
     }
@@ -886,101 +1384,41 @@ function Export-MailboxMigrationReportToHTML {
 }
 
 
+### <summary>
+### Create-DetailsAboutMigrationOutput function is used to create details that will be used in the first section of the HTML report
+### </summary>
+### <param name="InfoCollectedFrom">InfoCollectedFrom represents the type of info collected.
+###         For the moment, the possible values to use are: "XMLFile" or "MoveRequestStatistics" </param>
+### <param name="XMLPath">XMLPath represents the FullName of the XML file </param>
+### <param name="CommandUsedToCollectLogs">CommandUsedToCollectLogs represents the exact command used to collect the migration log </param>
+function Create-DetailsAboutMigrationOutput {
+    param (
+        [Parameter(Mandatory=$true, Position=0)]
+        [ValidateSet("XMLFile", "MoveRequestStatistics")]
+        [string]$InfoCollectedFrom,
 
+        [Parameter(ParameterSetName = "XML", Mandatory=$false, Position=1)]
+        [string]$XMLPath,
 
+        [Parameter(ParameterSetName = "MoveRequestStatistics", Mandatory=$false, Position=1)]
+        [string]$CommandUsedToCollectLogs
 
+    )
 
-
-function JustFor-Testing {
-    Write-Host
-    Write-Host "Details from the mailbox migration log:" -ForegroundColor Green
-
-    foreach ($Entry in $script:ParsedLogs) {
-        if ($($Entry.DetailsAboutTheMove.PrimarySMTPAddress) -eq "FromFile")
-        {
-            #Write-Log "[INFO] || Providing details of the migration from the file you provided"
-            Write-Host "[INFO] || Providing details of the migration from the file you provided"
-        }
-        else {
-            #Write-Log "[INFO] || Providing details of the migration for $($Entry.DetailsAboutTheMove.PrimarySMTPAddress)"
-            Write-Host "[INFO] || Providing details of the migration for $($Entry.DetailsAboutTheMove.PrimarySMTPAddress)"
-        }
-
-        if ($($Entry.DetailsAboutTheMove.PrimarySMTPAddress)) {
-            Write-Host "PrimarySMTPAddress: " -ForegroundColor Cyan
-            Write-Host "$($Entry.DetailsAboutTheMove.PrimarySMTPAddress)" -ForegroundColor White
-            #Write-Log ("PrimarySMTPAddress: `n$($Entry.DetailsAboutTheMove.PrimarySMTPAddress)") -NonInteractive $true
-            Write-Host
-        }
-
-        if ($($Entry.BasicInformation)) {
-            Write-Host "Basic Information: " -ForegroundColor Cyan
-            $($Entry.BasicInformation)
-            #Write-Log ("Basic Information: `n$($Entry.BasicInformation)") -NonInteractive $true
-            Write-Host
-        }
-
-        if ($($Entry.PerformanceStatistics)) {
-            Write-Host "Performance Statistics: " -ForegroundColor Cyan
-            $($Entry.PerformanceStatistics)
-            #Write-Log ("Performance Statistics: `n$($Entry.PerformanceStatistics)") -NonInteractive $true
-            Write-Host
-        }
-
-        if ($($Entry.Timeline.timelineMinute)) {
-            Write-Host "Details about timeline, by minute: " -ForegroundColor Cyan
-            $TheEntriesToDisplay = $($Entry.Timeline.timelineMinute)
-            $TheEntriesToDisplay | sort Milliseconds -Descending | select -First 5 | ft -AutoSize
-            $TheSortedEntriesToDisplay = $TheEntriesToDisplay | sort Milliseconds -Descending | select -First 50
-            #Write-Log ("Details about timeline, by month: `n$TheSortedEntriesToDisplay") -NonInteractive $true
-            Write-Host
-        }
-
-        if ($($Entry.Timeline.timelineHour)) {
-            Write-Host "Details about timeline, by hour: " -ForegroundColor Cyan
-            $TheEntriesToDisplay = $($Entry.Timeline.timelineHour)
-            $TheEntriesToDisplay | sort Milliseconds -Descending | select -First 5 | ft -AutoSize
-            $TheSortedEntriesToDisplay = $TheEntriesToDisplay | sort Milliseconds -Descending | select -First 50
-            #Write-Log ("Details about timeline, by month: `n$TheSortedEntriesToDisplay") -NonInteractive $true
-            Write-Host
-        }
-
-        if ($($Entry.Timeline.timelineDay)) {
-            Write-Host "Details about timeline, by Day: " -ForegroundColor Cyan
-            $TheEntriesToDisplay = $($Entry.Timeline.timelineDay)
-            $TheEntriesToDisplay | sort Milliseconds -Descending | select -First 5 | ft -AutoSize
-            <#foreach ($timelineMonthSortedEntry in $TheEntriesToDisplay) {
-                Write-Host 
-                Write-Host "`t$($timelineMonthSortedEntry.State): " -ForegroundColor Cyan -NoNewline
-                Write-Host "`t$($timelineMonthSortedEntry.Milliseconds)" -ForegroundColor White -NoNewline
-                $ThePercent = (([int]$($timelineMonthSortedEntry.Milliseconds)/[int]$TheDurationMilliseconds)*100).ToString("#.##")
-                Write-Host " ($ThePercent `%)"
-            }#>
-            $TheSortedEntriesToDisplay = $TheEntriesToDisplay | sort Milliseconds -Descending | select -First 50
-            #Write-Log ("Details about timeline, by month: `n$TheSortedEntriesToDisplay") -NonInteractive $true
-            Write-Host
-        }
-
-        if ($($Entry.Timeline.timelineMonth)) {
-            Write-Host "Details about timeline, by month: " -ForegroundColor Cyan
-            $TheEntriesToDisplay = $($Entry.Timeline.timelineMonth)
-            $TheEntriesToDisplay | sort Milliseconds -Descending | select -First 5 | ft -AutoSize
-            <#foreach ($timelineMonthSortedEntry in $TheEntriesToDisplay) {
-                Write-Host 
-                Write-Host "`t$($timelineMonthSortedEntry.State): " -ForegroundColor Cyan -NoNewline
-                Write-Host "`t$($timelineMonthSortedEntry.Milliseconds)" -ForegroundColor White -NoNewline
-                $ThePercent = (([int]$($timelineMonthSortedEntry.Milliseconds)/[int]$TheDurationMilliseconds)*100).ToString("#.##")
-                Write-Host " ($ThePercent `%)"
-            }#>
-            $TheSortedEntriesToDisplay = $TheEntriesToDisplay | sort Milliseconds -Descending | select -First 50
-            #Write-Log ("Details about timeline, by month: `n$TheSortedEntriesToDisplay") -NonInteractive $true
-            Write-Host
-        }
-
-        Write-Host
+    if ($InfoCollectedFrom -eq "XMLFile") {
+        $Script:DetailsAboutMigrationLog.XMLFullName = $XMLPath
+    }
+    elseif ($InfoCollectedFrom -eq "MoveRequestStatistics") {
+        # $Script:DetailsAboutMigrationLog.XMLShortName = {NeedToCalculateValueForThis} ### Not implemented yet
+        # $Script:DetailsAboutMigrationLog.ZipFullName = {NeedToCalculateValueForThis} ### Not implemented yet
+        $Script:DetailsAboutMigrationLog.CommandUsedToCollectLogs = $CommandUsedToCollectLogs
     }
 }
 
+
+### <summary>
+### Start-MailboxMigrationMainScript function is used to start the main script
+### </summary>
 function Start-MailboxMigrationMainScript {
 
     Write-Log -function "MailboxMigration - Start-MailboxMigrationMainScript" -step "Show-MailboxMigrationMenu" -Description "Success"
