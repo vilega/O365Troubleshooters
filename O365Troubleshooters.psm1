@@ -1456,9 +1456,8 @@ Function Export-ReportToHTML {
     }
 </style>
 <a href="https://www.powershellgallery.com/packages/O365Troubleshooters" target="_blank">
-    <img src="$script:modulePath\Resources\O365Troubleshooters-Logo.png" alt="O365Troubleshooters" width="173" height="128">
+    <img src="https://raw.githubusercontent.com/vilega/O365Troubleshooters/master/Resources/O365Troubleshooters-Logo.png" alt="O365Troubleshooters" width="173" height="128">
 </a>
-<img src=>
 "@
 
     [int]$i = 0
