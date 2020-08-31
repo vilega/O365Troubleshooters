@@ -476,7 +476,7 @@ Function New-BasicInformation {
         $TheDirection   = "On-Premises to Exchange Online"
     }
     elseif (($($RequestStats.WorkloadType.ToString()) -eq "Offboarding") -and ($($RequestStats.RequestStyle.ToString()) -eq "CrossOrg")) {
-        $TheDirection   = "On-Premises to Exchange Online"
+        $TheDirection   = "Exchange Online to On-Premises"
     }
     else {
         $TheDirection   = ([String]$RequestStats.Flags)
