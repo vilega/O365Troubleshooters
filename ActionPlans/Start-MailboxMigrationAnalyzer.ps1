@@ -1192,7 +1192,9 @@ function Collect-MoveRequestStatistics {
             try {
                 $null = Get-Command $($TheCommand.Command) -ErrorAction Stop
                 Write-Log -function "MailboxMigration - Collect-MoveRequestStatistics" -step "Running the following command:`n`t$($TheCommand.FullCommand.Replace("`$User", "$User"))" -Description "Success"
-                Create-DetailsAboutMigrationOutput -InfoCollectedFrom MoveRequestStatistics -CommandUsedToCollectLogs $($TheCommand.FullCommand.Replace("`$User", "$User"))
+                
+                $TheCommandUsedToCollectLogs = ($($TheCommand.FullCommand.Replace("`$User", "$User")) -Split " -ErrorAction")[0]
+                Create-DetailsAboutMigrationOutput -InfoCollectedFrom MoveRequestStatistics -CommandUsedToCollectLogs $TheCommandUsedToCollectLogs
 
                 try {
                     $ExpressionResults = Invoke-Expression $($TheCommand.FullCommand)
