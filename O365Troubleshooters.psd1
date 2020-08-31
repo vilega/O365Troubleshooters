@@ -12,7 +12,7 @@
 RootModule = '.\O365Troubleshooters.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.0.0.13'
+ModuleVersion = '2.0.0.14'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -111,7 +111,7 @@ FileList = @(
     'ActionPlans\Start-UnifiedAuditLogSearch.ps1'
     'ActionPlans\Get-X500FromImceaexNdr.ps1'
     'ActionPlans\Connect-ServicesWithTokens.ps1'
-    '.\Resources\O365Troubleshooters-Logo.png'
+    'ActionPlans\Start-MailboxMigrationAnalyzer.ps1'
 )
 
 # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
@@ -120,7 +120,7 @@ PrivateData = @{
     PSData = @{
 
         # Tags applied to this module. These help with module discovery in online galleries.
-        Tags = @("O365","Office365","Exchange","EXO","ExchangeOnline","Compliance","Security","Identity","Audit","OME","AIP","OfficeMessageEncryption","Azure","Protection","AzureInformationProtection","UnifiedLabeling","Diagnostic","Actionplan","Report","Tool")
+        Tags = @("O365","Office365","Exchange","EXO","ExchangeOnline","Compliance","Security","Identity","Audit","OME","AIP","OfficeMessageEncryption","Azure","Protection","AzureInformationProtection","UnifiedLabeling","Diagnostic","Migration","Move","Actionplan","Report","Tool")
 
         # A URL to the license for this module.
         # LicenseUri = ''
@@ -133,7 +133,8 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = '
-        2.0.0.12 - Implemented one prompt only for modern (except AzureAdPreview), Implemeneted Compromised Investigation with HTML report
+        2.0.0.14 - HTML Report and HTML Report object builder as generic functions, Analyze Mailbox move (Hybrid migration), fix minor bugs
+        2.0.0.13 - Implemented one prompt only for modern (except AzureAdPreview), Implemeneted Compromised Investigation with HTML report
         2.0.0.12 - Added Tool: Transform IMCEAEX (old LegacyExchangeDN) to X500 address
         2.0.0.11 - Fixed export of AzureAD Audit SignIn Logs
         2.0.0.10 - Fixed issue with Decode SafeLinks URL
