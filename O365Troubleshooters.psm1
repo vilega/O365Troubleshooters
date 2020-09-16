@@ -1581,6 +1581,7 @@ Function Start-O365TroubleshootersMenu {
     11 Tools: Decode SafeLinks URL
     12 Tools: Export Quarantine Messages
     13 Tools: Transform IMCEAEX (old LegacyExchangeDN) to X500 address
+    14 Groups: DL to O365 Groups Upgrade Checker
     Q  Quit
      
     Select a task by number or Q to quit
@@ -1661,6 +1662,11 @@ Switch ($r) {
     "13" {
         Write-Host "Tools: Transform IMCEAEX (old LegacyExchangeDN) to X500 address" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Get-X500FromImceaexNDR.ps1
+    }
+
+    "14" {
+        Write-Host "DL to O365 Groups Upgrade Checker" -ForegroundColor Green
+        . $script:modulePath\ActionPlans\Start-DlToO365GroupUpdateChecks.ps1
     }
 
     "Q" {
