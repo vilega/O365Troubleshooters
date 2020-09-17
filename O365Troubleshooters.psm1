@@ -1666,7 +1666,7 @@ Switch ($r) {
 
     "14" {
         Write-Host "DL to O365 Groups Upgrade Checker" -ForegroundColor Green
-        . $script:modulePath\ActionPlans\Start-DlToO365GroupUpdateChecks.ps1
+        . $script:modulePath\ActionPlans\Start-DlToO365GroupUpgradeChecks.ps1
     }
 
     "Q" {
