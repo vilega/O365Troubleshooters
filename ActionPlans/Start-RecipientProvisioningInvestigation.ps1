@@ -63,6 +63,14 @@ Get-Recipient $EXOADUserbyUPN.ExternalDirectoryObjectId | export-CliXml -Depth 3
 
 # Output objects definition
 
+[System.Collections.ArrayList]$TheObjectToConvertToHTML = @()
+
+$null = $TheObjectToConvertToHTML.Add($TheCommand)
+
+
+
+# Prepare-ObjectForHTMLReport
+
 
 
 # Check if UPN value is already in use on different object as other property
@@ -73,12 +81,15 @@ Get-Recipient $EXOADUserbyUPN.ExternalDirectoryObjectId | export-CliXml -Depth 3
 $allAADUsers= Get-AzureADUser -All:$true | select DisplayName,mail,ProxyAddresses,ObjectId
 	
 	#search on email or alias
+	$MyADUsersCheckObject = @()
 	$FoundExistence=$false
     Write-Host -ForegroundColor Magenta "Searching on AzureAD users"
 	foreach($object in $allAADUsers){
 	    if($UPN -eq $object.Mail){
 	        Write-Host -ForegroundColor Yellow "Found match on property: Mail" 
-	        Write-Host -ForegroundColor Yellow "`on AzureAD user $($object.DisplayName) having ObjectId $($object.ObjectId)" 
+			Write-Host -ForegroundColor Yellow "`on AzureAD user $($object.DisplayName) having ObjectId $($object.ObjectId)" 
+			$x = $object | Select-Object DisplayName, ObjectId
+			$MyADUsersCheckObject = $MyADUsersCheckObject + $x
 	    }      
 	    	
 	    foreach($proxya in $object.ProxyAddresses){
@@ -90,8 +101,18 @@ $allAADUsers= Get-AzureADUser -All:$true | select DisplayName,mail,ProxyAddresse
 	    }
 	}
 	if(!$FoundExistence){
-	    Write-host -ForegroundColor Red """$($UPN)"" Email Address not found on AzureAD users "
+		Write-host -ForegroundColor Red """$($UPN)"" Email Address not found on AzureAD users "
 	}
+	
+	[string]$SectionTitle = "Searching for AzureADUsers"
+
+    [string]$Description = "Check for multiple conflicting objects"
+
+	[PSCustomObject]$SearchingInAzureAdUsers = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description `
+	-DataType "ArrayList" -EffectiveDataArrayList $MyADUsersCheckObject -TableType "List"
+
+	$null = $TheObjectToConvertToHTML.Add($SearchingInAzureAdUsers)
+	
 
 ### in AADGroups	
 
