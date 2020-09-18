@@ -49,7 +49,7 @@ $AADGroupbyUPN = Get-AzureADGroup -all:$true | ?{$_.UserPrincipalName -match $up
 
 # Search EXO AD object by UPN
 $EXOADUserbyUPN = Get-User -ResultSize unlimited | ?{$_.UserPrincipalName -match $upn}
-$EXOADObjectbyUPNFound | fl userprincipalname, name, WindowsEmailAddress, externaldirectoryObjectid, exchangeguid, guid,  recipienttype, recipienttypedetails, PreviousRecipientTypeDetails
+$EXOADObjectbyUPNFound = Get-Recipient -ResultSize unlimited -IncludeSoftDeletedRecipients | fl userprincipalname, name, WindowsEmailAddress, externaldirectoryObjectid, exchangeguid, guid,  recipienttype, recipienttypedetails, PreviousRecipientTypeDetails
 
 # Export by UPN found info
 $MSOLUserbyUPN | export-CliXml -Depth 3 $path\"MsolUser.xml"
@@ -60,6 +60,10 @@ $AADContactbyUPN | export-CliXml -Depth 3 $path\"AADContact.xml"
 $AADGroupbyUPN | export-CliXml -Depth 3 $path\"AADGroup.xml"
 $EXOADUserbyUPN | export-CliXml -Depth 3 $path\"EXOUser.xml"
 Get-Recipient $EXOADUserbyUPN.ExternalDirectoryObjectId | export-CliXml -Depth 3 $path\"EXORecipient.xml"
+
+# Output objects definition
+
+
 
 # Check if UPN value is already in use on different object as other property
 
@@ -167,12 +171,12 @@ $allMSOLUsers= Get-MsolUser -All | select DisplayName,SignInName,ProxyAddresses,
 
 ### in deleted MSOLUsers	
 
-$allMSOLUsers= Get-MsolUser -All -ReturnDeletedUsers | select DisplayName,SignInName,ProxyAddresses,ObjectId
+$allMSOLDeletedUsers= Get-MsolUser -All -ReturnDeletedUsers | select DisplayName,SignInName,ProxyAddresses,ObjectId
 	
 	#search on email or alias
 	$FoundExistence=$false
     Write-Host -ForegroundColor Magenta "Searching on deleted MSOL users"
-	foreach($object in $allMSOLUsers){
+	foreach($object in $allMSOLDeletedUsers){
 	    if($UPN -eq $object.SignInName){
 	        Write-Host -ForegroundColor Yellow "Found match on property: SignInName" 
 	        Write-Host -ForegroundColor Yellow "`on MSOL deleted user $($object.DisplayName) having ObjectId $($object.ObjectId)" 
