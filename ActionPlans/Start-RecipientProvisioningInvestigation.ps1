@@ -22,8 +22,10 @@ Function Search-RecipientObject
 
 
 Clear-Host
-import-module C:\Work\Projects\PS\GitHubStuff\O365Troubleshooters\O365Troubleshooters.psm1
-Set-GlobalVariables
+#import-module C:\Work\Projects\PS\GitHubStuff\O365Troubleshooters\O365Troubleshooters.psm1 -Force
+#Set-GlobalVariables
+#Start-O365TroubleshootersMenu
+
 $Workloads = "exo", "msol", "azuread"
 Connect-O365PS $Workloads
 $CurrentProperty = "Connecting to: $Workloads"
@@ -65,13 +67,8 @@ Get-Recipient $EXOADUserbyUPN.ExternalDirectoryObjectId | export-CliXml -Depth 3
 
 [System.Collections.ArrayList]$TheObjectToConvertToHTML = @()
 
-$null = $TheObjectToConvertToHTML.Add($TheCommand)
-
-
 
 # Prepare-ObjectForHTMLReport
-
-
 
 # Check if UPN value is already in use on different object as other property
 
@@ -87,8 +84,9 @@ $allAADUsers= Get-AzureADUser -All:$true | select DisplayName,mail,ProxyAddresse
 	foreach($object in $allAADUsers){
 	    if($UPN -eq $object.Mail){
 	        Write-Host -ForegroundColor Yellow "Found match on property: Mail" 
-			Write-Host -ForegroundColor Yellow "`on AzureAD user $($object.DisplayName) having ObjectId $($object.ObjectId)" 
-			$x = $object | Select-Object DisplayName, ObjectId
+			Write-Host -ForegroundColor Yellow "`on AzureAD user $($object.DisplayName) having ObjectId $($object.ObjectId)"
+			$FoundExistence=$true 
+			$x = $object | Select-Object DisplayName, ObjectId, @{name="Attribute"; expression={"Mail"}}
 			$MyADUsersCheckObject = $MyADUsersCheckObject + $x
 	    }      
 	    	
@@ -96,7 +94,9 @@ $allAADUsers= Get-AzureADUser -All:$true | select DisplayName,mail,ProxyAddresse
 	        if($proxya -match $UPN){
 	            Write-Host -ForegroundColor Yellow "Found match on property: ProxyAddress (Alias)" 
 	            Write-Host -ForegroundColor Yellow "`on AzureAD user $($object.DisplayName) having ObjectId $($object.ObjectId)" 
-	            $FoundExistence=$true
+				$FoundExistence=$true
+				$x = $object | Select-Object DisplayName, ObjectId, @{name="Attribute"; expression={"ProxyAddresses"}}
+				$MyADUsersCheckObject = $MyADUsersCheckObject + $x
 	        }      
 	    }
 	}
@@ -105,15 +105,14 @@ $allAADUsers= Get-AzureADUser -All:$true | select DisplayName,mail,ProxyAddresse
 	}
 	
 	[string]$SectionTitle = "Searching for AzureADUsers"
-
-    [string]$Description = "Check for multiple conflicting objects"
-
+	[string]$Description = "Check for multiple conflicting objects"
+	#select object id unique, count
 	[PSCustomObject]$SearchingInAzureAdUsers = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description `
-	-DataType "ArrayList" -EffectiveDataArrayList $MyADUsersCheckObject -TableType "List"
+	-DataType "ArrayList" -EffectiveDataArrayList $MyADUsersCheckObject -TableType "Table"
 
 	$null = $TheObjectToConvertToHTML.Add($SearchingInAzureAdUsers)
 	
-
+	
 ### in AADGroups	
 
 $allAADGroups= Get-AzureADGroup -All:$true | select DisplayName,mail,ProxyAddresses,ObjectId
@@ -269,3 +268,5 @@ $allMSOLContacts= Get-MSOLContact -All:$true | select DisplayName,EmailAddress,P
 	## Check in EXO
 
 	
+	[string]$FilePath = $ExportPath + "\RecipientProvisioning_Report.html"
+    Export-ReportToHTML -FilePath $FilePath -PageTitle "Recipient Provisioning Issues Report" -ReportTitle "Recipient Provisioning Issues Report" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
