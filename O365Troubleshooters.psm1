@@ -1466,10 +1466,11 @@ Function Export-ReportToHTML {
     ### For each scenario, convert the data to HTML
     foreach ($Entry in $TheObjectToConvertToHTML) {
         if ($Entry.DataType -eq "String") {
-            $TheValue = ConvertTo-Html -PreContent "<h2 class=`"$($Entry.SectionTitleColor)`">`n`n$($Entry.SectionTitle)</h2><h3 class=`"Black`">`n$($Entry.Description)`n</h3>" -PostContent $($Entry.EffectiveData)
+            $TheValue = ConvertTo-Html -PreContent "<h2 class=`"$($Entry.SectionTitleColor)`">`n`n$($Entry.SectionTitle)</h2><h3 class=`"Black`">`n$($Entry.Description)`n</h3>" -PostContent $($Entry.EffectiveData) -Fragment
         }
         else {
-            $TheValue = $($Entry.EffectiveData) | ConvertTo-Html -As $($Entry.TableType) -PreContent "<h2 class=`"$($Entry.SectionTitleColor)`">`n`n$($Entry.SectionTitle)</h2><h3 class=`"Black`">`n$($Entry.Description)`n</h3>"
+            $TheProperties = ($($Entry.EffectiveData)| Get-Member -MemberType NoteProperty).Name
+            $TheValue = $($Entry.EffectiveData) | ConvertTo-Html -As $($Entry.TableType) -PreContent "<h2 class=`"$($Entry.SectionTitleColor)`">`n`n$($Entry.SectionTitle)</h2><h3 class=`"Black`">`n$($Entry.Description)`n</h3>`n" -Property $TheProperties -Fragment
         }
 
         ### Adding sections in the body of the HTML report
