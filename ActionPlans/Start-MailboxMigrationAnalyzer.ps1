@@ -156,7 +156,7 @@ function Selected-FileOption {
     }
     else {
         ### TheMigrationLogs variable will represent MigrationLogs collected using the Collect-MigrationLogs function.
-        Write-Log -function "MailboxMigration - Selected-FileOption" -step "Start analyze of data from `"$FilePath`" file" -Description "Success"
+        Write-Log -function "MailboxMigration - Selected-FileOption" -step "Start analyze of data from `"$PathOfXMLFile`" file" -Description "Success"
         Create-DetailsAboutMigrationOutput -InfoCollectedFrom XMLFile -XMLPath $PathOfXMLFile
         Collect-MigrationLogs -XMLFile $PathOfXMLFile
     }
