@@ -342,6 +342,74 @@ else {
 }
 #endregion Check if Distribution Group can't be upgraded because the distribution list is configured to be a forwarding address for Shared Mailbox
 
+#region Check for duplicate Alias,PrimarySmtpAddress,Name,DisplayName on EXO objects
+$Conditiondupobj=New-Object PSObject
+[string]$SectionTitle = "Validating Distribution Group Duplicates"
+[string]$Description = "Checking if Distribution Group can't be upgraded because duplicate objects having same Alias,PrimarySmtpAddress,Name,DisplayName found"
+try {
+    $dupAlias=Get-Recipient -IncludeSoftDeletedRecipients -Identity $dg.alias -ResultSize unlimited -ErrorAction stop
+    $dupAddress=Get-Recipient -IncludeSoftDeletedRecipients -ResultSize unlimited -Identity $dg.PrimarySmtpAddress -ErrorAction stop
+    $dupDisplayName=Get-Recipient -IncludeSoftDeletedRecipients -ResultSize unlimited -Identity $dg.DisplayName -ErrorAction stop
+    $dupName=Get-Recipient -IncludeSoftDeletedRecipients -ResultSize unlimited -Identity $dg.Name -ErrorAction stop
+    $CurrentProperty = "Retrieving duplicate recipients having same Alias,PrimarySmtpAddress,Name,DisplayName in the EXO directory"
+    $CurrentDescription = "Success"
+    write-log -Function "Retrieve Duplicate Recipient Objects" -Step $CurrentProperty -Description $CurrentDescription
+}
+catch {
+    $CurrentProperty = "Retrieving duplicate recipients having same Alias,PrimarySmtpAddress,Name,DisplayName in the EXO directory"
+    $CurrentDescription = "Failure"
+    write-log -Function "Retrieve Duplicate Recipient Objects" -Step $CurrentProperty -Description $CurrentDescription
+    
+}
+    if($dupAlias.Count -ge 2 -or $dupAddress.Count -ge 2 -or $dupDisplayName.Count -ge 2 -or $dupName.Count -ge 2)
+    {$counter=1
+        if($dupAlias.Count -ge 2)
+        {
+            foreach($ObjectAlias in $dupAlias)
+            {   if ($ObjectAlias.Guid -notmatch $dg.Guid) {
+                $Conditiondupobj|Add-Member -NotePropertyName "Duplicate Object$counter" -NotePropertyValue $ObjectAlias.PrimarySmtpAddress
+                $counter++
+            }
+            }
+        }
+        elseif ($dupAddress.Count -ge 2) {
+            foreach($ObjectAlias in $dupAddress)
+            {   if ($ObjectAlias.Guid -notmatch $dg.Guid) {
+                $Conditiondupobj|Add-Member -NotePropertyName "Duplicate Object$counter" -NotePropertyValue $ObjectAlias.PrimarySmtpAddress
+                $counter++
+            }   
+                
+            }
+        }
+        elseif ($dupDisplayName.Count -ge 2) {
+            foreach($ObjectAlias in $dupDisplayName)
+            {   if ($ObjectAlias.Guid -notmatch $dg.Guid) {
+                $Conditiondupobj|Add-Member -NotePropertyName "Duplicate Object$counter" -NotePropertyValue $ObjectAlias.PrimarySmtpAddress
+                $counter++
+            }
+            }
+        }
+        elseif ($dupName.Count -ge 2) {
+            foreach($ObjectAlias in $dupName)
+            {   if ($ObjectAlias.Guid -notmatch $dg.Guid) {
+                $Conditiondupobj|Add-Member -NotePropertyName "Duplicate Object$counter" -NotePropertyValue $ObjectAlias.PrimarySmtpAddress
+                $counter++
+            }
+            }
+        }
+        [PSCustomObject]$ConditiondupobjHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $Conditiondupobj -TableType "Table"
+        $null = $TheObjectToConvertToHTML.Add($ConditiondupobjHTML)
+    }
+    else {
+        $Conditiondupobj|Add-Member -NotePropertyName "Duplicate Object" -NotePropertyValue "No duplicate objects found"
+        [PSCustomObject]$ConditiondupobjHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $Conditiondupobj -TableType "Table"
+        $null = $TheObjectToConvertToHTML.Add($ConditiondupobjHTML)    
+    }
+
+
+#endregion Check for duplicate Alias,PrimarySmtpAddress,Name,DisplayName on EXO objects
+
+
 ##Repro is done for all except EAP condition
 
 <#region finalizescript
