@@ -1842,6 +1842,7 @@ $HTMLBeginning = @"
             </div>
         </div>
         </header>
+        <div class="body-panel" style="margin: 30px 0px 0px 0px; display: block;">
 "@
 
 $HTMLEnd = @"
