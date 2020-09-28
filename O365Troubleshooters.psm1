@@ -1941,30 +1941,30 @@ $HTMLEnd = @"
 function Prepare-ObjectForHTMLReport {
 param (
     [Parameter(ParameterSetName = "String", Mandatory=$false)]
-    [Parameter(ParameterSetName = "ArrayList", Mandatory=$false)]
+    [Parameter(ParameterSetName = "CustomObject", Mandatory=$false)]
     [string]$SectionTitle,
 
     [Parameter(ParameterSetName = "String", Mandatory=$false)]
-    [Parameter(ParameterSetName = "ArrayList", Mandatory=$false)]
+    [Parameter(ParameterSetName = "CustomObject", Mandatory=$false)]
     [ValidateSet("Black", "Green", "Red")]
     [string]$SectionTitleColor,
 
     [Parameter(ParameterSetName = "String", Mandatory=$false)]
-    [Parameter(ParameterSetName = "ArrayList", Mandatory=$false)]
+    [Parameter(ParameterSetName = "CustomObject", Mandatory=$false)]
     [string]$Description,
 
     [Parameter(ParameterSetName = "String", Mandatory=$false)]
-    [Parameter(ParameterSetName = "ArrayList", Mandatory=$false)]
-    [ValidateSet("ArrayList", "String")]
+    [Parameter(ParameterSetName = "CustomObject", Mandatory=$false)]
+    [ValidateSet("CustomObject", "String")]
     [string]$DataType,
 
     [Parameter(ParameterSetName = "String", Mandatory=$false)]
     [string]$EffectiveDataString,
 
-    [Parameter(ParameterSetName = "ArrayList", Mandatory=$false)]
+    [Parameter(ParameterSetName = "CustomObject", Mandatory=$false)]
     [PSCustomObject]$EffectiveDataArrayList,
 
-    [Parameter(ParameterSetName = "ArrayList", Mandatory=$false)]
+    [Parameter(ParameterSetName = "CustomObject", Mandatory=$false)]
     [ValidateSet("List", "Table")]
     [string]$TableType
 )
@@ -1975,7 +1975,7 @@ param (
         $TheObject | Add-Member -NotePropertyName SectionTitleColor -NotePropertyValue $SectionTitleColor
         $TheObject | Add-Member -NotePropertyName Description -NotePropertyValue $Description
         $TheObject | Add-Member -NotePropertyName DataType -NotePropertyValue $DataType
-        if ($DataType -eq "ArrayList") {
+        if ($DataType -eq "CustomObject") {
             $TheObject | Add-Member -NotePropertyName EffectiveData -NotePropertyValue $EffectiveDataArrayList
             $TheObject | Add-Member -NotePropertyName TableType -NotePropertyValue $TableType
         }
