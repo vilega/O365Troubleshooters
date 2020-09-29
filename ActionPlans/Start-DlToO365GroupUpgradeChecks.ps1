@@ -85,7 +85,7 @@ $eap = Get-EmailAddressPolicy -ErrorAction stop
 [string]$Description = "Checking if Distribution Group can't be upgraded because of matching EmailAddressPolicy"
 $ConditionEAP=New-Object PSObject    
 # Bypass that step if there's no EAP 
- if($eap -ne $null)
+ if($null -ne $eap)
  {
  $matchingEap = @( $eap | where-object{$_.RecipientFilter -eq "RecipientTypeDetails -eq 'GroupMailbox'" -and $_.EnabledEmailAddressTemplates.AddressTemplateString.ToString().Split("@")[1] -ne $dg.PrimarySmtpAddress.Domain.ToString()} )
  if ($matchingEap.Count -ne 0) {
@@ -129,7 +129,7 @@ catch {
     write-log -Function "Retrieve Distrubtion Group membership" -Step $CurrentProperty -Description $CurrentDescription
 }
 $childgroups = $members | Where-Object{ $_.RecipientTypeDetails -eq "MailUniversalDistributionGroup"}
-if ($childgroups -ne $null) {
+if ($null -ne $childgroups) {
     $count=1
     foreach($childgroup in $childgroups)
     {
@@ -283,7 +283,6 @@ $Conditionnonsupportedrec=New-Object PSObject
 [string]$SectionTitle = "Validating Distribution Group RecipientTypeDetails Property"
 [string]$Description = "Checking if Distribution Group can't be upgraded because it was converted to RoomList or isn't a security group nor Dynmaic DG"
 $Conditionnonsupportedrec|Add-Member -NotePropertyName "Group RecipientTypeDetails" -NotePropertyValue $dg.RecipientTypeDetails
-$Conditionnonsupportedrec|Add-Member -NotePropertyName "HTMLIssue" -NotePropertyValue "Test"
 if($dg.RecipientTypeDetails -like "MailUniversalSecurityGroup" -or $dg.RecipientTypeDetails -like "DynamicDistributionGroup" -or $dg.RecipientTypeDetails -like "roomlist" ) 
 {
     [PSCustomObject]$ConditionnonsupportedrecHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $Conditionnonsupportedrec -TableType "Table"
