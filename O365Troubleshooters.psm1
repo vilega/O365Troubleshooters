@@ -1473,7 +1473,7 @@ $HTMLBeginning = @"
 
 			h3 {
 				color: #000000;
-				font-size: 14px;
+				font-size: 17px;
 				font-weight: 300;
 				margin-left: 10px;
 				font-family: FabricMDL2Icons;
@@ -1481,7 +1481,7 @@ $HTMLBeginning = @"
     
 			h3 span {
 				color: #000000;
-				font-size: 14px;
+				font-size: 17px;
 				font-weight: 300;
 				margin-left: 10px;
 				font-family: FabricMDL2Icons;
@@ -1624,7 +1624,7 @@ $HTMLBeginning = @"
 			}
 
 		   table {
-				font-size: 12px;
+				font-size: 14px;
 				font-weight: 800;
 				border: 1px solid #0078d7;
 				border-collapse: collapse;
@@ -1644,7 +1644,6 @@ $HTMLBeginning = @"
 			th {
 				color: #0078d7;
 				font-family: FabricMDL2Icons;
-				font-size: 11px;
 				text-transform: uppercase;
 				padding: 10px 5px;
 				vertical-align: middle;
