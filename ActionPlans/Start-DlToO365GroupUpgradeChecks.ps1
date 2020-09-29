@@ -96,14 +96,12 @@ $ConditionEAP=New-Object PSObject
          $ConditionEAP|Add-Member -NotePropertyName "EmailAddressPolicy$count Name" -NotePropertyValue $matcheap
          $count++
     }
-    $ConditionEAP|Add-Member -NotePropertyName "Html Issue" -NotePropertyValue "test"
     [PSCustomObject]$ConditionEAPHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $ConditionEAP -TableType "Table"
     $null = $TheObjectToConvertToHTML.Add($ConditionEAPHTML)
     
 }
 else {
     $ConditionEAP|Add-Member -NotePropertyName "EmailAddressPolicy Name" -NotePropertyValue "No matching EmailAddressPolicy"
-    $ConditionEAP|Add-Member -NotePropertyName "Html Issue" -NotePropertyValue "test"
     [PSCustomObject]$ConditionEAPHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $ConditionEAP -TableType "Table"
     $null = $TheObjectToConvertToHTML.Add($ConditionEAPHTML)
 }
@@ -140,7 +138,6 @@ if ($childgroups -ne $null) {
         $ConditionChildDG|Add-Member -NotePropertyName "Child Group$count ALias" -NotePropertyValue $childgroup.Alias
         $count++
     }
-    $ConditionChildDG|Add-Member -NotePropertyName "HTML Issue" -NotePropertyValue "test"
     [PSCustomObject]$ConditionChildDGHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $ConditionChildDG -TableType "Table"
     $null = $TheObjectToConvertToHTML.Add($ConditionChildDGHTML)
 } 
@@ -172,7 +169,7 @@ $parentdgcount=1
 foreach($parentdg in $alldgs)
 {
     try {
-        $Pmembers = Get-DistributionGroupMember $($parentdg.Alias) -ErrorAction Stop
+        $Pmembers = Get-DistributionGroupMember $($parentdg.Guid.ToString()) -ErrorAction Stop
         $CurrentProperty = "Retrieving: $parentdg members"
         $CurrentDescription = "Success"
         write-log -Function "Retrieve Distrubtion Group membership" -Step $CurrentProperty -Description $CurrentDescription
@@ -194,12 +191,10 @@ foreach ($member in $Pmembers)
 if($parentdgcount -le 1)
 {
     $ConditionParentDG|Add-Member -NotePropertyName "Parent Group Alias" -NotePropertyValue "No parent groups found"
-    $ConditionParentDG|Add-Member -NotePropertyName "HTml Issue" -NotePropertyValue "test"
     [PSCustomObject]$ConditionParentDGHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $ConditionParentDG -TableType "Table"
     $null = $TheObjectToConvertToHTML.Add($ConditionParentDGHTML)
 }
 else {
-    $ConditionParentDG|Add-Member -NotePropertyName "HTml Issue" -NotePropertyValue "test"
     [PSCustomObject]$ConditionParentDGHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $ConditionParentDG -TableType "Table"
     $null = $TheObjectToConvertToHTML.Add($ConditionParentDGHTML)
 }
@@ -226,14 +221,12 @@ if ($matchingMbr.Count -ne 0) {
         $ConditionDGmembers|Add-Member -NotePropertyName "Unsuppported member$counter" -NotePropertyValue $matchedmbr.Alias
         $counter++
     }
-    $ConditionDGmembers|Add-Member -NotePropertyName "Html Issue" -NotePropertyValue "test"
     [PSCustomObject]$ConditionDGmembersHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $ConditionDGmembers -TableType "Table"
     $null = $TheObjectToConvertToHTML.Add($ConditionDGmembersHTML)
 
     } 
 else {
     $ConditionDGmembers|Add-Member -NotePropertyName "Unsuppported members Count" -NotePropertyValue "No unsupported members found"
-    $ConditionDGmembers|Add-Member -NotePropertyName "ParentDG" -NotePropertyValue "aaa"
     [PSCustomObject]$ConditionDGmembersHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $ConditionDGmembers -TableType "Table"
     $null = $TheObjectToConvertToHTML.Add($ConditionDGmembersHTML)
     }
@@ -278,7 +271,6 @@ if ($alldg.AcceptMessagesOnlyFromSendersOrMembers -match $dg.Alias -or $alldg.Ac
 }
 if ($SenderRestrictionCount -le 1) {
     $ConditionDGSender|Add-Member -NotePropertyName "Group ALias Having Sender Restriction" -NotePropertyValue "No sender restrictions found"
-    $ConditionDGSender|Add-Member -NotePropertyName "Html Issue" -NotePropertyValue "Test"
     [PSCustomObject]$ConditionDGSenderHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $ConditionDGSender -TableType "Table"
     $null = $TheObjectToConvertToHTML.Add($ConditionDGSenderHTML)
 }
