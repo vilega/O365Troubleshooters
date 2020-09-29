@@ -1368,125 +1368,11 @@ Function Read-Key{
 ###             [string]$SectionTitle - Contains the header of the data that will be added to the HTML file
 ###             [string]$SectionTitleColor - Contains the header of the data that will be added to the HTML file (accepted values are "Green" or "Red")
 ###             [string]$Description - Contains description of the data that will be added to the HTML file
-###             [string]$DataType - Contains the data type of the data that need to be added into the HTML file (it can be: "Table", "String")
-###             [ArrayList]/[String]$EffectiveData - Contains the effective data that need to be added into a HTML file
+###             [string]$DataType - Contains the data type of the data that need to be added into the HTML file (it can be: "CustomObject" (aka a "Table"), "String")
+###             [CustomObject]/[String]$EffectiveData - Contains the effective data that need to be added into a HTML file
 ###             [String]$TableType - If EffectiveData is table, we need to know how to list it (accepted values: "List" = Vertical, "Table" = Horizontal)
 ### </param>
-Function Export-ReportToHTML {
-    param(
-        [Parameter(Mandatory=$true)]
-        [string]$FilePath,
-
-        [Parameter(Mandatory=$false)]
-        [string]$PageTitle,
-
-        [Parameter(Mandatory=$false)]
-        [string]$ReportTitle,
-
-        [Parameter(Mandatory=$true)]
-        [System.Collections.ArrayList]$TheObjectToConvertToHTML
-
-    )
-
-    ### Create header of the HTML file
-    $header = @"
-<!--HTML file created by O365Troubleshooters-->
-<title>$PageTitle</title>
-<style>
-    h1 {
-        font-family: Arial, Helvetica, sans-serif;
-        color: #e68a00;
-        font-size: 28px;
-    }
-    
-    h2 {
-        font-family: Arial, Helvetica, sans-serif;
-        color: #000099;
-        font-size: 16px;
-    }
-
-    h3 {
-        font-family: Arial, Helvetica, sans-serif;
-        color: #000099;
-        font-size: 12px;
-    }
-
-    .Green {
-        color: #008000;
-    }
-    
-    .Red {
-        color: #ff0000;
-    }
-
-    .Black {
-        color: #000000;
-    }
-        
-   table {
-		font-size: 12px;
-		border: 0px; 
-		font-family: Arial, Helvetica, sans-serif;
-	} 
-	
-    td {
-		padding: 4px;
-		margin: 0px;
-		border: 0;
-	}
-	
-    th {
-        background: #395870;
-        background: linear-gradient(#49708f, #293f50);
-        color: #fff;
-        font-size: 11px;
-        text-transform: uppercase;
-        padding: 10px 15px;
-        vertical-align: middle;
-    }
-    
-    tbody tr:nth-child(even) {
-        background: #f0f0f2;
-    }
-
-    #CreationDate {
-        font-family: Arial, Helvetica, sans-serif;
-        color: #ff3300;
-        font-size: 12px;
-    }
-</style>
-<a href="https://www.powershellgallery.com/packages/O365Troubleshooters" target="_blank">
-    <img src="https://raw.githubusercontent.com/vilega/O365Troubleshooters/master/Resources/O365Troubleshooters-Logo.png" alt="O365Troubleshooters" width="173" height="128">
-</a>
-"@
-
-    [int]$i = 0
-    [string]$TheBody = "<h1>$ReportTitle</h1>"
-    
-    ### For each scenario, convert the data to HTML
-    foreach ($Entry in $TheObjectToConvertToHTML) {
-        if ($Entry.DataType -eq "String") {
-            $TheValue = ConvertTo-Html -PreContent "<h2 class=`"$($Entry.SectionTitleColor)`">`n`n$($Entry.SectionTitle)</h2><h3 class=`"Black`">`n$($Entry.Description)`n</h3>" -PostContent $($Entry.EffectiveData) -Fragment
-        }
-        else {
-            $TheProperties = ($($Entry.EffectiveData)| Get-Member -MemberType NoteProperty).Name
-            $TheValue = $($Entry.EffectiveData) | ConvertTo-Html -As $($Entry.TableType) -PreContent "<h2 class=`"$($Entry.SectionTitleColor)`">`n`n$($Entry.SectionTitle)</h2><h3 class=`"Black`">`n$($Entry.Description)`n</h3>`n" -Property $TheProperties -Fragment
-        }
-
-        ### Adding sections in the body of the HTML report
-        $TheBody = $TheBody  + " " + $TheValue
-
-        $i++
-    }
-
-    ### Create the report to convert the entire content to HTML
-    $Report = ConvertTo-Html -Head $header -Body $TheBody -PreContent "<p>Creation Date: $((Get-date).ToUniversalTime()) UTC</p>"
-
-    ### Export the HTML report to the specific location
-    $Report | Out-File $FilePath
-}
-
-function NewExport-ReportToHTML {
+function Export-ReportToHTML {
     param(
         [Parameter(Mandatory=$true)]
         [string]$FilePath,
@@ -1912,16 +1798,7 @@ $HTMLEnd = @"
 
     $TheBody = $TheBody + $HTMLEnd
 
-    <#
-    ### Create the report to convert the entire content to HTML
-    $Report = ConvertTo-Html -Head $header -Body $TheBody -PreContent "<p>Creation Date: $((Get-date).ToUniversalTime()) UTC</p>"
-
-    ### Export the HTML report to the specific location
-    $Report | Out-File $FilePath
-
-    #>
     $TheBody | Out-File $FilePath -Force
-
 }
 
 

@@ -1386,9 +1386,7 @@ function Export-MailboxMigrationReportToHTML {
 
     }
 
-    
-    #Export-ReportToHTML -FilePath $FilePath -PageTitle "Mailbox Migration Report" -ReportTitle "Mailbox Migration - Hybrid - Summary Report" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
-    NewExport-ReportToHTML -FilePath $script:HTMLFilePath -PageTitle "Mailbox Migration Report" -ReportTitle "Mailbox Migration - Hybrid - Summary Report" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
+    Export-ReportToHTML -FilePath $script:HTMLFilePath -PageTitle "Mailbox Migration Report" -ReportTitle "Mailbox Migration - Hybrid - Summary Report" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
 }
 
 
