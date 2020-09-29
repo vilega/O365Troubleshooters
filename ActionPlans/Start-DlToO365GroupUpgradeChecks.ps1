@@ -412,7 +412,7 @@ catch {
 
 ##Repro is done for all except EAP condition
 
-<#region finalizescript
+<#region finalizescript--Pending
 if($DGConditionsmet -gt 0){
     "DG Upgrade Failed"|Out-file -FilePath $ExportPath\result.txt
 
@@ -426,7 +426,7 @@ else{
 #region ResultReport
 [string]$FilePath = $ExportPath + "\DistrubtionGroupUpgradeCheck.html"
 Export-ReportToHTML -FilePath $FilePath -PageTitle "Distrubtion Group Upgrade Checker" -ReportTitle "Distrubtion Group Upgrade Checker" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
-Start-Process $FilePath
+##Pending question to ask enduser for opening the HTMl report
 #endregion ResultReport
 
 
