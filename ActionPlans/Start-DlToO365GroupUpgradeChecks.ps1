@@ -65,7 +65,6 @@ if ($dg.MemberJoinRestriction -eq "Open" -and $dg.MemberDepartRestriction -eq "O
 #Region Check if Distribution Group can't be upgraded because it is DirSynced
 $ConditionIsDirSynced=New-Object PSObject    
 $ConditionIsDirSynced|Add-Member -NotePropertyName "IsDirSynced" -NotePropertyValue $dg.IsDirSynced
-$ConditionIsDirSynced|Add-Member -NotePropertyName "HtmlIssue" -NotePropertyValue "PLZ Ignore"
 [string]$SectionTitle = "Validating Distribution Group IsDirSynced Property"
 [string]$Description = "Checking if Distribution Group can't be upgraded because IsDirSynced value is true"    
 if ($dg.IsDirSynced -eq $true) {
@@ -108,7 +107,6 @@ else {
  }
 else {
     $ConditionEAP|Add-Member -NotePropertyName "EmailAddressPolicy" -NotePropertyValue "No matching EmailAddressPolicy"
-    $ConditionEAP|Add-Member -NotePropertyName "EmailAddressPolicy1" -NotePropertyValue "aaa"
     [PSCustomObject]$ConditionEAPHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $ConditionEAP -TableType "Table"
     $null = $TheObjectToConvertToHTML.Add($ConditionEAPHTML)
 }
@@ -143,7 +141,6 @@ if ($childgroups -ne $null) {
 } 
 else {
     $ConditionChildDG|Add-Member -NotePropertyName "Child Group ALias" -NotePropertyValue "No child groups found"
-    $ConditionChildDG|Add-Member -NotePropertyName "Html issue" -NotePropertyValue "Test"
     [PSCustomObject]$ConditionChildDGHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $ConditionChildDG -TableType "Table"
     $null = $TheObjectToConvertToHTML.Add($ConditionChildDGHTML)
 }
