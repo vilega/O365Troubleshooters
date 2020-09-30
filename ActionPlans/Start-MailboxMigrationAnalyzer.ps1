@@ -54,6 +54,9 @@
 [string]$ExportPath = "$global:WSPath\MailboxMigration_$ts"
 $null = New-Item -ItemType Directory -Path $ExportPath -Force
 
+### Create the full path of the HTML report
+[string]$script:HTMLFilePath = $ExportPath + "\MailboxMigration_Hybrid_SummaryReport.html"
+
 ### Create the PSObject in which to store details about the log used to provide report
 $Script:DetailsAboutMigrationLog = New-Object PSObject
     $Script:DetailsAboutMigrationLog | Add-Member -NotePropertyName XMLFullName -NotePropertyValue ""
@@ -153,7 +156,7 @@ function Selected-FileOption {
     }
     else {
         ### TheMigrationLogs variable will represent MigrationLogs collected using the Collect-MigrationLogs function.
-        Write-Log -function "MailboxMigration - Selected-FileOption" -step "Start analyze of data from `"$FilePath`" file" -Description "Success"
+        Write-Log -function "MailboxMigration - Selected-FileOption" -step "Start analyze of data from `"$PathOfXMLFile`" file" -Description "Success"
         Create-DetailsAboutMigrationOutput -InfoCollectedFrom XMLFile -XMLPath $PathOfXMLFile
         Collect-MigrationLogs -XMLFile $PathOfXMLFile
     }
@@ -1241,7 +1244,7 @@ function Export-MailboxMigrationReportToHTML {
 
     ### Section "Details about log used to provide report"
     [string]$SectionTitle = "Details of log used to provide report"
-    [string]$Description = "In this section you'll get details about the log used in order to create the current report."
+    [string]$Description = "In this section you'll get details from the log used to create the current report."
     [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString $TheString
     $null = $TheObjectToConvertToHTML.Add($TheCommand)
 
@@ -1249,8 +1252,8 @@ function Export-MailboxMigrationReportToHTML {
 
         ### Section "Mailbox Information"
         [string]$SectionTitle = "Mailbox Information"
-        [string]$Description = "Below are the `"Mailbox Information`" for <u>$($Entry.MailboxInformation.Alias)</u>'s migration"
-        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $($Entry.MailboxInformation) -TableType "List"
+        [string]$Description = "Below is the `"Mailbox Information`" for <u>$($Entry.MailboxInformation.Alias)</u>'s migration"
+        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $($Entry.MailboxInformation) -TableType "List"
         $null = $TheObjectToConvertToHTML.Add($TheCommand)
 
         ### Section "Basic Information"
@@ -1265,8 +1268,8 @@ function Export-MailboxMigrationReportToHTML {
         }
 
         [string]$SectionTitle = "Basic Information"
-        [string]$Description = "Below are the `"Basic Information`" for <u>$($Entry.MailboxInformation.Alias)</u>'s migration`<p`>`&nbsp*`&nbspThe title of this section is colored in Red in case the <u>Status</u> of the migration is <u>Failed</u>"
-        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $($Entry.BasicInformation) -TableType "List"
+        [string]$Description = "Below are the `"Basic Information`" for <u>$($Entry.MailboxInformation.Alias)</u>'s migration`<p`>`&nbsp*`&nbspThe title of this section is colored red if the <u>Status</u> of the migration is <u>Failed</u>"
+        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $($Entry.BasicInformation) -TableType "List"
         $null = $TheObjectToConvertToHTML.Add($TheCommand)
 
         ### Section "Extended Move Info"
@@ -1282,13 +1285,13 @@ function Export-MailboxMigrationReportToHTML {
 
         [string]$SectionTitle = "Extended Move Info"
         [string]$Description = "Below are the `"Extended Move Info`" for <u>$($Entry.MailboxInformation.Alias)</u>'s migration`<p`>`&nbsp*`&nbspThe title of this section is colored in Red in case the <u>StatusDetail</u> of the migration contains <u>Failed</u> in it"
-        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $($Entry.ExtendedMoveInfo) -TableType "List"
+        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $($Entry.ExtendedMoveInfo) -TableType "List"
         $null = $TheObjectToConvertToHTML.Add($TheCommand)
 
         ### Section "Performance Statistics"
         [string]$SectionTitle = "Performance Statistics"
         [string]$Description = "Below are the `"Performance Statistics`" for <u>$($Entry.MailboxInformation.Alias)</u>'s migration"
-        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $($Entry.PerformanceStatistics) -TableType "List"
+        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $($Entry.PerformanceStatistics) -TableType "List"
         $null = $TheObjectToConvertToHTML.Add($TheCommand)
 
         ### Section "Large Items Summary"
@@ -1300,8 +1303,8 @@ function Export-MailboxMigrationReportToHTML {
         }
 
         [string]$SectionTitle = "Large Items Summary"
-        [string]$Description = "Below are the `"Large Items Summary`" for <u>$($Entry.MailboxInformation.Alias)</u>'s migration`<p`>`&nbsp*`&nbspThe title of this section is colored in Red in case the migration contains at least one Large item"
-        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $($Entry.LargeItemSummary) -TableType "Table"
+        [string]$Description = "Below is the `"Large Items Summary`" for <u>$($Entry.MailboxInformation.Alias)</u>'s migration`<p`>`&nbsp*`&nbspThe title of this section is colored in Red in case the migration contains at least one Large item"
+        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $($Entry.LargeItemSummary) -TableType "Table"
         $null = $TheObjectToConvertToHTML.Add($TheCommand)
 
         ### Section "Bad Items Summary"
@@ -1313,8 +1316,8 @@ function Export-MailboxMigrationReportToHTML {
         }
 
         [string]$SectionTitle = "Bad Items Summary"
-        [string]$Description = "Below are the `"Bad Items Summary`" for <u>$($Entry.MailboxInformation.Alias)</u>'s migration`<p`>`&nbsp*`&nbspThe title of this section is colored in Red in case the migration contains at least one Bad item"
-        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $($Entry.BadItemSummary) -TableType "Table"
+        [string]$Description = "Below is the `"Bad Items Summary`" for <u>$($Entry.MailboxInformation.Alias)</u>'s migration`<p`>`&nbsp*`&nbspThe title of this section is colored in Red in case the migration contains at least one Bad item"
+        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $($Entry.BadItemSummary) -TableType "Table"
         $null = $TheObjectToConvertToHTML.Add($TheCommand)
 
         ### Section "Mailbox Verification - If Missing Items"
@@ -1334,8 +1337,8 @@ function Export-MailboxMigrationReportToHTML {
         }
 
         [string]$SectionTitle = "Mailbox Verification - List Missing Items"
-        [string]$Description = "Below are the `"Missing items found during Mailbox verification`" for <u>$($Entry.MailboxInformation.Alias)</u>'s migration`<p`>`&nbsp*`&nbspThe title of this section is colored in Red in case the migration contains at least one missing item"
-        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $($Entry.MailboxVerificationIfMissingItems) -TableType $TableType
+        [string]$Description = "Below is the `"Missing items found during Mailbox verification`" for <u>$($Entry.MailboxInformation.Alias)</u>'s migration`<p`>`&nbsp*`&nbspThe title of this section is colored in Red in case the migration contains at least one missing item"
+        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $($Entry.MailboxVerificationIfMissingItems) -TableType $TableType
         $null = $TheObjectToConvertToHTML.Add($TheCommand)
 
         ### Section "Mailbox Verification - All Items"
@@ -1348,7 +1351,7 @@ function Export-MailboxMigrationReportToHTML {
 
         [string]$SectionTitle = "Mailbox Verification - List All Items"
         [string]$Description = "Below are the details about `"All items found during Mailbox verification`" for <u>$($Entry.MailboxInformation.Alias)</u>'s migration"
-        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $($Entry.MailboxVerificationAll) -TableType $TableType
+        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $($Entry.MailboxVerificationAll) -TableType $TableType
         $null = $TheObjectToConvertToHTML.Add($TheCommand)
 
         ### Section "Failure Statistics"
@@ -1361,9 +1364,10 @@ function Export-MailboxMigrationReportToHTML {
 
         [string]$SectionTitle = "Failure Statistics"
         [string]$Description = "Below are the `"Failure Statistics`" for <u>$($Entry.MailboxInformation.Alias)</u>'s migration`<p`>`&nbsp*`&nbspThe title of this section is colored in Red in case the migration contains at least one Failure"
-        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $($Entry.FailureStatistics) -TableType "Table"
+        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $($Entry.FailureStatistics) -TableType "Table"
         $null = $TheObjectToConvertToHTML.Add($TheCommand)
 
+        <#
         ### Section "Failure Summary"
         if ($($Entry.FailureSummary.TimeStamp)) {
             if ($($Entry.FailureSummary.TimeStamp) -ne "None") {
@@ -1376,13 +1380,13 @@ function Export-MailboxMigrationReportToHTML {
 
         [string]$SectionTitle = "Failure Summary"
         [string]$Description = "Below are the `"Failure Summary`" for <u>$($Entry.MailboxInformation.Alias)</u>'s migration`<p`>`&nbsp*`&nbspThe title of this section is colored in Red in case the migration contains at least one Failure"
-        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $($Entry.FailureSummary) -TableType "Table"
+        [PSCustomObject]$TheCommand = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $($Entry.FailureSummary) -TableType "Table"
         $null = $TheObjectToConvertToHTML.Add($TheCommand)
+        #>
 
     }
 
-    [string]$FilePath = $ExportPath + "\MailboxMigration_Hybrid_SummaryReport.html"
-    Export-ReportToHTML -FilePath $FilePath -PageTitle "Mailbox Migration Report" -ReportTitle "Mailbox Migration - Hybrid - Summary Report" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
+    Export-ReportToHTML -FilePath $script:HTMLFilePath -PageTitle "Mailbox Migration Report" -ReportTitle "Mailbox Migration - Hybrid - Summary Report" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
 }
 
 
@@ -1428,6 +1432,14 @@ function Start-MailboxMigrationMainScript {
 
     Write-Log -function "MailboxMigration - Start-MailboxMigrationMainScript" -step "Export-MailboxMigrationReportToHTML" -Description "Success"
     Export-MailboxMigrationReportToHTML
+
+    Write-Host "For more details please check the logs located on:" -ForegroundColor White
+    Write-Host "`t$ExportPath" -ForegroundColor Cyan
+    write-Log -function "MailboxMigration - Start-MailboxMigrationMainScript" -step "Write on screen location of the logs: $ExportPath" -Description "Success"
+
+    Write-Host "In order to check summary report of this migration, please take a look on the following HTML report:" -ForegroundColor White
+    Write-Host "`t$script:HTMLFilePath" -ForegroundColor Cyan
+    write-Log -function "MailboxMigration - Start-MailboxMigrationMainScript" -step "Write on screen location of the HTML report: $script:HTMLFilePath" -Description "Success"
 
     Write-Log -function "MailboxMigration - Start-MailboxMigrationMainScript" -step "Read-Key" -Description "Success"
     Read-Key
