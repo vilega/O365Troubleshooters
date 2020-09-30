@@ -439,7 +439,7 @@ function Get-ActionPlan([string]$ErrorType)
     switch($ErrorType)
     {
         "SmtpRelayFunctionErrors"
-        {
+        {   
             [string] $FailedAction = "Email Sent As : $O365SendAs"
             Write-ScriptLog($ErrorType)
 
@@ -593,7 +593,7 @@ https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server
 
                 '*SendAsDeniedException.MapiExceptionSendAsDenied*'
                 {
-                    Write-Host "The authenticated account does not have required SendAs permission for Sending Email Address.`r`n
+                    Write-Host "The authenticated account $ScriptLogAutenticatedUser does not have required SendAs permission for $O365SendAs.`r`n
 Avoid using a single mailbox with Send As permissions for all your users. 
 This method is not supported because of complexity and potential issues.
 If you find yourself in this unsupported scenario, 
@@ -785,14 +785,12 @@ See https://aka.ms/SendMailMessage for more information.`r`n"
     Write-Host $SendMailMessageDisclaimer -ForegroundColor Yellow
 
     Read-Key
-
-    Clear-Host
     
     $ts = Get-Date -Format yyyyMMdd_HHmm
 
     #Implement check if Log Folder already exists and provide alternative
     #Write-Host "Created Directories on Desktop:"
-    if(!Test-Office365RelayScriptItemPath("$global:WSPath\Office365Relaylogs")){
+    if(!(Test-Office365RelayScriptItemPath("$global:WSPath\Office365Relaylogs"))){
         mkdir "$global:WSPath\Office365RelayLogs"|Out-Null
     }
     Start-transcript -Path "$global:WSPath\Office365RelayLogs\RelayTranscript_$ts.txt"|Out-Null
