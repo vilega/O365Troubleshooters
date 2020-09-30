@@ -431,7 +431,7 @@ function Write-ScriptLog([string] $ErrorType)
 {
     $d = Get-Date
     $TimeZone = [System.TimeZone]::CurrentTimeZone.StandardName
-    "`r`n$FailedAction at $d $TimeZone generated Error:`r`n" + $Office365RelayErrorList[0] | `
+    "`r`n$FailedAction at $d $TimeZone generated Error:`r`n" + $Office365RelayErrorList[0].Exception.Message | `
                     Out-File -Append "$global:WSPath\Office365RelayLogs\$ErrorType.txt"
 }
 function Get-ActionPlan([string]$ErrorType)
