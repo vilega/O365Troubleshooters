@@ -82,7 +82,7 @@ else {
 #region Check if Distribution Group can't be upgraded because EmailAddressPolicyViolated
 $eap = Get-EmailAddressPolicy -ErrorAction stop
 [string]$SectionTitle = "Validating Distribution Group matching EmailAddressPolicy"
-[string]$Description = "Checking if Distribution Group can't be upgraded because of matching EmailAddressPolicy"
+[string]$Description = "Checking if Distribution Group can't be upgraded because Admin has applied Group Email Address Policy for the groups on the organization"
 $ConditionEAP=New-Object PSObject    
 # Bypass that step if there's no EAP 
  if($null -ne $eap)
@@ -197,9 +197,9 @@ else {
 }
 #endregion Check if Distribution Group can't be upgraded because DlHasParentGroups
 
-#region Check if Distribution Group can't be upgraded because DlHasNonSupportedMemberTypes
+#region Check if Distribution Group can't be upgraded because DlHasNonSupportedMemberTypes with RecipientTypeDetails other than UserMailbox, SharedMailbox, TeamMailbox, MailUser
 [string]$SectionTitle = "Validating Distribution Group Members Recipient Types"
-[string]$Description = "Checking if Distribution Group can't be upgraded because of unsupported member types"
+[string]$Description = "Checking if Distribution Group can't be upgraded because DL contains member RecipientTypeDetails other than UserMailbox, SharedMailbox, TeamMailbox, MailUser"
 $ConditionDGmembers=New-Object PSObject
 $matchingMbr = @( $members | Where-Object { $_.RecipientTypeDetails -ne "UserMailbox" -and `
         $_.RecipientTypeDetails -ne "SharedMailbox" -and `
@@ -227,7 +227,7 @@ else {
     [PSCustomObject]$ConditionDGmembersHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $ConditionDGmembers -TableType "Table"
     $null = $TheObjectToConvertToHTML.Add($ConditionDGmembersHTML)
     }
-#endregion Check if Distribution Group can't be upgraded because DlHasNonSupportedMemberTypes
+#endregion Check if Distribution Group can't be upgraded because DlHasNonSupportedMemberTypes with RecipientTypeDetails other than UserMailbox, SharedMailbox, TeamMailbox, MailUser
 
 #region Check if Distribution Group can't be upgraded because it has more than 100 owners or it has no owner
 [string]$SectionTitle = "Validating Distribution Group Owners Count"
