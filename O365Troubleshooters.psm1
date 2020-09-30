@@ -1917,6 +1917,7 @@ Switch ($r) {
     "2" {
         Write-Host "Action Plan: SMTP Relay Test" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-Office365Relay.ps1
+        Start-Office365Relay
     }
 
     "3" {

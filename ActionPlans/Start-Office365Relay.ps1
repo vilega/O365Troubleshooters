@@ -431,15 +431,16 @@ function Write-ScriptLog([string] $ErrorType)
 {
     $d = Get-Date
     $TimeZone = [System.TimeZone]::CurrentTimeZone.StandardName
-    "`r`n$FailedAction at $d $TimeZone generated Error:`r`n" + $Office365RelayErrorList | Out-File -Append $global:WSPath\Office365RelayLogs\$ErrorType.txt
+    "`r`n$FailedAction at $d $TimeZone generated Error:`r`n" + $Office365RelayErrorList[0].Exception.Message | `
+                    Out-File -Append "$global:WSPath\Office365RelayLogs\$ErrorType.txt"
 }
 function Get-ActionPlan([string]$ErrorType)
 {
     switch($ErrorType)
     {
         "SmtpRelayFunctionErrors"
-        {
-            [string] $FailedAction = "Email Sent As : $O365SendAs"
+        {   
+            [string] $FailedAction = "SMTP Relay Email Sent As : $O365SendAs"
             Write-ScriptLog($ErrorType)
 
             switch -Wildcard ($Office365RelayErrorList[0].Exception.Message)
@@ -592,7 +593,7 @@ https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server
 
                 '*SendAsDeniedException.MapiExceptionSendAsDenied*'
                 {
-                    Write-Host "The authenticated account does not have required SendAs permission for Sending Email Address.`r`n
+                    Write-Host "The authenticated account $ScriptLogAutenticatedUser does not have required SendAs permission for $O365SendAs.`r`n
 Avoid using a single mailbox with Send As permissions for all your users. 
 This method is not supported because of complexity and potential issues.
 If you find yourself in this unsupported scenario, 
@@ -707,14 +708,14 @@ function Get-CashedOrFreshCredentials()
 	else 
     {
 		$ReUseCredentials = Read-Host "Do you want to use the same Credentials?
-A : Yes
-B : No
+Y : Yes
+N : No
 Answer"
 
 		switch ($ReUseCredentials) 
 		{
-		    A { [PSCredential]$Credentials }
-	        B { return Get-AuthenticationCredentials }
+		    Y { [PSCredential]$Credentials }
+	        N { return Get-AuthenticationCredentials }
 		    default { Get-CashedOrFreshCredentials }
 		}
 	}
@@ -732,13 +733,12 @@ function Get-MainMenu()
     Clear-Host
     
     $RelayMethod = Read-Host "Office 365 Relay Menu`r`n
-A : Client Submission
+A : Client Submission (Basic Authentication)
 B : SMTP Relay / Direct Send
 Q : Quit Script`r`n
-
 Answer"
 
-    "RuntimeRelayMethodInput#$RuntimeRelayMethodCounter $RelayMethod"|Out-File -Append $global:WSPath\Office365RelayLogs\ChoicesAtRuntime.txt
+    "RuntimeRelayMethodInput#$RuntimeRelayMethodCounter $RelayMethod"|Out-File -Append "$global:WSPath\Office365RelayLogs\ChoicesAtRuntime.txt"
     $RuntimeChoiceCounter++
 
     switch($RelayMethod.ToUpper())
@@ -767,7 +767,11 @@ Answer"
 }
 #endregion Office365RelayDependencies
 
-#region Office365Relay main script
+
+function Start-Office365Relay {
+	[CmdletBinding()]
+    param ()
+
     Clear-Host
 
     $SendMailMessageDisclaimer ="
@@ -781,22 +785,18 @@ See https://aka.ms/SendMailMessage for more information.`r`n"
     Write-Host $SendMailMessageDisclaimer -ForegroundColor Yellow
 
     Read-Key
-
-    Clear-Host
     
     $ts = Get-Date -Format yyyyMMdd_HHmm
 
     #Implement check if Log Folder already exists and provide alternative
-    Write-Host "Created Directories on Desktop:"
-    mkdir "$global:WSPath\Office365RelayLogs"
+    #Write-Host "Created Directories on Desktop:"
+    if(!(Test-Office365RelayScriptItemPath("$global:WSPath\Office365Relaylogs"))){
+        mkdir "$global:WSPath\Office365RelayLogs"|Out-Null
+    }
+    Start-transcript -Path "$global:WSPath\Office365RelayLogs\RelayTranscript_$ts.txt"|Out-Null
 
-    Write-Host "`r`n"
-
-    Start-transcript -Path "$global:WSPath\Office365RelayLogs\RelayTranscript_$ts.txt"
-
-    Read-Key
-
-    $RuntimeChoiceCounter = 1
-    $Office365RelayErrorList = @()
+    $script:RuntimeChoiceCounter = 1
+    $script:Office365RelayErrorList = @()
+    #$script:Office365RelayHTMLReportArray = @()
     Get-MainMenu
-#endregion Office365Relay main script
+}
