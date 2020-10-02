@@ -9,12 +9,12 @@ try
     if($decodedURL -match ".safelinks.protection.outlook.com\/\?url=.+&data=")
     {
         $decodedURL = $Matches[$Matches.Count - 1]
-        $decodedURL = (($decodedURL -Split "\?url=")[1] -Split "&data=")[0]
+        $decodedURL = (($decodedURL -Split "protection.outlook.com\/\?url=")[1] -Split "&data=")[0]
     }
     elseif($decodedURL -match ".safelinks.protection.outlook.com\/\?url=.+&amp;data=")
     {
         $decodedURL = $Matches[$Matches.Count - 1]
-        $decodedURL = (($decodedURL -Split "\?url=")[1] -Split "&amp;data=")[0]
+        $decodedURL = (($decodedURL -Split "protection.outlook.com\/\?url=")[1] -Split "&amp;data=")[0]
     }
     else{throw "InvalidSafeLinksURL"}
 }
