@@ -1,26 +1,25 @@
-Function Get-BlockedSenderReasons
-{param([bool][Parameter(Mandatory=$true)] $isFormatted)
-    $blockedSenders = Get-BlockedSenderAddress
-    if($null -ne $blockedSenders)
-    {
-        if($isFormatted)
-        {  
-            $blockedSenders|Export-Csv -NoTypeInformation -Path "$ExportPath\BlockedOutboundSenders.csv"
-            
+Function Get-BlockedSenderReasons {
+[CmdletBinding()]
+param([bool][Parameter(Mandatory=$true)] $isFormatted)
+
+    [System.Collections.ArrayList]$BlockedSenders = @(Get-BlockedSenderAddress|Select-Object SenderAddress,Reason,CreatedDatetime)
+    if($BlockedSenders)
+    {   
+        Write-Warning -Message "Found Senders Blocked due to Outbound Spam"
+        if($isFormatted) {            
             $blockedSenderReasons = @()
 
-            foreach($blockedSender in $blockedSenders)
-            {
+            foreach($blockedSender in $blockedSenders) {
                 $Reason = $blockedSender.Reason.Replace(";","`n")
                 $Reason = ConvertFrom-StringData $Reason.Replace(":","=")
                 $Reason["SenderAddress"] = $blockedSender.SenderAddress
                 [hashtable[]]$blockedSenderReasons += $Reason
             }
         }
-        else   
-        {
-            $blockedSenderReasons = $blockedSenders
+        else {
+            $BlockedSenderReasons = $blockedSenders
         }
+        $blockedSenders|Export-Csv -NoTypeInformation -Path "$ExportPath\BlockedOutboundSenders.csv"
         return $BlockedSenderReasons
     }
     else 
@@ -32,28 +31,47 @@ Function Get-BlockedSenderReasons
 
 
 Function Get-RecentSuspiciousConnectors
-{param([int][Parameter(Mandatory=$true)] $DaysToInvestigate, [datetime][Parameter(Mandatory=$true)] $CurrentDateTime)
-    $InboundConnectors = Get-InboundConnector | Where-Object {($_.ConnectorType -EQ "OnPremises") -and `
-            ( ($_.WhenCreatedUTC -ge $CurrentDateTime.AddDays(-$DaysToInvestigate)) -or ($_.WhenChangedUTC -ge $CurrentDateTime.AddDays(-$DaysToInvestigate)) )}
+{
+param(
+    [int][Parameter(Mandatory=$true)] $DaysToInvestigate, 
+    [datetime][Parameter(Mandatory=$true)] $CurrentDateTime
+)
+    [System.Collections.ArrayList]$SuspiciousInboundConnectors = @()
+    [System.Collections.ArrayList]$SuspiciousOutboundConnectors = @()
 
-    $OutboundConnectors = Get-OutboundConnector | Where-Object {($_.WhenCreatedUTC -ge $CurrentDateTime.AddDays(-$DaysToInvestigate)) `
-                                                                -or ($_.WhenChangedUTC -ge $CurrentDateTime.AddDays(-$DaysToInvestigate))}
+    $InboundConnectors = @(Get-InboundConnector | Select-Object Name, Enabled, ConnectorType, SenderIPAddresses, SenderDomains, TlsSenderCertificateName, WhenCreatedUTC, WhenChangedUTC)
+    foreach($InboundConnector in $InboundConnectors) {
+        if( ($InboundConnector.ConnectorType -EQ "OnPremises") -and ( ($InboundConnector.WhenCreatedUTC -ge $CurrentDateTime.AddDays(-$DaysToInvestigate)) -or ($InboundConnector.WhenChangedUTC -ge $CurrentDateTime.AddDays(-$DaysToInvestigate)))) 
+        {
+            $SuspiciousInboundConnectors.Add($InboundConnector)|Out-Null
+        }
+    }
+
+    $OutboundConnectors = @(Get-OutboundConnector | Select-Object Name, Enabled, ConnectorType, UseMXRecord, SmartHosts, WhenCreatedUTC, WhenChangedUTC)
+    foreach($OutboundConnector in $OutboundConnectors){
+        if ( ($OutboundConnector.WhenCreatedUTC -ge $CurrentDateTime.AddDays(-$DaysToInvestigate)) -or ($OutboundConnector.WhenChangedUTC -ge $CurrentDateTime.AddDays(-$DaysToInvestigate)) )
+        {
+            $SuspiciousOutboundConnectors.Add($OutboundConnector)|Out-Null
+        }
+    }
     
-    if($null -ne $InboundConnectors)
-    {
+    if($SuspiciousInboundConnectors) {
         Write-Warning "Inbound On Premises connectors have been created/modified in the last $DaysToInvestigate days"
-        $InboundConnectors|Export-Csv -NoTypeInformation -Path "$ExportPath\InboundConnectors.csv"
+        $InboundConnectors|Export-Csv -NoTypeInformation -Path "$ExportPath\SuspiciousInboundConnectors.csv"
     }
-    else{Write-Host "No Inbound OnPrem Connectors created/modified in the past $DaysToInvestigate days" -ForegroundColor Green}
+    else {
+        Write-Host "No Inbound OnPrem Connectors created/modified in the past $DaysToInvestigate days" -ForegroundColor Green
+    }
 	
-	if($null -ne $OutboundConnectors)
-    {
+	if($SuspiciousOutboundConnectors) {
         Write-Warning "Outbound Connectors have been created/modified in the last $DaystoInvestigate days"
-        $OutboundConnectors|Export-Csv -NoTypeInformation -Path "$ExportPath\OutboundConnectors.csv"
+        $OutboundConnectors|Export-Csv -NoTypeInformation -Path "$ExportPath\SuspiciousOutboundConnectors.csv"
     }
-    else{Write-Host "No Outbound Connectors created/modified in the past $DaysToInvestigate days" -ForegroundColor Green}
+    else {
+        Write-Host "No Outbound Connectors created/modified in the past $DaysToInvestigate days" -ForegroundColor Green
+    }
     
-    return $InboundConnectors, $OutboundConnectors
+    return $SuspiciousInboundConnectors, $SuspiciousOutboundConnectors
 }
 
 
@@ -69,50 +87,74 @@ Audit 14
 #>
 
 
-Function Get-SuspiciousTransportRules
-{   
-    $SuspiciousTransportRules = @()
-    $TransportRules = Get-TransportRule -ResultSize unlimited | Sort-Object -Descending WhenChanged
+Function Get-SuspiciousTransportRules {   
+[CmdletBinding()]
+param(
+    [int][Parameter(Mandatory=$true)] $DaysToInvestigate, 
+    [datetime][Parameter(Mandatory=$true)] $CurrentDateTime
+)
+    [System.Collections.ArrayList]$SuspiciousTransportRules = @()
+    $TransportRules = @(Get-TransportRule -ResultSize unlimited | Select-Object Name,Description,State,Guid,WhenChanged)
     
     foreach($TransportRule in $TransportRules)
     {   
-        switch -wildcard($TransportRule.Description)
-        {   
-            "*redirect the message to*" 
-                {$SuspiciousTransportRules += $TransportRule<#|Select-Object Name,Description,State,Guid,WhenChanged#>}
-            "*Route the message using the connector*" 
-                {$SuspiciousTransportRules += $TransportRule<#|Select-Object Name,Description,State,Guid,WhenChanged#>}
-            "*Blind carbon copy(Bcc) the message*" 
-                {$SuspiciousTransportRules += $TransportRule<#|Select-Object Name,Description,State,Guid,WhenChanged#>}
-            "*Forward the message*" 
-                {$SuspiciousTransportRules += $TransportRule<#|Select-Object Name,Description,State,Guid,WhenChanged#>}
-            "*Add the sender's manager as recipient type*" 
-                {$SuspiciousTransportRules += $TransportRule<#|Select-Object Name,Description,State,Guid,WhenChanged#>}
-            "*Send the incident report to*" 
-                {$SuspiciousTransportRules += $TransportRule<#|Select-Object Name,Description,State,Guid,WhenChanged#>}
-            default{}
+        if( $TransportRule.WhenChanged -ge $CurrentDateTime.AddDays(-$DaysToInvestigate) ) {
+            switch -wildcard($TransportRule.Description)
+            {   
+                "*redirect the message to*" 
+                    {$SuspiciousTransportRules.Add($TransportRule)}
+                "*Route the message using the connector*" 
+                    {$SuspiciousTransportRules.Add($TransportRule)}
+                "*Blind carbon copy(Bcc) the message*" 
+                    {$SuspiciousTransportRules.Add($TransportRule)}
+                "*Forward the message*" 
+                    {$SuspiciousTransportRules.Add($TransportRule)}
+                "*Add the sender's manager as recipient type*" 
+                    {$SuspiciousTransportRules.Add($TransportRule)}
+                "*Send the incident report to*" 
+                    {$SuspiciousTransportRules.Add($TransportRule)}
+                default{}
+            }
         }
+
     }
-    $SuspiciousTransportRules|Export-Csv -NoTypeInformation -Path "$ExportPath\TransportRulesToReview.csv"
-    return  $SuspiciousTransportRules
-    <#$AdminAuditLogs = Search-EXOAdminAudit -DaysToSearch $DaysToInvestigate `
-    -CmdletsToSearch "New-TransportRule","Set-TransportRule","Remove-TransportRule","Disable-TransportRule","Enable-TransportRule"#>
+
+    if($SuspiciousTransportRules) {
+        Write-Warning -Message "Suspicious Transport Rules were found."
+        $SuspiciousTransportRules|Export-Csv -NoTypeInformation -Path "$ExportPath\SuspiciousTransportRules.csv"
+        return  $SuspiciousTransportRules
+    }
+    else {
+        Write-Host "No Suspicious Transport Rules found" -ForegroundColor "Green"
+        return  $null
+    }
 }
 
 Function Get-SuspiciousJournalRule
-{   
-    $JournalRules = Get-JournalRule
-    if($JournalRules.count -eq 0)
-    {
+{
+[CmdletBinding()]
+param(
+    [int][Parameter(Mandatory=$true)] $DaysToInvestigate, 
+    [datetime][Parameter(Mandatory=$true)] $CurrentDateTime
+)    
+    [System.Collections.ArrayList]$SuspiciousJournalRules = @()
+    $JournalRules = @(Get-JournalRule|Select-Object Identity,Guid,JournalEmailAddress,Recipient,Scope,Enabled,WhenChanged)
+ 
+    foreach($JournalRule in $JournalRules) {
+        if( $JournalRule.WhenChanged -ge ($CurrentDateTime.AddDays(-$DaysToInvestigate)) ){
+            $SuspiciousJournalRules.Add($JournalRule)|Out-Null
+        }
+    }
+
+    if(!$SuspiciousJournalRules) {
         Write-Host "No Journal Rule" -ForegroundColor Green
         return $null
     }
-    else 
-    {
+    else{
         Write-Warning "We have detected Journal Rules"
         #$JournalRules|Format-Table Identity, Enabled, Scope, JournalEmailAddress, Recipient, WhenChanged
-        $JournalRules|Export-Csv -NoTypeInformation -Path "$ExportPath\JournalRules.csv"
-        return $JournalRules
+        $SuspiciousJournalRules|Export-Csv -NoTypeInformation -Path "$ExportPath\JournalRules.csv"
+        return $SuspiciousJournalRules
     }
 }
 
@@ -120,10 +162,8 @@ Function Get-SuspiciousJournalRule
 Function Get-GlobalAdminList
 {
     $GlobalAdmins = Get-MsolRole | ForEach-Object{if (($_.name -eq "Company Administrator") -or ($_.name -eq "Exchange Service Administrator")) {$_}} |ForEach-Object{Get-MsolRoleMember -MaxResults 10000 -RoleObjectId $_.ObjectID}
-    $GlobalAdminList = @()
-    foreach($GlobalAdmin in $GlobalAdmins)
-    {
-
+    [System.Collections.ArrayList]$GlobalAdminList = @()
+    foreach($GlobalAdmin in $GlobalAdmins){
         $MsolUser = get-msoluser -UserPrincipalName $GlobalAdmin.EmailAddress |Select-Object LastPasswordChangeTimestamp, StrongPasswordRequired
         $mailbox = get-mailbox $GlobalAdmin.EmailAddress -ErrorAction SilentlyContinue |Select-Object ForwardingAddress,ForwardingSmtpAddress, DeliverToMailboxAndForward
         
@@ -136,7 +176,7 @@ Function Get-GlobalAdminList
         $Admin | Add-Member -MemberType NoteProperty -Name "ForwardingSmtpAddress" -Value $mailbox.ForwardingSmtpAddress
         $Admin | Add-Member -MemberType NoteProperty -Name "DeliverToMailboxAndForward" -Value $mailbox.DeliverToMailboxAndForward
 
-        $GlobalAdminList += $Admin
+        $GlobalAdminList.Add($Admin)|Out-Null
     }
     
     return $GlobalAdminList
@@ -161,32 +201,39 @@ Function Test-ProvisionedMailbox
 }
 
 Function Get-SuspiciousInboxRules
-{param([string[]][Parameter(Mandatory=$true)] $EmailAddresses)
+{
+param([string[]][Parameter(Mandatory=$true)] $EmailAddresses)
 
-    $InboxRules = @()
-    $SuspiciousInboxRules = @()
+    [System.Collections.ArrayList]$SuspiciousInboxRules = @()
     foreach($EmailAddress in $EmailAddresses)
     {
-        $InboxRules += Get-InboxRule -Mailbox $EmailAddress | Select-Object *,@{Name="Mailbox";expression={$EmailAddress}}
-        Start-Sleep -Seconds 0.5
-    }
-
-    foreach($InboxRule in $InboxRules)
-    {   
-        switch -wildcard($InboxRule.Description)
+        [System.Collections.ArrayList]$InboxRules = @(Get-InboxRule -Mailbox $EmailAddress|Select-Object @{Name="Mailbox";expression={$EmailAddress}},Name, Description, Identity, Enabled)
+        
+        foreach($InboxRule in $InboxRules)
         {   
-            "*redirect the message to*" 
-                {$SuspiciousInboxRules += $InboxRule<#|Select-Object Name,Description,State,Guid,WhenChanged#>}
-            "*move the message to*" 
-                {$SuspiciousInboxRules += $InboxRule<#|Select-Object Name,Description,State,Guid,WhenChanged#>}
-            "*Forward the message*" 
-                {$SuspiciousInboxRules += $InboxRule<#|Select-Object Name,Description,State,Guid,WhenChanged#>}
-            "*delete the message*" 
-                {$SuspiciousInboxRules += $InboxRule<#|Select-Object Name,Description,State,Guid,WhenChanged#>}
-            default{}
+            switch -wildcard($InboxRule.Description)
+            {   
+                "*redirect the message to*" 
+                {
+                    $SuspiciousInboxRules.Add($InboxRule)|Out-Null
+                }
+                "*move the message to*" 
+                {
+                    $SuspiciousInboxRules.Add($InboxRule)|Out-Null
+                }
+                "*Forward the message*" 
+                {
+                    $SuspiciousInboxRules.Add($InboxRule)|Out-Null
+                }
+                "*delete the message*" 
+                {
+                    $SuspiciousInboxRules.Add($InboxRule)|Out-Null
+                }
+                default{Out-Null}
+            }
         }
     }
-    #ToDo - check which Admins have Inbox Rules with Forward/Redirect/Delete/MoveToFolder
+
     $SuspiciousInboxRules | Export-Csv -NoTypeInformation -Path "$ExportPath\GAInboxRules.csv"
     return $SuspiciousInboxRules
 }
@@ -194,7 +241,8 @@ Function Get-SuspiciousInboxRules
 #region GA audit disable & audit bypass
 Function Get-EXOAuditBypass
 {param([string[]][Parameter(Mandatory=$true)] $EmailAddresses)
-
+    [System.Collections.ArrayList]$MailboxAuditDisabledGAs = @()
+    [System.Collections.ArrayList]$MailboxAuditBypassGAs = @()
     if ((Get-OrganizationConfig).AuditDisabled -eq $true)
     {
         Write-Warning "Automatic AuditEnabled at organization level is turned off"
@@ -207,18 +255,19 @@ Function Get-EXOAuditBypass
         
         foreach($GASMTP in $GASMTPs)
         {   
-            $GAMailbox = Get-Mailbox $GASMTP -ErrorAction SilentlyContinue
+            $GAMailbox = Get-Mailbox $GASMTP -ErrorAction SilentlyContinue|Select-Object PrimarySmtpAddress, AuditEnabled, WhenChangedUTC
             if (($GAMailbox).AuditEnabled -eq $false)
             {
                 Write-Warning "The following Global Administrator $($GASMTP) has mailbox audit disabled"
-                [Object[]]$MailboxAuditDisabledGAs += $GAMailbox
+                $MailboxAuditDisabledGAs.Add($GAMailbox)|Out-Null
             }
             
-            $GAMailboxAuditBypass = Get-MailboxAuditBypassAssociation -Identity $GASMTP
-            if (($GAMailboxAuditBypass).AuditByPassEnabled -eq $true)
+            $MailboxAuditBypassGA = Get-MailboxAuditBypassAssociation -Identity $GASMTP `
+                                        | Select-Object @{Name="Mailbox";expression={$GASMTP}},Identity, AuditBypassEnabled, WhenChangedUTC
+            if (($MailboxAuditBypassGA).AuditByPassEnabled -eq $true)
             {
                 Write-Warning "The following administrator's ($GASMTP) actions on other mailboxes are not audited"
-                [Object[]]$MailboxAuditBypassGAs += $GAMailboxAuditBypass
+                $MailboxAuditBypassGAs.Add($MailboxAuditBypassGA)|Out-Null
             }
         }
         return $false, $MailboxAuditDisabledGAs, $MailboxAuditBypassGAs
@@ -280,32 +329,34 @@ For Global Admin Azure AD Sign In logs we will be able to provide a maximum of 3
 }
 
 function Get-GlobalAdminsWithIssues
-{param([Object[]][Parameter(Mandatory=$true)] $GlobalAdminList)
+{param([System.Collections.ArrayList][Parameter(Mandatory=$true)] $GlobalAdminList)
+    [System.Collections.ArrayList]$GlobalAdminsWithIssues = @()
     foreach($GlobalAdmin in $GlobalAdminList)
     {
         if( ($GlobalAdmin.MfaState -notmatch "Enforced") -or ($GlobalAdmin.StrongPasswordRequired -ne $true) `
                 -or ($null -ne $GlobalAdmin.ForwardingAddress) -or ($null -ne $GlobalAdmin.ForwardingSmtpAddress))
         {
-            [PSCustomObject[]]$GlobalAdminsWithIssues += $GlobalAdmin
+            $GlobalAdminsWithIssues.Add($GlobalAdmin)
         }
     }
     return $GlobalAdminsWithIssues
 }
 Function Export-CompromisedHTMLReport
 {param(
-    [Object[]][Parameter(Mandatory=$false)] $InboxRules,
-    [Object[]][Parameter(Mandatory=$false)] $TransportRules,
-    [Object[]][Parameter(Mandatory=$false)] $InboundConnectors,
-    [Object[]][Parameter(Mandatory=$false)] $OutboundConnectors,
-    [Object[]][Parameter(Mandatory=$false)] $JournalRules,
-    [Object[]][Parameter(Mandatory=$false)] $GlobalAdminsWithIssues,
-    [Object[]][Parameter(Mandatory=$false)] $BlockedSenderReasons,
-    [Object[]][Parameter(Mandatory=$false)] $MailboxAuditDisabledGAs,
-    [Object[]][Parameter(Mandatory=$false)] $MailboxAuditBypassGAs,
+    [System.Collections.ArrayList][Parameter(Mandatory=$false)] $InboxRules,
+    [System.Collections.ArrayList][Parameter(Mandatory=$false)] $TransportRules,
+    [System.Collections.ArrayList][Parameter(Mandatory=$false)] $InboundConnectors,
+    [System.Collections.ArrayList][Parameter(Mandatory=$false)] $OutboundConnectors,
+    [System.Collections.ArrayList][Parameter(Mandatory=$false)] $JournalRules,
+    [System.Collections.ArrayList][Parameter(Mandatory=$false)] $GlobalAdminsWithIssues,
+    [System.Collections.ArrayList][Parameter(Mandatory=$false)] $BlockedSenderReasons,
+    [System.Collections.ArrayList][Parameter(Mandatory=$false)] $MailboxAuditDisabledGAs,
+    [System.Collections.ArrayList][Parameter(Mandatory=$false)] $MailboxAuditBypassGAs,
+    [String][Parameter(Mandatory=$false)]$HTMLFilePath,
     [bool][Parameter(Mandatory=$false)] $OrganizationMailboxAuditDisabled
 )
     #Export Info to HTML
-    $header = @"
+    <#$header = @"
 <style>
 
     h1 {
@@ -372,136 +423,228 @@ Function Export-CompromisedHTMLReport
 </a>
 <img src=>
 "@
+    $ReportTitle = "<h1>Compromised Investigation</h1>"#>
+    #Prepare requirements for Module HTML Functions
+    $TableType = "Table"
+    [string]$NoIssue = "We have not identified any configuration issues."
+    [System.Collections.ArrayList]$Office365RelayHTMLReportArray = @()
+    
+    #Global Admins with Issues
+    [string]$SectionTitle = "Global Admin with Issues"
+    [string]$Description = "This section should display configuration snapshots for Admins where we have found potential issues."
+    if($GlobalAdminsWithIssues) {
+        $SectionTitleColor = "Red"
+        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+                -DataType "CustomObject" -EffectiveDataArrayList $GlobalAdminsWithIssues -TableType $TableType
 
-    $ReportTitle = "<h1>Compromised Investigation</h1>"
-
-    if($TransportRules)
-    {
-        $TransportRules = $SuspiciousTransportRules | ConvertTo-Html -Property Name, Description, State, Guid, WhenChanged -Fragment `
-                                        -PreContent "<h2 class=`"ResultNotOk`">Suspicious Transport Rules</h2>"
+        $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
     }
-    else 
-    {
-        $TransportRules = $TransportRules | ConvertTo-Html -PreContent "<h2 class=`"ResultOk`">No Suspicious Transport Rules</h2>"
-    }
-
-    if($InboxRules)
-    {
-        $InboxRules = $GAInboxRules | ConvertTo-Html -Property Mailbox, Name, Description, Enabled -Fragment `
-                                -PreContent "<h2 class=`"ResultNotOk`">Suspicious Global Admin Inbox Rules</h2>"
-    }
-    else 
-    {
-        $InboxRules = $InboxRules | ConvertTo-Html -PreContent "<h2 class=`"ResultOk`">No Suspicious Global Admin Inbox Rules</h2>"
-    }
-
-    if($InboundConnectors)
-    {
-        $InboundConnectors = $InboundConnectors | ConvertTo-Html -Property Name, Enabled, ConnectorType, SenderIPAddresses, SenderDomains, `
-                                                                    TlsSenderCertificateName, WhenChangedUTC -Fragment <#-As List#> `
-                                                        -PreContent "<h2 class=`"ResultNotOk`">Suspicious Inbound Connectors</h2>"
-    }
-    else 
-    {
-        $InboundConnectors = $InboundConnectors | ConvertTo-Html -PreContent "<h2 class=`"ResultOk`">No Suspicious Inbound Connectors</h2>"
+    else {
+        $SectionTitleColor = "Green"
+        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+                -DataType "String" -EffectiveDataString $NoIssue
+        $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
     }
 
-    if($OutboundConnectors)
-    {
-        $OutboundConnectors = $OutboundConnectors | ConvertTo-Html -Property Name, Enabled, ConnectorType, UseMXRecord, SmartHosts, `
-                                                                    WhenChangedUTC -Fragment <#-As List#> `
-                                                            -PreContent "<h2 class=`"ResultNotOk`">Suspicious Outbound Connectors</h2>"
+    #Inbox Rules
+    [string]$SectionTitle = "Global Admin Suspicious Inbox Rules"
+    [string]$Description = "This section should display suspicious Inbox Rules we have identified on GA Mailboxes.<br>The Script does yet check for Hidden Inbox Rules, you can do this manually as show in article:<br><a href=`"https://docs.microsoft.com/en-us/archive/blogs/hkong/how-to-delete-corrupted-hidden-inbox-rules-from-a-mailbox-using-mfcmapi`" target=`"_blank`">How To Check and Delete Corrupted or Hidden Inbox Rules</a>"
+    if($InboxRules) {
+        $SectionTitleColor = "Red"
+        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+                                                        -DataType "CustomObject" -EffectiveDataArrayList $InboxRules -TableType $TableType
+        $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
     }
-    else 
-    {
-        $OutboundConnectors = $OutboundConnectors | ConvertTo-Html -PreContent "<h2 class=`"ResultOk`">No Suspicious Outbound Connectors</h2>"
+    else {
+        $SectionTitleColor = "Black"
+        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+                                                        -DataType "String" -EffectiveDataString $NoIssue
+        $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
     }
 
+    #Hidden Inbox Rules
+    <#$HiddenInboxRulesWarningString = "This Script does not currently check for Hidden Inbox Rules.<br>
+To identify and delete such rules, perform the steps from the following article:<br>
+<a href=`"https://docs.microsoft.com/en-us/archive/blogs/hkong/how-to-delete-corrupted-hidden-inbox-rules-from-a-mailbox-using-mfcmapi`" target=`"_blank`">How To Check and Delete Corrupted or Hidden Inbox Rules</a>"#>
+    <#    $HiddenInboxRulesWarning = New-Object -TypeName psobject 
+    $HiddenInboxRulesWarning | Add-Member -MemberType NoteProperty -Name "Warning" -Value $HiddenInboxRulesWarningString #>
+    #$HiddenInboxRulesWarning = $null | ConvertTo-Html -PostContent $HiddenInboxRulesWarningString -PreContent "<h2 class=`"ResultNotOk`">Hidden Inbox Rules</h2>"
+    <#
+    $SectionTitleColor = "Red"
+    $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+                                                    -DataType "String" -EffectiveDataString $HiddenInboxRulesWarningString
+    $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
+    #>
+
+    #Journal Rules
+    [string]$SectionTitle = "Suspicious Journal Rules"
+    [string]$Description = "This section should display Suspicious Journal Rules that were identified."
     if($JournalRules)
     {
-        $JournalRules = $JournalRules | ConvertTo-Html -Property Name, Enabled, Scope, JournalEmailAddress -Fragment <#-As List#> `
-                                -PreContent "<h2 class=`"ResultNotOk`">Suspicious Journal Rules</h2>"
+        $SectionTitleColor = "Red"
+        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+                                                        -DataType "CustomObject" -EffectiveDataArrayList $JournalRules -TableType $TableType
+        $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
     }
     else 
     {
-        $JournalRules = $JournalRules | ConvertTo-Html -PreContent "<h2 class=`"ResultOk`">No Suspicious Journal Rules</h2>"
+        $SectionTitleColor = "Green"
+        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+                                                        -DataType "String" -EffectiveDataString $NoIssue
+        $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
     }
 
-    if($GlobalAdminsWithIssues)
-    {
-        $GlobalAdminsWithIssues = $GlobalAdminsWithIssues | ConvertTo-Html -PreContent "<h2 class=`"ResultNotOk`">Global Admins configuration issues</h2>"
+    #Blocked Senders
+    [string]$SectionTitle = "Blocked Senders - Outbound Spam"
+    [string]$Description = "This section should display Blocked Senders from your Organization, identified as Outbound Spam Senders."
+    if($BlockedSenderReasons) {
+        $SectionTitleColor = "Red"
+        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+                                                        -DataType "CustomObject" -EffectiveDataArrayList $BlockedSenderReasons -TableType $TableType
+        $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
     }
-    else 
-    {
-        $GlobalAdminsWithIssues = $GlobalAdminsWithIssues | ConvertTo-Html -PreContent "<h2 class=`"ResultOk`">No Global Admin configuration security concerns</h2>"
-    }
-
-    if($BlockedSenderReasons)
-    {
-        $BlockedSenderReasons = $BlockedSenderReasons | ConvertTo-Html -Property SENDERADDRESS, REASON, CREATEDDATETIME -PreContent "<h2 class=`"ResultNotOk`">Restricted Users found</h2>"
-    }
-    else 
-    {
-        $BlockedSenderReasons = $BlockedSenderReasons | ConvertTo-Html -PreContent "<h2 class=`"ResultOk`">No Restricted Users found</h2>"
+    else {
+        $SectionTitleColor = "Green"
+        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+                                                        -DataType "String" -EffectiveDataString $NoIssue
+        $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
     }
 
-    $HiddenInboxRulesWarningString = "This Script does not currently check for Hidden Inbox Rules.
-To identify and delete such rules, perform the steps from the following article:
-<a href=`"https://docs.microsoft.com/en-us/archive/blogs/hkong/how-to-delete-corrupted-hidden-inbox-rules-from-a-mailbox-using-mfcmapi`" target=`"_blank`">How To Check and Delete Corrupted or Hidden Inbox Rules</a>"
-<#    $HiddenInboxRulesWarning = New-Object -TypeName psobject 
-    $HiddenInboxRulesWarning | Add-Member -MemberType NoteProperty -Name "Warning" -Value $HiddenInboxRulesWarningString #>
-    $HiddenInboxRulesWarning = $null | ConvertTo-Html -PostContent $HiddenInboxRulesWarningString -PreContent "<h2 class=`"ResultNotOk`">Hidden Inbox Rules</h2>"
+    #Inbound Connectors
+    [string]$SectionTitle = "Suspicious Inbound Connectors"
+    [string]$Description = "This section should display Suspicious Inbound Connectors, which can be used by attackers to relay emails through your tenant."
+    if($InboundConnectors) {
+        $SectionTitleColor = "Red"
+        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+                                                        -DataType "CustomObject" -EffectiveDataArrayList $InboundConnectors -TableType $TableType
+        $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
+    }
+    else {
+        $SectionTitleColor = "Green"
+        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+                                                        -DataType "String" -EffectiveDataString $NoIssue
+        $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
+    }
 
-    if(!$OrganizationMailboxAuditDisabled)
-    {
-        if($MailboxAuditDisabledGAs)
-        {
-            $MailboxAuditDisabledGAs = $MailboxAuditDisabledGAs | ConvertTo-Html -Property DisplayName, PrimarySmtpAddress, AuditEnabled `
-                                                                    -PreContent "<h2 class=`"ResultNotOk`">Global Admin Mailboxes with Audit Disabled</h2>"
+    #Outbound Connectors
+    [string]$SectionTitle = "Suspicious Outbound Connectors"
+    [string]$Description = "This section should display Suspicious Outbound Connectors, which can be used by attackers to route emails outside your tenant."
+    if($OutboundConnectors) {
+        $SectionTitleColor = "Red"
+        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+                                                        -DataType "CustomObject" -EffectiveDataArrayList $OutboundConnectors -TableType $TableType
+        $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
+    }
+    else {
+        $SectionTitleColor = "Green"
+        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+                                                        -DataType "String" -EffectiveDataString $NoIssue
+        $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
+    }
+
+    #Transport Rules
+    [string]$SectionTitle = "Suspicious Transport Rules"
+    [string]$Description = "This section should display Suspicious Transport Rules, which can be used by attackers to exfiltrate data from your organization."
+    if($TransportRules) {
+        $SectionTitleColor = "Red"
+        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+                -DataType "CustomObject" -EffectiveDataArrayList $TransportRules -TableType $TableType
+
+        $Office365RelayHTMLReportArray.Add($HTMLReportEntry)|Out-Null
+    }
+    else {
+        $SectionTitleColor = "Green"
+        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+                                                        -DataType "String" -EffectiveDataString $NoIssue
+        $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
+    }
+
+    #Mailbox Audit checks
+    [string]$SectionTitle = "Organization Wide Mailbox Audit"
+    [string]$Description = "This section shows if Mailbox Auditing is Disabled Organization Wide."
+    if(!$OrganizationMailboxAuditDisabled) {
+        #Organization Wide Mailbox Audit
+        $SectionTitleColor = "Green"
+        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+                                                        -DataType "String" -EffectiveDataString $NoIssue
+        $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
+
+        #Global Admin Mailbox Audit Disabled
+        [string]$SectionTitle = "Global Admin Mailboxes with Audit Disabled"
+        [string]$Description = "This section shows Global Admin Mailboxes for which Mailbox Auditing is not enabled, this can be used by attackers to hide actions of exfiltrating data."
+        if($MailboxAuditDisabledGAs) {
+            $SectionTitleColor = "Red"
+            $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+                    -DataType "CustomObject" -EffectiveDataArrayList $MailboxAuditDisabledGAs -TableType $TableType
+    
+            $Office365RelayHTMLReportArray.Add($HTMLReportEntry)|Out-Null
         }
-        else 
-        {
-            $MailboxAuditDisabledGAs = $MailboxAuditDisabledGAs | ConvertTo-Html -PreContent "<h2 class=`"ResultOk`">No Global Admin Mailboxes have Audit Disabled</h2>" 
+        else {
+            $SectionTitleColor = "Green"
+            $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+                                                            -DataType "String" -EffectiveDataString $NoIssue
+            $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
         }
 
-        if($MailboxAuditBypassGAs)
-        {
-            $MailboxAuditBypassGAs = $MailboxAuditBypassGAs|Select-Object Identity,@{Name="PrimarySmtpAddress";expression={(Get-Recipient -Identity $_.DistinguishedName).PrimarySmtpAddress}}, AuditBypassEnabled | `
-                                                            ConvertTo-Html -PreContent "<h2 class=`"ResultNotOk`">Global Admin with Audit Bypass on other Mailboxes</h2>"
+        #Global Admins Bypassing Mailbox Auditing
+        [string]$SectionTitle = "Global Admins that Bypass Mailbox Auditing"
+        [string]$Description = "This section shows Global Admins that Bypass Mailbox Auditing, this can be used by attackers to hide actions of exfiltrating data."
+        if($MailboxAuditBypassGAs) {
+            $SectionTitleColor = "Red"
+            $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+                    -DataType "CustomObject" -EffectiveDataArrayList $MailboxAuditBypassGAs -TableType $TableType
+    
+            $Office365RelayHTMLReportArray.Add($HTMLReportEntry)|Out-Null
         }
-        else 
-        {
-            $MailboxAuditBypassGAs = $MailboxAuditBypassGAs | ConvertTo-Html -PreContent "<h2 class=`"ResultOk`">No Global Admin with Audit Bypass on other Mailboxes found</h2>" 
+        else {
+            $SectionTitleColor = "Green"
+            $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+                                                            -DataType "String" -EffectiveDataString $NoIssue
+            $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
         }
-        $OrganizationMailboxAuditDisabledWarning = $null | ConvertTo-Html -PreContent "<h2 class=`"ResultOk`">Mailbox Audit Enabled Organization Wide</h2>"
     }
-    else 
-    {
-        $OrganizationMailboxAuditDisabledWarning = $null | ConvertTo-Html -PreContent "<h2 class=`"ResultNotOk`">Mailbox Audit Disabled Organization Wide, check via Get-OrganizationConfig|select AuditDisabled</h2>"
+    else {
+        $OrgWideMailboxAuditDisabledWarning = "Mailbox Audit Disabled Organization Wide, check via Exchange Online Powershell : Get-OrganizationConfig|select AuditDisabled"
+        $SectionTitleColor = "Red"
+        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+                                                        -DataType "String" -EffectiveDataString $OrgWideMailboxAuditDisabledWarning
+        $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
     }
 
+    #Admin Audit Log Notification
+    [string]$SectionTitle = "Exchange Online Admin Audit Logs"
+    [string]$Description = "This section provides information on Exchange Online Admin Audit logs for which raw data has been exported to CSV"
     $AdminAuditNotificationString = "We have exported Full Admin Audit Logs for cmdlets:<br>
-    &emsp;New-InboxRule, Set-InboxRule, Remove-InboxRule, Enable-InboxRule, Disable-InboxRule<br>
-    &emsp;New-InboundConnector, Set-InboundConnector, Remove-InboundConnector<br>
-    &emsp;New-OutboundConnector, Set-OutboundConnector, Remove-OutboundConnector<br>
-    &emsp;New-TransportRule, Set-TransportRule, Remove-TransportRule, Disable-TransportRule, Enable-TransportRule<br>
+&emsp;New-InboxRule, Set-InboxRule, Remove-InboxRule, Enable-InboxRule, Disable-InboxRule<br>
+&emsp;New-InboundConnector, Set-InboundConnector, Remove-InboundConnector<br>
+&emsp;New-OutboundConnector, Set-OutboundConnector, Remove-OutboundConnector<br>
+&emsp;New-TransportRule, Set-TransportRule, Remove-TransportRule, Disable-TransportRule, Enable-TransportRule<br>
 These logs can be found in file:<br>
 $ExportPath\EXOAdminAuditLogs.csv"
 
-    $AdminAuditNotification = $null | ConvertTo-Html -PostContent $AdminAuditNotificationString -PreContent "<h2 class=`"ResultNotOk`">Admin Audit Logs</h2>"
+    $SectionTitleColor = "Black"
+    $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+                                                    -DataType "String" -EffectiveDataString $AdminAuditNotificationString
+    $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
 
+    #Global Admin Sign In Logs Notification
+    [string]$SectionTitle = "Azure AD Global Admin Sign In Logs"
+    [string]$Description = "This section provides information on Azure AD Global Admin Sign In logs for which raw data has been exporeted to CSV"
     $GlobalAdminsSignInAuditLogsNotificationString = "We have exported the following sign-in logs for global admins:<br>
-    &emsp;AllSignInAuditLogs_$ts.csv - contains all audit sign-in log for global admins<br>
-    &emsp;FailSignInAuditLogs_$ts.csv - contains fail audit sign-in log for global admins<br>
-    These logs can be found in file:<br>
-    $ExportPath\EXOAdminAuditLogs.csv"
-    $GlobalAdminsSignInAuditLogsNotification = $null | ConvertTo-Html -PostContent $GlobalAdminsSignInAuditLogsNotificationString -PreContent "<h2 class=`"ResultNotOk`">Admin Audit Sign-in Logs</h2>"
+&emsp;AllSignInAuditLogs_$ts.csv - contains all audit sign-in log for global admins<br>
+&emsp;FailSignInAuditLogs_$ts.csv - contains fail audit sign-in log for global admins<br>
+These logs can be found in file:<br>
+$ExportPath\EXOAdminAuditLogs.csv"
     
-    $Report = ConvertTo-Html -Head $header -Body "$ReportTitle $GlobalAdminsWithIssues $HiddenInboxRulesWarning $InboxRules $OrganizationMailboxAuditDisabledWarning `
-                                $MailboxAuditBypassGAs $MailboxAuditDisabledGAs $AdminAuditNotification $GlobalAdminsSignInAuditLogsNotification $BlockedSenderReasons $TransportRules $InboundConnectors $OutboundConnectors $JournalRules" `
-                                -Title "Compromised Investigation" -PreContent "<p>Creation Date: $now</p>"
+    $SectionTitleColor = "Black"
+    $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+                                                    -DataType "String" -EffectiveDataString $GlobalAdminsSignInAuditLogsNotificationString
+    $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
 
-    $Report | Out-File "$ExportPath\CompromisedReport_$ts.htm"
+    #Export HTML Report
+    Export-ReportToHTML -FilePath $HTMLFilePath -PageTitle "Office 365 Compromised Tenant Investigation" `
+                            -ReportTitle "Office 365 Compromised Tenant Investigation" `
+                                -TheObjectToConvertToHTML $Office365RelayHTMLReportArray
 }
 Function Start-CompromisedMain
 {   
@@ -526,8 +669,18 @@ Function Start-CompromisedMain
     $now = (Get-date).ToUniversalTime() #([datetime]::UtcNow)
     
     $DaysToInvestigate = Read-IntFromConsole -IntType "Number of days to investigate Tenant Compromise"
-
-    $GlobalAdminList = Get-GlobalAdminList
+    [string]$HTMLFilePath = "$ExportPath\CompromisedTenantInvestigaton.html"
+    [System.Collections.ArrayList]$GAInboxRules = @()
+    [System.Collections.ArrayList]$InboundConnectors = @()
+    [System.Collections.ArrayList]$OutboundConnectors = @()
+    [System.Collections.ArrayList]$JournalRules = @()
+    [System.Collections.ArrayList]$SuspiciousTransportRules = @()
+    [System.Collections.ArrayList]$BlockedSenderReasonsObject = @()
+    [System.Collections.ArrayList]$GlobalAdminsWithIssues = @()
+    [System.Collections.ArrayList]$MailboxAuditDisabledGAs = @()
+    [System.Collections.ArrayList]$MailboxAuditBypassGAs = @()
+    [System.Collections.ArrayList]$GlobalAdminList = Get-GlobalAdminList
+    
     $GlobalAdminList | Export-Csv -NoTypeInformation -Path "$ExportPath\GlobalAdminList.csv"
 
     [string[]]$GASMTPs = $GlobalAdminList.UserPrincipalName
@@ -541,11 +694,11 @@ Function Start-CompromisedMain
 
     $InboundConnectors, $OutboundConnectors = Get-RecentSuspiciousConnectors -DaysToInvestigate $DaysToInvestigate -CurrentDateTime $now
 
-    $JournalRules = Get-SuspiciousJournalRule
+    [System.Collections.ArrayList]$JournalRules = @(Get-SuspiciousJournalRule -DaysToInvestigate $DaysToInvestigate -CurrentDateTime $now)
 
-    $SuspiciousTransportRules = Get-SuspiciousTransportRules  
+    [System.Collections.ArrayList]$SuspiciousTransportRules = @(Get-SuspiciousTransportRules -DaysToInvestigate $DaysToInvestigate -CurrentDateTime $now)
     
-    $BlockedSenderReasonsObject = Get-BlockedSenderReasons -isFormatted $false
+    [System.Collections.ArrayList]$BlockedSenderReasonsObject = @(Get-BlockedSenderReasons -isFormatted $false)
 
     $InboundConnectorAdminAudit,$OutboundConnectorAdminAudit,$TransportRuleAdminAudit,$InboxRuleAdminAudit = Get-CompromisedAdminAudit
 
@@ -553,13 +706,13 @@ Function Start-CompromisedMain
 
     $GlobalAdminsWithIssues = Get-GlobalAdminsWithIssues -GlobalAdminList $GlobalAdminList
 
-    $OrganizationMailboxAuditDisabled, $MailboxAuditDisabledGAs, $MailboxAuditBypassGAs = Get-EXOAuditBypass -EmailAddresses $GASMTPs
+    [System.Boolean]$OrganizationMailboxAuditDisabled, [System.Collections.ArrayList]$MailboxAuditDisabledGAs, [System.Collections.ArrayList]$MailboxAuditBypassGAs = Get-EXOAuditBypass -EmailAddresses $GASMTPs
 
     Export-CompromisedHTMLReport -InboundConnectors $InboundConnectors -OutboundConnectors $OutboundConnectors `
                         -InboxRules $GAInboxRules -TransportRules $SuspiciousTransportRules -GlobalAdminsWithIssues $GlobalAdminsWithIssues `
                         -JournalRules $JournalRules -BlockedSenderReasons $BlockedSenderReasonsObject `
                         -OrganizationMailboxAuditDisabled $OrganizationMailboxAuditDisabled -MailboxAuditDisabledGAs $MailboxAuditDisabledGAs `
-                        -MailboxAuditBypassGAs $MailboxAuditBypassGAs
+                        -MailboxAuditBypassGAs $MailboxAuditBypassGAs -HTMLFilePath $HTMLFilePath
     
     Write-Host -ForegroundColor Green "Exported logs to $ExportPath, here you will find:
     -HTML Summary Report

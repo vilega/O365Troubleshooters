@@ -1765,7 +1765,7 @@ $HTMLEnd = @"
         }
         else {
             $TheProperties = ($($Entry.EffectiveData)| Get-Member -MemberType NoteProperty).Name
-            $TheValue = $($Entry.EffectiveData) | ConvertTo-Html -As $($Entry.TableType) -Property $TheProperties -Fragment
+            $TheValue = $($Entry.EffectiveData) | ConvertTo-Html -As $($Entry.TableType) -Property $TheProperties -Fragment | ForEach-Object { (($_.Replace("&lt;","<")).Replace("&gt;",">")).replace("&quot;",'"') }
             
             if ($Entry.TableType -eq "List") {
                 [int]$z = 0
