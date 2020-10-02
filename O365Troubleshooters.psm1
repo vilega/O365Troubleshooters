@@ -996,21 +996,23 @@ Function Set-GlobalVariables {
 function Get-ValidEmailAddress([string]$EmailAddressType)
 {
     [int]$count = 0
-    do
-    {
+    do {
         Write-Host "Enter Valid $EmailAddressType`: " -ForegroundColor Cyan -NoNewline
         [string]$EmailAddress = Read-Host
         [bool]$valid = ($EmailAddress.Trim() -match "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,63}$")
+        if(!$valid) {
+            $InvalidEmailAddressWarning = "Inputed Email Address `"$EmailAddress`" does not pass O365Troubleshooters format validation"
+            Write-Warning -Message $InvalidEmailAddressWarning
+            Write-Log -function "Get-ValidEmailAddress" -step "input address" -Description $InvalidEmailAddressWarning
+        }
         $count++
     }
     while (!$valid -and ($count -le 2))
     
-    if ($valid)
-    {
+    if ($valid) {
         return $EmailAddress.Trim()
     }
-    else 
-    {   
+    else {   
         [string]$Description = "Received 3 invalid email address inputs, the script will return to O365Troubleshooters Main Menu"
         Write-Host "`n$Description" -ForegroundColor Red
         Start-Sleep -Seconds 3
