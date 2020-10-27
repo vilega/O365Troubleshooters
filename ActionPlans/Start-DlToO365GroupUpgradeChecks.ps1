@@ -46,16 +46,16 @@ catch {
 #Array list for collecting all HTML object for creating the report
 [System.Collections.ArrayList]$TheObjectToConvertToHTML = @()
 
-#region Add group name with checks upon
-[string]$SectionTitle = "Distribution Group Checks"
-[string]$Description = "Checking Red for blocker for on $dgsmtp migration & green for success"        
-[PSCustomObject]$StartHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString " " -TableType "Table"
+#region Intro with group name 
+[string]$SectionTitle = "Elgibilty Migration Checks on Distrubtion Group SMTP: "+$dgsmtp
+[string]$Description = "Checking Distribution Group Elgibilty blockers for migration to O365 Group, Sections in RED are for migration BLOCKERS while Sections in GREEN are for migration ELIGBILIY"        
+[PSCustomObject]$StartHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString "Please ensure to mitigate migration BLOCKERS in case found!"
 $null = $TheObjectToConvertToHTML.Add($StartHTML)
-#endregion Add group name with checks upon
+#endregion Intro with group name
 
 #Add checking elgibilty for command/ask bhla for running command in whatif upgrade-distributiongroup
 
-#region migration is in progress
+#region add check migration is in progress
 #endregion 
 
 #Region Check if Distribution Group can't be upgraded because Member*Restriction is set to "Closed"
