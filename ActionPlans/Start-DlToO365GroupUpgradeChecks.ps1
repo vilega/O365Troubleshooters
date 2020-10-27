@@ -43,9 +43,22 @@ catch {
     write-log -Function "Retrieve Distrubtion Group Object From EXO Directory" -Step $CurrentProperty -Description $CurrentDescription
 }
 #endregion Getting the DG SMTP
+#Array list for collecting all HTML object for creating the report
+[System.Collections.ArrayList]$TheObjectToConvertToHTML = @()
+
+#region Add group name with checks upon
+[string]$SectionTitle = "Distribution Group Checks"
+[string]$Description = "Checking Red for blocker for on $dgsmtp migration & green for success"        
+[PSCustomObject]$StartHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString " " -TableType "Table"
+$null = $TheObjectToConvertToHTML.Add($StartHTML)
+#endregion Add group name with checks upon
+
+#Add checking elgibilty for command/ask bhla for running command in whatif upgrade-distributiongroup
+
+#region migration is in progress
+#endregion 
 
 #Region Check if Distribution Group can't be upgraded because Member*Restriction is set to "Closed"
-[System.Collections.ArrayList]$TheObjectToConvertToHTML = @()
 $ConditionMemberRestriction=New-Object PSObject
 $ConditionMemberRestriction|Add-Member -NotePropertyName "Member Join Restriction" -NotePropertyValue $dg.MemberJoinRestriction
 $ConditionMemberRestriction|Add-Member -NotePropertyName "Member Depart Restriction" -NotePropertyValue $dg.MemberDepartRestriction
