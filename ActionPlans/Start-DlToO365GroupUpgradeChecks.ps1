@@ -35,20 +35,20 @@ try {
     $dg=get-DistributionGroup -Identity $dgsmtp -ErrorAction stop
     $CurrentProperty = "Retrieving: $dgsmtp object from EXO Directory"
     $CurrentDescription = "Success"
-    write-log -Function "Retrieve Distrubtion Group Object From EXO Directory" -Step $CurrentProperty -Description $CurrentDescription
+    write-log -Function "Retrieve Distribution Group Object From EXO Directory" -Step $CurrentProperty -Description $CurrentDescription
 }
 catch {
     $CurrentProperty = "Retrieving: $dgsmtp object from EXO"
     $CurrentDescription = "Failure"
-    write-log -Function "Retrieve Distrubtion Group Object From EXO Directory" -Step $CurrentProperty -Description $CurrentDescription
+    write-log -Function "Retrieve Distribution Group Object From EXO Directory" -Step $CurrentProperty -Description $CurrentDescription
 }
 #endregion Getting the DG SMTP
 #Array list for collecting all HTML object for creating the report
 [System.Collections.ArrayList]$TheObjectToConvertToHTML = @()
 
 #region Intro with group name 
-[string]$SectionTitle = "Elgibilty Migration Checks on Distrubtion Group SMTP: "+$dgsmtp
-[string]$Description = "Checking Distribution Group Elgibilty blockers for migration to O365 Group, Sections in RED are for migration BLOCKERS while Sections in GREEN are for migration ELIGBILIY"        
+[string]$SectionTitle = "Introduction"
+[string]$Description = "This report illustrates Distribution to O365 Group migration eligibility checks taken place over group SMTP: "+$dgsmtp+", Sections in RED are for migration BLOCKERS while Sections in GREEN are for migration ELIGIBILITIES"        
 [PSCustomObject]$StartHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString "Please ensure to mitigate migration BLOCKERS in case found!"
 $null = $TheObjectToConvertToHTML.Add($StartHTML)
 #endregion Intro with group name
@@ -65,11 +65,11 @@ $ConditionMemberRestriction|Add-Member -NotePropertyName "Member Depart Restrict
 [string]$SectionTitle = "Validating Distribution Group Member Restriction Properties"
 [string]$Description = "Checking if Distribution Group can't be upgraded if MemberJoinRestriction or MemberDepartRestriction or both values are set to Closed"        
 if ($dg.MemberJoinRestriction -eq "Open" -and $dg.MemberDepartRestriction -eq "Open") {
-    [PSCustomObject]$ConditionMemberRestrictionHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionMemberRestriction -TableType "Table"
+    $ConditionOpenMemberRestriction="Distribution group MemberJoinRestriction & MemberDepartRestriction values are Open"
+    [PSCustomObject]$ConditionMemberRestrictionHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "" -EffectiveDataString $ConditionOpenMemberRestriction
     $null = $TheObjectToConvertToHTML.Add($ConditionMemberRestrictionHTML)  
     } 
     else {
-    $DGConditionsmet++    
     [PSCustomObject]$ConditionMemberRestrictionHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionMemberRestriction -TableType "Table"
     $null = $TheObjectToConvertToHTML.Add($ConditionMemberRestrictionHTML)
     }
@@ -81,13 +81,12 @@ $ConditionIsDirSynced|Add-Member -NotePropertyName "IsDirSynced" -NotePropertyVa
 [string]$SectionTitle = "Validating Distribution Group IsDirSynced Property"
 [string]$Description = "Checking if Distribution Group can't be upgraded because IsDirSynced value is true"    
 if ($dg.IsDirSynced -eq $true) {
-    $DGConditionsmet++ 
     [PSCustomObject]$ConditionIsDirSyncedHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionIsDirSynced -TableType "List"
     $null = $TheObjectToConvertToHTML.Add($ConditionIsDirSyncedHTML)
 
 } 
 else {
-    [PSCustomObject]$ConditionIsDirSyncedHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionIsDirSynced -TableType "Table"
+    [PSCustomObject]$ConditionIsDirSyncedHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDataString "Distribution group is NOT synchronized from On-premises"
     $null = $TheObjectToConvertToHTML.Add($ConditionIsDirSyncedHTML)
 }
 #endRegion Check if Distribution Group can't be upgraded because it is DirSynced
@@ -113,19 +112,18 @@ $ConditionEAP=New-Object PSObject
     
 }
 else {
-    $ConditionEAP|Add-Member -NotePropertyName "EmailAddressPolicy Name" -NotePropertyValue "No matching EmailAddressPolicy"
-    [PSCustomObject]$ConditionEAPHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionEAP -TableType "Table"
+    $ConditionNOEAP="NO matching Group Email Address Policy for the groups on the organization"
+    [PSCustomObject]$ConditionEAPHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDataString $ConditionNOEAP
     $null = $TheObjectToConvertToHTML.Add($ConditionEAPHTML)
 }
  }
 else {
-    $ConditionEAP|Add-Member -NotePropertyName "EmailAddressPolicy" -NotePropertyValue "No matching EmailAddressPolicy"
-    [PSCustomObject]$ConditionEAPHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionEAP -TableType "Table"
+    [PSCustomObject]$ConditionEAPHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataString $ConditionNOEAP
     $null = $TheObjectToConvertToHTML.Add($ConditionEAPHTML)
 }
 
  #endregion Check if Distribution Group can't be upgraded because EmailAddressPolicyViolated
-
+<#
 #region Check if Distribution Group can't be upgraded because DlHasChildGroups
 [string]$SectionTitle = "Validating Distribution Group Child Membership"
 [string]$Description = "Checking if Distribution Group can't be upgraded because it contains child groups"
@@ -134,12 +132,12 @@ try {
     $members = Get-DistributionGroupMember $($dg.Guid.ToString()) -ErrorAction stop
     $CurrentProperty = "Retrieving: $dgsmtp members"
     $CurrentDescription = "Success"
-    write-log -Function "Retrieve Distrubtion Group membership" -Step $CurrentProperty -Description $CurrentDescription
+    write-log -Function "Retrieve Distribution Group membership" -Step $CurrentProperty -Description $CurrentDescription
 }
 catch {
     $CurrentProperty = "Retrieving: $dgsmtp members"
     $CurrentDescription = "Failure"
-    write-log -Function "Retrieve Distrubtion Group membership" -Step $CurrentProperty -Description $CurrentDescription
+    write-log -Function "Retrieve Distribution Group membership" -Step $CurrentProperty -Description $CurrentDescription
 }
 $childgroups = $members | Where-Object{ $_.RecipientTypeDetails -eq "MailUniversalDistributionGroup"}
 if ($null -ne $childgroups) {
@@ -158,11 +156,11 @@ else {
     $null = $TheObjectToConvertToHTML.Add($ConditionChildDGHTML)
 }
 #endregion Check if Distribution Group can't be upgraded because DlHasChildGroups
-
+#>
 #region Check if Distribution Group can't be upgraded because DlHasParentGroups
 [string]$SectionTitle = "Validating Distribution Group Parent Membership"
 [string]$Description = "Checking if Distribution Group can't be upgraded because it is a child group of another parent group"
-$ConditionParentDG=New-Object PSObject  
+$ConditionParentDG=@()
 try {
     $alldgs=Get-DistributionGroup -ResultSize unlimited -ErrorAction Stop
     $CurrentProperty = "Retrieving All DGs in the EXO directory"
@@ -182,29 +180,30 @@ foreach($parentdg in $alldgs)
         $Pmembers = Get-DistributionGroupMember $($parentdg.Guid.ToString()) -ErrorAction Stop
         $CurrentProperty = "Retrieving: $parentdg members"
         $CurrentDescription = "Success"
-        write-log -Function "Retrieve Distrubtion Group membership" -Step $CurrentProperty -Description $CurrentDescription
+        write-log -Function "Retrieve Distribution Group membership" -Step $CurrentProperty -Description $CurrentDescription
     }
     catch {
         $CurrentProperty = "Retrieving: $parentdg members"
         $CurrentDescription = "Failure"
-        write-log -Function "Retrieve Distrubtion Group membership" -Step $CurrentProperty -Description $CurrentDescription
+        write-log -Function "Retrieve Distribution Group membership" -Step $CurrentProperty -Description $CurrentDescription
     }
 
 foreach ($member in $Pmembers)
 {if ($member.alias -like $dg.alias)
 {
-    $ConditionParentDG|Add-Member -NotePropertyName "Parent Group$parentdgcount Alias" -NotePropertyValue $parentdg.Alias
+    $ConditionParentDG+=$parentdg
     $parentdgcount++
 }
 }
 }
 if($parentdgcount -le 1)
 {
-    $ConditionParentDG|Add-Member -NotePropertyName "Parent Group Alias" -NotePropertyValue "No parent groups found"
-    [PSCustomObject]$ConditionParentDGHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionParentDG -TableType "Table"
+    [String]$NoParentDG="Distribution group is NOT a member of another group"
+    [PSCustomObject]$ConditionParentDGHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDataString $NoParentDG
     $null = $TheObjectToConvertToHTML.Add($ConditionParentDGHTML)
 }
 else {
+    $ConditionParentDG = $ConditionParentDG |Select-Object @{ Name = 'Parent Display Name';  Expression = {$_.DisplayName}},Alias,GUID,RecipientTypeDetails,PrimarySmtpAddress
     [PSCustomObject]$ConditionParentDGHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionParentDG -TableType "Table"
     $null = $TheObjectToConvertToHTML.Add($ConditionParentDGHTML)
 }
@@ -213,8 +212,8 @@ else {
 #region Check if Distribution Group can't be upgraded because DlHasNonSupportedMemberTypes with RecipientTypeDetails other than UserMailbox, SharedMailbox, TeamMailbox, MailUser
 [string]$SectionTitle = "Validating Distribution Group Members Recipient Types"
 [string]$Description = "Checking if Distribution Group can't be upgraded because DL contains member RecipientTypeDetails other than UserMailbox, SharedMailbox, TeamMailbox, MailUser"
-$ConditionDGmembers=New-Object PSObject
-$matchingMbr = @( $members | Where-Object { $_.RecipientTypeDetails -ne "UserMailbox" -and `
+#$ConditionDGmembers=New-Object psobject
+$matchingMbr = @( $members | Where-Object {$_.RecipientTypeDetails -ne "UserMailbox" -and `
         $_.RecipientTypeDetails -ne "SharedMailbox" -and `
         $_.RecipientTypeDetails -ne "TeamMailbox" -and `
         $_.RecipientTypeDetails -ne "MailUser" -and `
@@ -223,30 +222,43 @@ $matchingMbr = @( $members | Where-Object { $_.RecipientTypeDetails -ne "UserMai
         $_.RecipientTypeDetails -ne "EquipmentMailbox" -and `
         $_.RecipientTypeDetails -ne "User" -and `
         $_.RecipientTypeDetails -ne "DisabledUser" `
+        
 })
-if ($matchingMbr.Count -ne 0) {
-    $counter=1
-    foreach($matchedmbr in $matchingMbr)
+if($matchingMbr.Count -eq 0)
+{
+    [String]$ConditionDGmembers="Distribution group DOES NOT contain members"
+    [PSCustomObject]$ConditionDGmembersHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDataString $ConditionDGmembers
+    $null = $TheObjectToConvertToHTML.Add($ConditionDGmembersHTML)
+}
+if ($matchingMbr.Count -ge 1) {
+    <#foreach($matchedmbr in $matchingMbr)
     {
-        $ConditionDGmembers|Add-Member -NotePropertyName "Unsuppported member$counter" -NotePropertyValue $matchedmbr.Alias
-        $counter++
+
+        $ConditionDGmembers|Add-Member -NotePropertyName "Unsuppported members Alias" -NotePropertyValue $matchedmbr.Alias 
+        $ConditionDGmembers|Add-Member -NotePropertyName "Unsuppported members ExchangeGuid " -NotePropertyValue $matchedmbr.ExchangeGuid 
+        $ConditionDGmembers|Add-Member -NotePropertyName "Unsuppported members PrimarySmtpAddress" -NotePropertyValue $matchedmbr.PrimarySmtpAddress 
+        $ConditionDGmembers|Add-Member -NotePropertyName "Unsuppported members DisplayName" -NotePropertyValue $matchedmbr.DisplayName 
+        $ConditionDGmembers|Add-Member -NotePropertyName "Unsuppported members RecipientTypeDetails" -NotePropertyValue $matchedmbr.RecipientTypeDetails
     }
-    [PSCustomObject]$ConditionDGmembersHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionDGmembers -TableType "Table"
+    #>
+    $matchingMbr=$matchingMbr|Select-Object DisplayName,Alias,GUID,RecipientTypeDetails,PrimarySmtpAddress
+    
+    [PSCustomObject]$ConditionDGmembersHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $matchingMbr -TableType "Table"
     $null = $TheObjectToConvertToHTML.Add($ConditionDGmembersHTML)
 
     } 
 else {
-    $ConditionDGmembers|Add-Member -NotePropertyName "Unsuppported members Count" -NotePropertyValue "No unsupported members found"
-    [PSCustomObject]$ConditionDGmembersHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionDGmembers -TableType "Table"
+    [String]$ConditionDGmembers="Distribution group contains supported members"
+    [PSCustomObject]$ConditionDGmembersHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDataString $ConditionDGmembers
     $null = $TheObjectToConvertToHTML.Add($ConditionDGmembersHTML)
     }
+
 #endregion Check if Distribution Group can't be upgraded because DlHasNonSupportedMemberTypes with RecipientTypeDetails other than UserMailbox, SharedMailbox, TeamMailbox, MailUser
 
 #region Check if Distribution Group can't be upgraded because it has more than 100 owners or it has no owner
 [string]$SectionTitle = "Validating Distribution Group Owners Count"
 [string]$Description = "Checking if Distribution Group can't be upgraded because it has more than 100 owners or it has no owners"
 $ConditionDGowners=New-Object PSObject
-$ConditionDGowners|Add-Member -NotePropertyName "HTMLIssue" -NotePropertyValue "test"
 $owners=$dg.ManagedBy
 if ($owners.Count -gt 100) {
     $ConditionDGowners|Add-Member -NotePropertyName "Owners Count" -NotePropertyValue "Owners are greater than 100"
@@ -259,8 +271,8 @@ if ($owners.Count -eq 0) {
     $null = $TheObjectToConvertToHTML.Add($ConditionDGownersHTML)
 }
 else {
-    $ConditionDGowners|Add-Member -NotePropertyName "Owners Count" -NotePropertyValue "Owners are less than 100"
-    [PSCustomObject]$ConditionDGownersHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionDGowners -TableType "Table"
+    $DGownersfound="Distrubtion group Owners found and are less than 100"
+    [PSCustomObject]$ConditionDGownersHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDataString $DGownersfound
     $null = $TheObjectToConvertToHTML.Add($ConditionDGownersHTML)
 }
 #endregion Check if Distribution Group can't be upgraded because Distribution list which has more than 100 owners or it has no owner
@@ -280,8 +292,8 @@ if ($alldg.AcceptMessagesOnlyFromSendersOrMembers -match $dg.Alias -or $alldg.Ac
 }
 }
 if ($SenderRestrictionCount -le 1) {
-    $ConditionDGSender|Add-Member -NotePropertyName "Group ALias Having Sender Restriction" -NotePropertyValue "No sender restrictions found"
-    [PSCustomObject]$ConditionDGSenderHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionDGSender -TableType "Table"
+    $NoDGSenderfound="Distribution group is NOT part of Sender Restriction in another group"
+    [PSCustomObject]$ConditionDGSenderHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDataString $NoDGSenderfound
     $null = $TheObjectToConvertToHTML.Add($ConditionDGSenderHTML)
 }
 else {
@@ -291,10 +303,10 @@ else {
 
 #endregion Check if Distribution Group can't be upgraded because the distribution list is part of Sender Restriction in another DL
 
-#region Check if Distribution Group can't be upgraded because Distribution lists which were converted to RoomLists or isn't a security group nor Dynmaic DG
+#region Check if Distribution Group can't be upgraded because Distribution lists which were converted to RoomLists or isn't a security group nor Dynamic DG
 $Conditionnonsupportedrec=New-Object PSObject
 [string]$SectionTitle = "Validating Distribution Group RecipientTypeDetails Property"
-[string]$Description = "Checking if Distribution Group can't be upgraded because it was converted to RoomList or isn't a security group nor Dynmaic DG"
+[string]$Description = "Checking if Distribution Group can't be upgraded because it was converted to RoomList or isn't a security group nor Dynamic DG"
 $Conditionnonsupportedrec|Add-Member -NotePropertyName "Group RecipientTypeDetails" -NotePropertyValue $dg.RecipientTypeDetails
 if($dg.RecipientTypeDetails -like "MailUniversalSecurityGroup" -or $dg.RecipientTypeDetails -like "DynamicDistributionGroup" -or $dg.RecipientTypeDetails -like "roomlist" ) 
 {
@@ -302,10 +314,11 @@ if($dg.RecipientTypeDetails -like "MailUniversalSecurityGroup" -or $dg.Recipient
     $null = $TheObjectToConvertToHTML.Add($ConditionnonsupportedrecHTML)
 }
 else {
-    [PSCustomObject]$ConditionnonsupportedrecHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $Conditionnonsupportedrec -TableType "Table"
+    $supportedrec="Distribution group isn't a Security group nor a Dynamic distribution group nor converted to a RoomList"
+    [PSCustomObject]$ConditionnonsupportedrecHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDataString $supportedrec
     $null = $TheObjectToConvertToHTML.Add($ConditionnonsupportedrecHTML)
 }
-#endregion Check if Distribution Group can't be upgraded because Distribution lists which were converted to RoomLists or isn't a security group nor Dynmaic DG
+#endregion Check if Distribution Group can't be upgraded because Distribution lists which were converted to RoomLists or isn't a security group nor Dynamic DG
 
 #region Check if Distribution Group can't be upgraded because the distribution list is configured to be a forwarding address for Shared Mailbox
 $Conditionfwdmbx=New-Object PSObject
@@ -333,11 +346,12 @@ foreach($sharedMBX in $sharedMBXs)
     }
 }
 if ($counter -le 1) {
-    $Conditionfwdmbx|Add-Member -NotePropertyName "Shared Mailbox Alias" -NotePropertyValue "No shared MBX has that DL address configured for forwarding"
-    [PSCustomObject]$ConditionfwdmbxHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $Conditionfwdmbx -TableType "Table"
+    $Nofwdmbxfound="Distribution group is NOT configured to be a forwarding address for any Shared Mailbox"
+    [PSCustomObject]$ConditionfwdmbxHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDataString $Nofwdmbxfound
     $null = $TheObjectToConvertToHTML.Add($ConditionfwdmbxHTML)
 }
 else {
+
     [PSCustomObject]$ConditionfwdmbxHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $Conditionfwdmbx -TableType "Table"
     $null = $TheObjectToConvertToHTML.Add($ConditionfwdmbxHTML)
 }
@@ -402,8 +416,8 @@ catch {
         $null = $TheObjectToConvertToHTML.Add($ConditiondupobjHTML)
     }
     else {
-        $Conditiondupobj|Add-Member -NotePropertyName "Duplicate Object" -NotePropertyValue "No duplicate objects found"
-        [PSCustomObject]$ConditiondupobjHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $Conditiondupobj -TableType "Table"
+        $Nodupobjfound="No Duplicate objects found sharing same Alias,PrimarySmtpAddress,Name & DisplayName"
+        [PSCustomObject]$ConditiondupobjHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDataString $Nodupobjfound
         $null = $TheObjectToConvertToHTML.Add($ConditiondupobjHTML)    
     }
 
@@ -425,13 +439,17 @@ else{
 #>
 
 #region ResultReport
-[string]$FilePath = $ExportPath + "\DistrubtionGroupUpgradeCheck.html"
-Export-ReportToHTML -FilePath $FilePath -PageTitle "Distrubtion Group Upgrade Checker" -ReportTitle "Distrubtion Group Upgrade Checker" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
-##Pending question to ask enduser for opening the HTMl report
+[string]$FilePath = $ExportPath + "\DistributionGroupUpgradeCheck.html"
+Export-ReportToHTML -FilePath $FilePath -PageTitle "Distribution Group Upgrade Checker" -ReportTitle "Distribution Group Upgrade Checker" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
+#Question to ask enduser for opening the HTMl report
+$OpenHTMLfile=Read-Host "Do you wish to open HTML report file now?`nType Y(Yes) to open or N(No) to exit!"
+if ($OpenHTMLfile -like "*y*")
+{
+Write-Host "Opening report...." -ForegroundColor Cyan
+Start-Process $FilePath
+}
 #endregion ResultReport
-
-
-    
+   
 # End of the Diag
 Write-Host "`nOutput was exported in the following location: $ExportPath" -ForegroundColor Yellow 
 Start-Sleep -Seconds 3
