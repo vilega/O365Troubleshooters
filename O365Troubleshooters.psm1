@@ -1898,6 +1898,7 @@ Function Start-O365TroubleshootersMenu {
     11 Tools: Decode SafeLinks URL
     12 Tools: Export Quarantine Messages
     13 Tools: Transform IMCEAEX (old LegacyExchangeDN) to X500 address
+    15 Recipients: Provisioning issues investigation
     Q  Quit
      
     Select a task by number or Q to quit
@@ -1979,6 +1980,11 @@ Switch ($r) {
     "13" {
         Write-Host "Tools: Transform IMCEAEX (old LegacyExchangeDN) to X500 address" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Get-X500FromImceaexNDR.ps1
+    }
+
+    "15" {
+        Write-Host "Recipients: Provisioning issues investigation" -ForegroundColor Green
+        . $script:modulePath\ActionPlans\Start-RecipientProvisioningInvestigation.ps1
     }
 
     "Q" {
