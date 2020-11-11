@@ -1109,7 +1109,7 @@ function Create-CommandToInvoke {
         $CommandFor
     )
 
-    $TheResultantCommand = New-Object PSObject
+    $TheResultantCommand = New-Object PSObject 
 
     if ($TheEnvironment -eq "Exchange Online") {
         if ($CommandFor -eq "MoveRequestStatistics") {
