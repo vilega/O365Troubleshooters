@@ -12,7 +12,7 @@
 RootModule = '.\O365Troubleshooters.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.0.0.14'
+ModuleVersion = '2.0.0.15'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -112,6 +112,7 @@ FileList = @(
     'ActionPlans\Get-X500FromImceaexNdr.ps1'
     'ActionPlans\Connect-ServicesWithTokens.ps1'
     'ActionPlans\Start-MailboxMigrationAnalyzer.ps1'
+    'ActionPlans\Start-DlToO365GroupUpgradeChecks.ps1'
 )
 
 # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
@@ -133,6 +134,7 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = '
+        2.0.0.15 - Improved HTML report, new action plan for DL to O365 Groups Upgrade Check, some improvments on Compromised Investigation,Get-ValidEmailAddress and Safe Links Decode URL
         2.0.0.14 - HTML Report and HTML Report object builder as generic functions, Analyze Mailbox move (Hybrid migration), fix minor bugs
         2.0.0.13 - Implemented one prompt only for modern (except AzureAdPreview), Implemeneted Compromised Investigation with HTML report
         2.0.0.12 - Added Tool: Transform IMCEAEX (old LegacyExchangeDN) to X500 address
