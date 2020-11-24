@@ -938,6 +938,9 @@ Function Set-GlobalVariables {
     $global:Path =[Environment]::GetFolderPath("Desktop")
     $Global:Path += "\PowerShellOutputs"
     $global:WSPath = "$Path\PowerShellOutputs_$ts"
+    [System.Collections.ArrayList]$Global:LogObject = @()
+    [string]$Global:CSVLogPath = "$Global:WSPath\Log.csv"
+    [string]$GLobal:LogEntry = $null
     $global:starline = New-Object String '*',5
     $global:addTypeAzureAD = $false
     $global:MfaOption = 0;
@@ -1124,7 +1127,7 @@ $ErrorActionPreference = "Stop"
 }
 
 
-function Write-Log {
+function OldWrite-Log {
     <# Example to use/call this function
         write-log -Function "Function Missing-Mailbox" -Step "Get_CASMailbox" -Description "Mailbox not found"
         write-log -Function "Function Missing-Mailbox" -Step "Get_CASMailbox" -Description $error[0]
@@ -1136,6 +1139,339 @@ $tserror = Get-Date -Format yyyyMMdd_hhmmss
 $currentRecord = "$tserror,$function,$step,$Description"
 Out-File -FilePath $outputFile -InputObject $currentRecord -Encoding UTF8 -Append 
 }
+
+
+<#
+  .SYNOPSIS
+  Function used to log information on screen and into a .csv file
+
+  .DESCRIPTION
+  The Write-Log function is used to log information on screen and into a .csv file
+
+  .OUTPUTS
+  Lists information on the screen, if is called with the "Interactive" switch
+  It saves information into a .csv file on the following location: 
+
+  .EXAMPLE
+  Write-Log -Function "Start-MailboxMigrationMenu" -Step "List the menu" -Type SUCCESS -Description "Successfully listed the mailbox migration menu"
+
+  .EXAMPLE
+  Write-Log -Function "Export-MailboxMigrationReportToHTML" -Step "Start creating the object to export" -Type INFO -Description "Starting to create the object to export into HTML" -Interactive
+
+  .EXAMPLE
+  [System.Collections.ArrayList]$MultipleDescriptionEntries = @()
+  $null = $MultipleDescriptionEntries.Add("First entry")
+  $null = $MultipleDescriptionEntries.Add("Second entry")
+  $null = $MultipleDescriptionEntries.Add("Third entry")
+  $null = $MultipleDescriptionEntries.Add("Fourth entry")
+    Write-Log -Function "List-EntriesFromAnArrayList" -Step "Listing entries from an array list" -Type SUCCESS -Description $MultipleDescriptionEntries -Interactive
+
+  .EXAMPLE
+  Write-Log -Function "List-MultipleEntries" -Step "Listing multiple entries" -Type INFO -Description "Here is the list of entries:" -Interactive -LinkedToNextEntry
+  Write-Log -Description "FirstEntry" -LinkedToNextEntry -Interactive
+  Write-Log -Description ", SecondEntry" -SameLineLikePreviousEntry -Interactive
+
+#>
+function Write-Log {
+    param (
+        [string]$Function = $null,
+        [string]$Step = $null,
+        [ValidateSet("INFO","SUCCESS","WARNING","ERROR")]
+        [string]$Type,
+        [PSCustomObject]$Description,
+        [ConsoleColor]$ForegroundColor,
+        [switch]$Interactive = $false,
+        [switch]$LinkedToNextEntry,
+        [switch]$SameLineLikePreviousEntry,
+        [string]$KeyEntry = $null
+    )
+
+    if (!$ForegroundColor) {
+        switch ($Type) {
+            "Success" {$ForegroundColor = "Green"}
+            "Warning" {$ForegroundColor = "Yellow"}
+            "Error"   {$ForegroundColor = "Red"}
+            Default   {
+                if (@($Global:LogObject).Count -gt 0) {
+                    $ForegroundColor = $($Global:LogObject[0].ForegroundColor)
+                }
+                else {
+                    $ForegroundColor = "White"
+                }
+            }
+        }
+    }
+
+    if ($Interactive) {
+        [bool]$Interactive = $true
+    }
+    else {
+        [bool]$Interactive = $false
+    }
+
+    $TheObject = New-Object PSObject
+        if ($Type) {
+            [string]$Date = $((Get-Date).ToUniversalTime().ToString("dd.MM.yyyy HH:mm:ss")) + " UTC"
+
+            $TheObject | Add-Member -MemberType NoteProperty -Name Date -Value $Date
+            $TheObject | Add-Member -MemberType NoteProperty -Name Type -Value $Type
+
+        }
+        else {
+            if ($Function) {
+                [string]$Date = $((Get-Date).ToUniversalTime().ToString("dd.MM.yyyy HH:mm:ss")) + " UTC"
+
+                $TheObject | Add-Member -MemberType NoteProperty -Name Date -Value $Date
+                $TheObject | Add-Member -MemberType NoteProperty -Name Type -Value "INFO"
+            }
+            else {
+                $TheObject | Add-Member -MemberType NoteProperty -Name Date -Value ""
+                $TheObject | Add-Member -MemberType NoteProperty -Name Type -Value ""
+            }
+        }
+
+        $TheObject | Add-Member -MemberType NoteProperty -Name Function -Value $Function
+        $TheObject | Add-Member -MemberType NoteProperty -Name Step -Value $Step
+        $TheObject | Add-Member -MemberType NoteProperty -Name Description -Value $Description
+        $TheObject | Add-Member -MemberType NoteProperty -Name ForegroundColor -Value $ForegroundColor
+        $TheObject | Add-Member -MemberType NoteProperty -Name SameLineLikePreviousEntry -Value $SameLineLikePreviousEntry
+        $TheObject | Add-Member -MemberType NoteProperty -Name KeyEntry -Value $KeyEntry
+        $TheObject | Add-Member -MemberType NoteProperty -Name LinkedToNextEntry -Value $LinkedToNextEntry
+        $TheObject | Add-Member -MemberType NoteProperty -Name Interactive -Value $Interactive
+        
+
+    if (!$LinkedToNextEntry) {
+        [string]$WriteHostTypeString = $null
+
+        $null = $Global:LogObject.Add($TheObject)
+        [int]$i = 1
+        foreach ($ObjectEntry in $Global:LogObject) {
+            if ($i -eq 1) {
+                ### For HTML
+
+                ### For CSV and Write-Host
+                Write-EntryOnScreenOrLOGFileSameOrNextLine -ObjectEntry $ObjectEntry -IsFirstEntry $true
+            }
+            else {
+                ### For HTML
+
+                ### For CSV and Write-Host
+                Write-EntryOnScreenOrLOGFileSameOrNextLine -ObjectEntry $ObjectEntry -IsFirstEntry $false
+            }
+            $i++
+        }
+
+        $Global:LogObject.Clear()
+    }
+    else {
+        $null = $Global:LogObject.Add($TheObject)
+    }
+}
+
+
+<#
+  .SYNOPSIS
+  Function that actually lists entries on the screen, or add them to the .csv file
+
+  .DESCRIPTION
+  The "Write-EntryOnScreenOrLOGFileSameOrNextLine" function is the one actually listing entries on the screen, or adding them to the .csv file
+
+  .EXAMPLE
+  Write-EntryOnScreenOrLOGFileSameOrNextLine -ObjectEntry $ObjectEntry -IsFirstEntry $true
+
+  .EXAMPLE
+  Write-EntryOnScreenOrLOGFileSameOrNextLine -ObjectEntry $ObjectEntry -IsFirstEntry $false
+#>
+function Write-EntryOnScreenOrLOGFileSameOrNextLine {
+    param (
+        [bool]$IsFirstEntry,
+        $ObjectEntry
+    )
+
+    if ($ObjectEntry.Type) {
+        if ($($ObjectEntry.Type) -eq "INFO") {
+            $WriteHostTypeString = " " * 3
+        }
+        elseif ($($ObjectEntry.Type) -eq "ERROR") {
+            $WriteHostTypeString = " " * 2
+        }
+    }
+
+    [string]$WriteHostFunctionString = $null
+    if ($($ObjectEntry.Function).length -eq 0) {
+        $WriteHostFunctionString = " " * 25
+    }
+
+    [string]$WriteHostStepString = $null
+    if ($($ObjectEntry.Step).length -eq 0) {
+        $WriteHostStepString = " " * 25
+    }
+
+    [string]$WriteHostDescriptionString = " " * (42 + $($ObjectEntry.Function + $WriteHostFunctionString).Length + $($ObjectEntry.Step + $WriteHostStepString).Length)
+
+    if ($($ObjectEntry.SameLineLikePreviousEntry)) {
+        $SameLineLikePreviousEntry = $true
+    }
+    else {
+        $SameLineLikePreviousEntry = $false
+    }
+
+    if ($($ObjectEntry.LinkedToNextEntry)) {
+        $LinkedToNextEntry = $true
+    }
+    else {
+        $LinkedToNextEntry = $false
+    }
+
+    [int]$i = 1
+    foreach ($DescriptionEntry in $($ObjectEntry.Description)) {
+        if (@($DescriptionEntry | Get-Member -MemberType NoteProperty).Count -gt 1) {
+            [System.Collections.ArrayList]$DescriptionEntryMembers = Create-DescriptionTableMembers -ListOfMembers (($DescriptionEntry | Get-Member -MemberType NoteProperty).Name) -KeyEntry $($ObjectEntry.KeyEntry)
+            [string]$WriteHostMemberString = Create-DescriptionTableEntries -DescriptionEntryMembers $DescriptionEntryMembers -ObjectEntryDescription $($ObjectEntry.Description) -DescriptionEntry $DescriptionEntry
+            [string]$EntryToUse = $WriteHostMemberString
+        }
+        else {
+            [string]$EntryToUse = $DescriptionEntry
+        }
+
+        if (($i -eq 1) -and ($IsFirstEntry)) {
+            if ($ObjectEntry.Interactive) {
+                Write-Host $("`n" + "-" * $($ObjectEntry.Date).Length + "   " + "-" * $($ObjectEntry.Function + $WriteHostFunctionString).Length + "   " + "-" * $($ObjectEntry.Step + $WriteHostStepString).Length + "   " + "-" * $($ObjectEntry.Type + $WriteHostTypeString).Length + "   " + "-" * $($EntryToUse).Length) -ForegroundColor $($ObjectEntry.ForegroundColor) -NoNewline
+                Write-Host "`n$($ObjectEntry.Date)   $($ObjectEntry.Function)$WriteHostFunctionString   $($ObjectEntry.Step)$WriteHostStepString   $($ObjectEntry.Type)$WriteHostTypeString   $EntryToUse" -ForegroundColor $($ObjectEntry.ForegroundColor) -NoNewline
+            }
+
+            if (!(Test-Path $Global:CSVLogPath)) {
+                Add-Content -LiteralPath $Global:CSVLogPath -Value $("`"Date`"" + "," + "`"Function`"" + "," + "`"Step`"" + "," + "`"Type`"" + "," + "`"Description`"") -Force
+            }
+            
+            if ($LinkedToNextEntry) {
+                #$Global:LogEntry = $("`"" + "-" * $($ObjectEntry.Date).Length + "`"" + "," + "`"" + "-" * $($ObjectEntry.Function + $WriteHostFunctionString).Length + "`"" + "," + "`"" + "-" * $($ObjectEntry.Step + $WriteHostStepString).Length + "`"" + "," + "`"" + "-" * $($ObjectEntry.Type + $WriteHostTypeString).Length + "`"" + "," + "`"" + "-" * $($EntryToUse).Length + "`"")
+                $Global:LogEntry = $Global:LogEntry + "`n`"$($ObjectEntry.Date)`",`"$($ObjectEntry.Function)$WriteHostFunctionString`",`"$($ObjectEntry.Step)$WriteHostStepString`",`"$($ObjectEntry.Type)$WriteHostTypeString`",`"$EntryToUse`""
+            }
+            else {
+                #Add-Content -LiteralPath $Global:CSVLogPath -Value $("`"" + "-" * $($ObjectEntry.Date).Length + "`"" + "," + "`"" + "-" * $($ObjectEntry.Function + $WriteHostFunctionString).Length + "`"" + "," + "`"" + "-" * $($ObjectEntry.Step + $WriteHostStepString).Length + "`"" + "," + "`"" + "-" * $($ObjectEntry.Type + $WriteHostTypeString).Length + "`"" + "," + "`"" + "-" * $($EntryToUse).Length + "`"") -Force
+                Add-Content -LiteralPath $Global:CSVLogPath -Value "`"$($ObjectEntry.Date)`",`"$($ObjectEntry.Function)$WriteHostFunctionString`",`"$($ObjectEntry.Step)$WriteHostStepString`",`"$($ObjectEntry.Type)$WriteHostTypeString`",`"$EntryToUse`"" -Force            
+            }
+        }
+        else {
+            if ($SameLineLikePreviousEntry) {
+                if ($ObjectEntry.Interactive) {
+                    Write-Host "$EntryToUse" -ForegroundColor $($ObjectEntry.ForegroundColor) -NoNewline
+                }
+
+                if ($LinkedToNextEntry) {
+                    $Global:LogEntry = $Global:LogEntry + $EntryToUse
+                }
+                else {
+                    if ($i -le $(@($TheObject.Description).Count - 1)) {
+                        $Global:LogEntry = $Global:LogEntry + $EntryToUse
+                    }
+                    else {
+                        Add-Content -LiteralPath $Global:CSVLogPath -Value "$Global:LogEntry$EntryToUse" -Force
+                        [string]$Global:LogEntry = $null
+                    }
+                }
+            }
+            else {
+                if ($ObjectEntry.Interactive) {
+                    Write-Host "`n$WriteHostDescriptionString$EntryToUse" -ForegroundColor $($ObjectEntry.ForegroundColor) -NoNewline
+                }
+
+                if ($LinkedToNextEntry) {
+                    if ($Global:LogEntry) {
+                        $Global:LogEntry = $Global:LogEntry + "`n" + "`"`",`"`",`"`",`"`"," + "`"" + $EntryToUse + "`""
+                    }
+                    else {
+                        $Global:LogEntry = "`"`",`"`",`"`",`"`"," + "`"" + $EntryToUse + "`""
+                    }
+                }
+                else {
+                    if ($i -le $(@($TheObject.Description).Count - 1)) {
+                        if ($Global:LogEntry) {
+                            $Global:LogEntry = $Global:LogEntry + "`n" + "`"`",`"`",`"`",`"`"," + "`"" + $EntryToUse + "`""
+                        }
+                        else {
+                            $Global:LogEntry = "`"`",`"`",`"`",`"`"," + "`"" + $EntryToUse + "`""
+                        }
+                    }
+                    else {
+                        if ($Global:LogEntry) {
+                            Add-Content -LiteralPath $Global:CSVLogPath -Value $Global:LogEntry -Force
+                            [string]$Global:LogEntry = $null
+                        }
+                        Add-Content -LiteralPath $Global:CSVLogPath -Value "`"`",`"`",`"`",`"`",`"$EntryToUse`"" -Force
+                    }
+                }
+            }
+        }
+        $i++
+    }
+}
+
+
+<#
+  .SYNOPSIS
+  Creates a list of members for the Description containing multiple values
+
+  .DESCRIPTION
+  "Create-DescriptionTableMembers" function creates a list of members for the Description containing multiple values
+#>
+function Create-DescriptionTableMembers {
+    param (
+        $ListOfMembers,
+        $KeyEntry
+    )
+
+    [System.Collections.ArrayList]$DescriptionEntryMembers = @()
+    $null = $DescriptionEntryMembers.Add($KeyEntry)
+
+    foreach ($MemberEntry in $ListOfMembers) {
+        if ($MemberEntry -ne $KeyEntry) {
+            $null = $DescriptionEntryMembers.Add($MemberEntry)
+        }
+    }
+
+    return $DescriptionEntryMembers
+}
+
+
+<#
+  .SYNOPSIS
+  Creates a table to be listed in Description
+
+  .DESCRIPTION
+  "Create-DescriptionTableEntries" function creates a table to be listed in Description
+#>
+function Create-DescriptionTableEntries {
+    param (
+        [System.Collections.ArrayList]$DescriptionEntryMembers,
+        $ObjectEntryDescription,
+        $DescriptionEntry
+    )
+
+    [int]$i = 1
+    [string]$WriteHostMemberString = ""
+
+    foreach ($Member in $DescriptionEntryMembers) {
+        $MaximumLengthOfMember = ($ObjectEntryDescription.$Member | sort {$_.ToString().Length} -Descending | select -First 1).ToString().Length
+        $WriteHostMemberStringToAdd = " " * $($MaximumLengthOfMember - $DescriptionEntry.$Member.ToString().Length)
+
+        if ($i -eq 1) {
+            $WriteHostMemberString = "| " + $DescriptionEntry.$Member + $WriteHostMemberStringToAdd
+        }
+        elseif ($i -eq @($DescriptionEntry | Get-Member -MemberType NoteProperty).Count) {
+            $WriteHostMemberString = $WriteHostMemberString + " | " + $DescriptionEntry.$Member + $WriteHostMemberStringToAdd + " |"
+        }
+        else {
+            $WriteHostMemberString = $WriteHostMemberString + " | " + $DescriptionEntry.$Member + $WriteHostMemberStringToAdd
+        }
+
+        $i++
+    }
+    
+    return $WriteHostMemberString
+}
+
 
 
 Function Get-Choice {
