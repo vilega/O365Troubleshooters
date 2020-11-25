@@ -237,7 +237,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
     }
     #>
 
-    if ( $O365Service -eq "Exo2") {
+    if (($O365Service -eq "Exo2") -or ($O365Service -eq "Exo")) {
         if ((Get-Module -ListAvailable -Name ExchangeOnlineManagement).count -eq 0) 
         {
             $CurrentProperty = "Checking ExchangeOnlineManagement v2 Module"
@@ -559,16 +559,18 @@ Function Connect-O365PS { # Function to connecto to O365 services
                 catch 
                 {
                         Write-Host "$CurrentProperty"
-                        if (!("Microsoft.Exchange.Management.ExoPowershellModule" -in (Get-Module).Name))
+                        if (!("ExchangeOnlineManagement" -in (Get-Module).Name))
                         {
-                            Import-Module $((Get-ChildItem -Path $($env:LOCALAPPDATA + "\Apps\2.0\") -Filter Microsoft.Exchange.Management.ExoPowershellModule.dll -Recurse).FullName | `
-                                Where-Object { $_ -notmatch "_none_" } | Select-Object -First 1) -Global -DisableNameChecking -Force -ErrorAction SilentlyContinue
+                            Import-Module ExchangeOnlineManagement -Global -DisableNameChecking -Force -ErrorAction SilentlyContinue
                         }
+                        
         
                         $errordescr = $null
                         if (($null -eq $Global:EXOSession )-or ($Global:EXOSession.State -eq "Closed") -or ($Global:EXOSession.State -eq "Broken"))
                         {
-                            $Global:EXOSession = New-ExoPSSession -UserPrincipalName $global:UserPrincipalName -PSSessionOption $PSsettings -ErrorVariable errordescr -ErrorAction Stop
+                            
+                            Connect-ExchangeOnline -UserPrincipalName $global:UserPrincipalName -PSSessionOption $PSsettings -ShowBanner:$false -ErrorVariable errordescr -ErrorAction Stop 
+                            $Global:EXOSession =Get-PSSession  | Where-Object {($_.name -like "ExchangeOnlineInternalSession*")-and ($_.state -eq "Opened")}
                             $CurrentError = $errordescr.exception 
                             Import-Module (Import-PSSession $EXOSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue
                             $null = Get-OrganizationConfig -ErrorAction SilentlyContinue -ErrorVariable errordescr
