@@ -1,26 +1,76 @@
 ##Build a menu for PF T.S Diags starting with 
-##     1-PF enviroment general stats (PF Overview,PFs count,MEPFs count,PF MBXs count,DBEB status,Hierarchy sync,autosplit status) 
+##     1-PF enviroment general stats (PF Overview,PFs count,MEPFs count,PF MBXs count,DBEB status,explict user permissions added on PF MBXs,Hierarchy sync,autosplit status) 
 ##     2-T.S 554 5.2.2 mailbox full NDR 
 ##     3-Diagnose PF dumpster for cases related to either delete items inside PF or PF as a whole
 ##     4-T.S modern\legacy PFs access in a remote enviroment 
-##      
+##     5-T.S error Mailbox must be accessed as owner. Owner: f4e1a3f9-a0f3-421f-9340-76a8e561c1d1; Accessing user: /o=ExchangeLabs/ou=Exchange Administrative Group (FYDIBOHF23SPDLT)/cn=Recipients/cn=a39e513cc49849209ea864396c71dc15-exo1
 ##
 ##
 ######################################################################################
+<# 1st requirement install the module O365 TS
+Import-Module C:\Users\a-haemb\Documents\GitHub\O365Troubleshooters\O365Troubleshooters.psm1 -Force
+# 2nd requirement Execute set global variables
+Set-GlobalVariables
+# 3rd requirement to start the menu
+Start-O365TroubleshootersMenu
+#>
+Clear-Host
 ##Code for Menu
 
+$PFMenu=@"
+1 - Public folder overview
+2 - Diagnosing 554 5.2.2 mailbox full NDR received on sending to MEPF
+Q  Quit
+     
+Select a task by number or Q to quit
+"@
 
+$menuchoice=read-host $PFMenu
+if ($menuchoice -eq 2)
+{
+    #region Get the affected MEPF SMTP
+    $MEPFSMTP=read-host "Please enter affected MEPF SMTP"
+    #endregion Get the affected MEPF SMTP
+    Start-MEPFNDRDiagnosis($MEPFSMTP)
+}
+
+Function Start-PFDataCollection{
+
+   $HostedConnectionFilterPolicy=Get-HostedConnectionFilterPolicy 
+   $DirectoryBasedEdgeBlockModeStatus=$HostedConnectionFilterPolicy.DirectoryBasedEdgeBlockMode
+   if($DirectoryBasedEdgeBlockModeStatus -like "Default")
+   {
+Write-Host "DirectoryBasedEdgeBlockModeStatus = Enabled"
+   }
+   else {
+    Write-Host "DirectoryBasedEdgeBlockModeStatus = Disabled"
+   }
+   $OrganizationConfig=Get-OrganizationConfig
+   $PublicFoldersLocation=$OrganizationConfig.PublicFoldersEnabled
+   [Int]$PublicFolderMailboxesCount=(Get-Mailbox -PublicFolder -ResultSize unlimited).count
+   [Int]$PublicFoldersCount=(Get-PublicFolder -Recurse -ResultSize unlimited).count - 1
+   [Int]$MailEnabledPublicFoldersCount=(Get-MailPublicFolder -ResultSize unlimited).count
+
+
+}
 
 ##T.S 554 5.2.2 mailbox full NDR
-#region Get the affected MEPF SMTP
-$MEPFSMTP=read-host "Please enter affected MEPF SMTP"
-#endregion Get the affected MEPF SMTP
-$MailPublicFolder=Get-MailPublicFolder $MEPFSMTP
-#region Validating that Content Public Folder mailbox hosting that mail-enabled public folder quota limit is not reached
-$ContentPFMBXStatistics=Get-MailboxStatistics $MailPublicFolder.contentmailbox
-$ContentPFMBXProperties=Get-Mailbox -PublicFolder $MailPublicFolder.contentmailbox
-$ContentPFMBXProhibitSendReceiveQuotainGB=$ContentPFMBXProperties.ProhibitSendReceiveQuota.Split("(")[1].split(" ")[0]/(1024*1024*1024)
-$ContentPFMBXSizeinGB=$ContentPFMBXStatistics.TotalItemSize.Split("(")[1].split(" ")[0]/(1024*1024*1024)+$ContentPFMBXStatistics.TotalDeletedItemSize.Split("(")[1].split(" ")[0]/(1024*1024*1024)
+Function Start-MEPFNDRDiagnosis{
+    Param(
+        [parameter(Mandatory=$true)]
+        [String]$MEPFSMTP)
+try {
+    [PSCustomObject]$MailPublicFolder=Get-MailPublicFolder $MEPFSMTP
+    #region Validating that Content Public Folder mailbox hosting that mail-enabled public folder quota limit is not reached
+    [PSCustomObject]$ContentPFMBXStatistics=Get-MailboxStatistics $MailPublicFolder.contentmailbox
+    [PSCustomObject]$ContentPFMBXProperties=Get-Mailbox -PublicFolder $MailPublicFolder.contentmailbox
+    $ContentPFMBXProhibitSendReceiveQuotainGB=$ContentPFMBXProperties.ProhibitSendReceiveQuota.Split("(")[1].split(" ")[0].Replace(",","")/(1024*1024*1024)
+    $ContentPFMBXSizeinGB=$ContentPFMBXStatistics.TotalItemSize.value.tostring().Split("(")[1].split(" ")[0].Replace(",","")/(1024*1024*1024)+$ContentPFMBXStatistics.TotalDeletedItemSize.value.tostring().Split("(")[1].split(" ")[0]/(1024*1024*1024)
+        
+}
+catch {
+Write-Error -Message "Error"    
+}
 if($ContentPFMBXSizeinGB -ge $ContentPFMBXProhibitSendReceiveQuotainGB)
 {
 Write-Host "Content Public Folder mailbox hosting that mail-enabled public folder quota limit is REACHED!"
@@ -28,14 +78,17 @@ $UserAction=Read-Host "Do you wish to investigate further by checking if Autospl
 if ($UserAction -like "*y*")
 {
 #Call FIX function
-MitigateMEPFNDRCause("ContentPFMBXfull")
+Diagnose-MEPFNDRCause("ContentPFMBXfull")
 }
 
 }
 #endregion Validating that Content Public Folder mailbox hosting that mail-enabled public folder quota limit is not reached
 #region Validating individual/Organization public folder quota
-$MEPFStatistics=Get-PublicFolderStatistics $MailPublicFolder.EntryID
+
+$MEPFStatistics=Get-PublicFolderStatistics -identity $MailPublicFolder.EntryID
 $MEPFProperties=Get-PublicFolder $MailPublicFolder.EntryID
+[Int]$MEPFTotalSizeinB=$MEPFStatistics.TotalItemSize.Split("(")[1].split(" ")[0].Replace(",","")+$MEPFStatistics.TotalDeletedItemSize.Split("(")[1].split(" ")[0].Replace(",","")
+
 ##Validate if DefaultPublicFolderProhibitPostQuota at the organization level applies
 if($MEPFProperties.ProhibitPostQuota -eq "unlimited")
 {
@@ -44,45 +97,43 @@ $OrganizationConfig=Get-OrganizationConfig
 $DefaultPublicFolderProhibitPostQuotainGB=$OrganizationConfig.DefaultPublicFolderProhibitPostQuota.Split("(")[1].split(" ")[0]/(1024*1024*1024)
 $DefaultPublicFolderIssueWarningQuotainGB=$OrganizationConfig.DefaultPublicFolderIssueWarningQuota.Split("(")[1].split(" ")[0]/(1024*1024*1024)
 ##Test to use foldersize or stick to the below
-[Int]$MEPFTotalSizeinGB=$MEPFStatistics.TotalItemSize.Split("(")[1].split(" ")[0]/(1024*1024*1024)+$MEPFTotalItemSize.TotalDeletedItemSize.Split("(")[1].split(" ")[0]/(1024*1024*1024)
 ##Validate that MEPF size is < 20 GB AND greater than Org DefaultPublicFolderProhibitPostQuota
-if($MEPFTotalSizeinGB-ge $DefaultPublicFolderProhibitPostQuotainGB -and $MEPFTotalSizeinGB -le 20)
-{
-Write-Host "MEPF size ($MEPFTotalSizeinGB GB) is GREATER THAN Organization DefaultPublicFolderProhibitPostQuota ($DefaultPublicFolderProhibitPostQuotainGB GB)"
-###Call FIX function
-$UserAction=Read-Host "Do you wish to mitigate the issue by increasing the DefaultPublicFolderProhibitPostQuota & DefaultPublicFolderIssueWarningQuota values?`nType Y(Yes) to proceed or N(No) to exit!"
-if ($UserAction -like "*y*")
-{
-MitigateMEPFNDRCause("OrgProhibitPostQuotaReached")
-}
-
-}
-##Validate that MEPF size is > 20 GB AND greater than Org DefaultPublicFolderProhibitPostQuota
-elseif($MEPFTotalSizeinGB-ge $DefaultPublicFolderProhibitPostQuotainGB -and $MEPFTotalSizeinGB -ge 20)
-{
-write-host "Mail-enabled public folder size is > 20 GB  AND greater than Organization DefaultPublicFolderProhibitPostQuota, we recommend that you delete content from that folder to make it smaller than 20 GB. Or, we recommend that you divide the public folder's content into multiple, smaller public folders as Giant Public Folders impact Autosplitting process!"
+    if($MEPFTotalSizeinGB-ge $DefaultPublicFolderProhibitPostQuotainGB -and $MEPFTotalSizeinGB -le (20*1024*1024*1024))
+    {Write-Host "msh sha9al1"
+    Write-Host "MEPF size ($MEPFTotalSizeinGB GB) is GREATER THAN Organization DefaultPublicFolderProhibitPostQuota ($DefaultPublicFolderProhibitPostQuotainGB GB)"
+    ###Call FIX function
+    $UserAction=Read-Host "Do you wish to mitigate the issue by increasing the DefaultPublicFolderProhibitPostQuota & DefaultPublicFolderIssueWarningQuota values?`nType Y(Yes) to proceed or N(No) to exit!"
+        if ($UserAction -like "*y*")
+        {
+        Diagnose-MEPFNDRCause("OrgProhibitPostQuotaReached")
+        }
+    }
+    elseif($MEPFTotalSizeinGB-ge $DefaultPublicFolderProhibitPostQuotainGB -and $MEPFTotalSizeinGB -ge (20*1024*1024*1024))
+    {
+    ##Validate that MEPF size is > 20 GB AND greater than Org DefaultPublicFolderProhibitPostQuota
+    write-host "Mail-enabled public folder size is > 20 GB  AND greater than Organization DefaultPublicFolderProhibitPostQuota, we recommend that you delete content from that folder to make it smaller than 20 GB. Or, we recommend that you divide the public folder's content into multiple, smaller public folders as Giant Public Folders impact Autosplitting process!"
+    }
+    else
+    {
+    write-host "No Issue found.`nMail-enabled public folder size is > 20 GB  AND LOWER than public folder Organzation DefaultPublicFolderProhibitPostQuota, we recommend that you delete content from that folder to make it smaller than 20 GB. Or, we recommend that you divide the public folder's content into multiple, smaller public folders as Giant Public Folders impact Autosplitting process!"
+    }
 }
 else
 {
-write-host "No Issue found.`nMail-enabled public folder size is > 20 GB  AND LOWER than public folder Organzation DefaultPublicFolderProhibitPostQuota, we recommend that you delete content from that folder to make it smaller than 20 GB. Or, we recommend that you divide the public folder's content into multiple, smaller public folders as Giant Public Folders impact Autosplitting process!"
-}
-}
-else
-{
+    [Int]$MEPFProhibitPostQuotainB=$MEPFProperties.ProhibitPostQuota.Split("(")[1].split(" ")[0].Replace(",","")
 ##Validate that MEPF size is < 20 GB AND greater than Individual ProhibitPostQuota
-$MEPFProhibitPostQuotainGB=$MEPFProperties.ProhibitPostQuota.Split("(")[1].split(" ")[0]/(1024*1024*1024)
-if($MEPFTotalSizeinGB -ge $MEPFProhibitPostQuotainGB -and $MEPFTotalSizeinGB -le 20)
+if($MEPFTotalSizeinB -ge $MEPFProhibitPostQuotainB -and $MEPFTotalSizeinB -le 21474836480)
 {
-Write-Host "Mail-enabled public folder size ($MEPFTotalSizeinGB GB) is greater than public folder ProhibitPostQuota ($MEPFProhibitPostQuotainGB GB)"
+Write-Host "Mail-enabled public folder size ($MEPFTotalSizeinB bytes) is greater than public folder ProhibitPostQuota ($MEPFProhibitPostQuotainB bytes)"
 ###Call FIX function
 Read-Host "Do you wish to mitigate the issue by increasing the public folder ProhibitPostQuota value?`nType Y(Yes) to proceed or N(No) to exit!"
 if ($UserAction -like "*y*")
 {
-MitigateMEPFNDRCause("IndProhibitPostQuotaReached")
+    Diagnose-MEPFNDRCause("IndProhibitPostQuotaReached")
 }
 }
 ##Validate that MEPF size is > 20 GB AND greater than Org DefaultPublicFolderProhibitPostQuota
-elseif($MEPFTotalSizeinGB -ge $MEPFProhibitPostQuotainGB -and $MEPFTotalSizeinGB -ge 20)
+elseif($MEPFTotalSizeinB -ge $MEPFProhibitPostQuotainB -and $MEPFTotalSizeinB -ge 21474836480)
 {
 write-host "Mail-enabled public folder size is > 20 GB  AND greater than public folder ProhibitPostQuota, we recommend that you delete content from that folder to make it smaller than 20 GB. Or, we recommend that you divide the public folder's content into multiple, smaller public folders as Giant Public Folders impact Autosplitting process!"
 }
@@ -91,9 +142,11 @@ else
 write-host "No Issue found.`nMail-enabled public folder size is > 20 GB  AND LOWER than public folder ProhibitPostQuota, we recommend that you delete content from that folder to make it smaller than 20 GB. Or, we recommend that you divide the public folder's content into multiple, smaller public folders as Giant Public Folders impact Autosplitting process!"
 }
 }
+}
+
 
 #endregion Validating individual/Organization public folder quota
-Function MitigateMEPFNDRCause
+Function Diagnose-MEPFNDRCause
 {
  Param(
  [parameter(Mandatory=$true)]
@@ -163,7 +216,6 @@ Write-Host "Please raise a support request to Microsoft including logs attached 
 }
 }
 }
-
 if($Cause -eq "OrgProhibitPostQuotaReached")
 {
 ##Increase Org DefaultPublicFolderProhibitPostQuota by 2 GB to mitigate 
