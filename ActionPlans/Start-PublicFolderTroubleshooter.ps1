@@ -67,7 +67,30 @@ $Description=$Description+",for more informtion please check: $article"
 [PSCustomObject]$StartHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString "Please ensure to mitigate causes in case found by checking FIX section!"
 $null = $TheObjectToConvertToHTML.Add($StartHTML)
 #endregion Intro with group name    
+#region global variables used in functions
+try {
+    [PSCustomObject]$MailPublicFolder=Get-MailPublicFolder $MEPFSMTP
+    [PSCustomObject]$ContentPFMBXStatistics=Get-MailboxStatistics $MailPublicFolder.contentmailbox
+    [PSCustomObject]$ContentPFMBXProperties=Get-Mailbox -PublicFolder $MailPublicFolder.contentmailbox
+    [PSCustomObject]$OrganizationConfig=Get-OrganizationConfig
+        
+}
+catch {
+Write-Error -Message "Error"    
+}
+#endregion global variables used in functions
 Start-MEPFNDRDiagnosis($MEPFSMTP)
+#region ResultReport
+[string]$FilePath = $ExportPath + "\PublicFolderTroubleshooter.html"
+Export-ReportToHTML -FilePath $FilePath -PageTitle "PublicFolderTroubleshooter" -ReportTitle "PublicFolderTroubleshooter" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
+#Question to ask enduser for opening the HTMl report
+$OpenHTMLfile=Read-Host "Do you wish to open HTML report file now?`nType Y(Yes) to open or N(No) to exit!"
+if ($OpenHTMLfile -like "*y*")
+{
+Write-Host "Opening report...." -ForegroundColor Cyan
+Start-Process $FilePath
+}
+#endregion ResultReport
 Start-MEPFNDRDiagnosis("full1@EmbabyTrade.onmicrosoft.com")
 
 }
@@ -107,23 +130,20 @@ Write-Host "DirectoryBasedEdgeBlockModeStatus = Enabled"
 
 #endregion Data collection
 
+
+
+
 ##T.S 554 5.2.2 mailbox full NDR
 Function Start-MEPFNDRDiagnosis{
     Param(
         [parameter(Mandatory=$true)]
         [String]$MEPFSMTP)
+
+
+        $ContentPFMBXProhibitSendReceiveQuotainB=$ContentPFMBXProperties.ProhibitSendReceiveQuota.Split("(")[1].split(" ")[0].Replace(",","")
+        [int]$ContentPFMBXSizeinB=[int]$ContentPFMBXStatistics.TotalItemSize.value.tostring().Split("(")[1].split(" ")[0].Replace(",","")+[int]$ContentPFMBXStatistics.TotalDeletedItemSize.value.tostring().Split("(")[1].split(" ")[0].Replace(",","")
+    
 #region Validating that Content Public Folder mailbox hosting that mail-enabled public folder quota limit is not reached
-try {
-    [PSCustomObject]$MailPublicFolder=Get-MailPublicFolder $MEPFSMTP
-    [PSCustomObject]$ContentPFMBXStatistics=Get-MailboxStatistics $MailPublicFolder.contentmailbox
-    [PSCustomObject]$ContentPFMBXProperties=Get-Mailbox -PublicFolder $MailPublicFolder.contentmailbox
-    $ContentPFMBXProhibitSendReceiveQuotainB=$ContentPFMBXProperties.ProhibitSendReceiveQuota.Split("(")[1].split(" ")[0].Replace(",","")
-    [int]$ContentPFMBXSizeinB=[int]$ContentPFMBXStatistics.TotalItemSize.value.tostring().Split("(")[1].split(" ")[0].Replace(",","")+[int]$ContentPFMBXStatistics.TotalDeletedItemSize.value.tostring().Split("(")[1].split(" ")[0].Replace(",","")
-        
-}
-catch {
-Write-Error -Message "Error"    
-}
 if($ContentPFMBXSizeinB -ge $ContentPFMBXProhibitSendReceiveQuotainB)
 {
 $Orgreached= "Content Public Folder mailbox hosting that mail-enabled public folder has reached its quota!"
@@ -133,11 +153,11 @@ $Orgreached= "Content Public Folder mailbox hosting that mail-enabled public fol
 #Call FIX function
 Diagnose-MEPFNDRCause("ContentPFMBXfull")
 }#>
-Repair-MEPFNDRCause("ContentPFMBXfull")
 [string]$SectionTitle = "Validating against content public folder mailbox quota"
 [string]$Description = "Checking if the content public folder mailbox hosting the mail-enabled public folder has reached its quota!"
 [PSCustomObject]$PFMBXContentQuotareachedHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring $Orgreached
 $null = $TheObjectToConvertToHTML.Add($PFMBXContentQuotareachedHTML)
+Repair-MEPFNDRCause("ContentPFMBXfull")
 }
 else {
     [string]$SectionTitle = "Validating against content public folder mailbox quota"
@@ -158,7 +178,6 @@ if($MEPFProperties.ProhibitPostQuota -eq "unlimited")
 {
 [string]$SectionTitle = "Validating against organization public folder post quota"
 [string]$Description = "Checking if public folder total size has reached organization public folder DefaultPublicFolderProhibitPostQuota value!"
-$OrganizationConfig=Get-OrganizationConfig
 ##catch unlimited value
 $DefaultPublicFolderProhibitPostQuotainB=$OrganizationConfig.DefaultPublicFolderProhibitPostQuota.Split("(")[1].split(" ")[0].Replace(",","")
 $DefaultPublicFolderIssueWarningQuotainB=$OrganizationConfig.DefaultPublicFolderIssueWarningQuota.Split("(")[1].split(" ")[0].Replace(",","")
@@ -176,6 +195,7 @@ $DefaultPublicFolderIssueWarningQuotainB=$OrganizationConfig.DefaultPublicFolder
         #>
         [PSCustomObject]$MEPFOrgPostQuotareachedHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring $Orgreached
         $null = $TheObjectToConvertToHTML.Add($MEPFOrgPostQuotareachedHTML)
+        Repair-MEPFNDRCause("OrgProhibitPostQuotaReached")
     }
     elseif($MEPFTotalSizeinB -ge $DefaultPublicFolderProhibitPostQuotainB -and $MEPFTotalSizeinB -ge 21474836480)
     {
@@ -258,6 +278,16 @@ Function Repair-MEPFNDRCause
  [parameter(Mandatory=$true)]
  [String]$Cause 
  )
+ if($Cause -eq "OrgProhibitPostQuotaReached")
+ {
+ [string]$SectionTitle = "FIX"
+ $article="https://docs.microsoft.com/en-us/powershell/module/exchange/set-organizationconfig"
+ [string]$Description = "Please insert a new Organization DefaultPublicFolderProhibitPostQuota value in correlation with a new DefaultPublicFolderIssueWarningQuota value ensuring that these values are greater than MEPF size($MEPFTotalSizeinB Bytes)using command Set-OrganizationConfig,for more information please check the following article: $article"
+ $OrgProhibitQuotaReached="Please ensure to follow the fix to mitigate your issue!"
+ [PSCustomObject]$OrgquotaHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring $OrgProhibitQuotaReached
+ $null = $TheObjectToConvertToHTML.Add($OrgquotaHTML)
+ }
+ 
  if($Cause -eq "IndProhibitPostQuotaReached")
  {
     if($MEPFProperties.IssueWarningQuota -like "unlimited")
@@ -280,14 +310,25 @@ $valueusedforincrease=$MEPFTotalSizeinB-$MEPFProhibitPostQuotainB
  {
 ##Validate if Autosplit status is Halted
 $PublicFolderMailboxDiagnostics=Get-PublicFolderMailboxDiagnostics $MailPublicFolder.contentmailbox
-##Validate Autosplit status
+##Validate Autosplit Halted status
 $Autosplitstatus=$PublicFolderMailboxDiagnostics.autosplitinfo.Substring(0,60).split(":")[1].split("")[1]
 if($Autosplitstatus -like "Halted")
 {
 #Log the PublicFolderMailboxDiagnostics+ContentPFMBXStatistics+ContentPFMBXProperties for customer to raise a support request with it
-Write-Host "AutoSplit status is Halted so please raise a support request to Microsoft including logs attached under FilePath to solve that issue."
+[string]$SectionTitle = "FIX"
+[string]$article="https://docs.microsoft.com/en-us/powershell/module/exchange/get-publicfoldermailboxdiagnostics?view=exchange-ps"
+[string]$Description = "AutoSplit status is Halted so please raise a support request to Microsoft including output from Get-PublicFolderMailboxDiagnostics command for further investigation,for more information please refer to the following article: $article"
+$ContentPFMBXreached="Please ensure to follow the fix to mitigate your issue!"
+[PSCustomObject]$AutosplitHaltedHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring $ContentPFMBXreached
+$null = $TheObjectToConvertToHTML.Add($AutosplitHaltedHTML)
 }
+##Validat if split completed succesfully or failed
 elseif($Autosplitstatus -like "SplitCompleted"){
+
+ $MRFValue=($PublicFolderMailboxDiagnostics.autosplitinfo).Split(";")[0].split(" ")[7].split(":")[1]
+##validate MRF retry bucket value
+if ($MRFValue -like "0")
+{
 ##Validate the date of split
 $PublicFolderSplitProcessor=$PublicFolderMailboxDiagnostics.AssistantInfo.ProcessorsState|Where-Object {$_ -like "*PublicFolderSplitProcessor*"}
 $DateofPublicFolderSplitProcessor=$PublicFolderSplitProcessor.Split("=")[1]
@@ -297,52 +338,61 @@ if($DateofPublicFolderSplitProcessor -ge (get-date).AddDays(-7))
 #Check if DefaultPublicFolderMovedItemRetention is keeping the mailbox full, even though AutoSplit completed successfully, you might reduce DefaultPublicFolderMovedItemRetention to be 1 day and then invoke mailbox assistant to process the mailbox.
 $DefaultPublicFolderMovedItemRetention=$OrganizationConfig.DefaultPublicFolderMovedItemRetention.Split(":")[0].split(".")[0]
 if($DateofPublicFolderSplitProcessor -ge (get-date).AddDays(-$DefaultPublicFolderMovedItemRetention))
-{##we might need to lower DefaultPublicFolderMovedItemRetention value to 1 day and invoke mailbox assistant
-$UserAction=Read-Host "Organization DefaultPublicFolderMovedItemRetention is keeping the mailbox full, even though AutoSplit completed successfully, you still need to reduce DefaultPublicFolderMovedItemRetention to be 1 day and then invoke mailbox assistant to process the mailbox.Do you wish to proceed with that?`nType Y(Yes) to proceed or N(No) to exit!"
-if ($UserAction -like "*y*")
 {
-Set-OrganizationConfig -DefaultPublicFolderMovedItemRetention 1.00:00:00
+##we might need to lower DefaultPublicFolderMovedItemRetention value to 1 day and invoke mailbox assistant
+[string]$SectionTitle = "FIX"
+[string]$Description = @"
+Organization DefaultPublicFolderMovedItemRetention is keeping the mailbox full, even though AutoSplit completed successfully, you still need to reduce DefaultPublicFolderMovedItemRetention to be 1 day and then invoke mailbox assistant to process the mailbox.Set-OrganizationConfig -DefaultPublicFolderMovedItemRetention 1.00:00:00
 Update-PublicFolderMailbox $MailPublicFolder.contentmailbox
-Write-Host "Check later after couple of hours if the $MailPublicFolder.contentmailboxname TotalItemSize has reduced by running the below command.`nGet-MailboxStatistics $MailPublicFolder.contentmailboxname |ft TotalItemSize `nIf the size is reduced, then the issue is fixed and you may set the MovedItemRetention back to old value of $DefaultPublicFolderMovedItemRetention.00:00:00 using below command.`n Set-OrganizationConfig -DefaultPublicFolderMovedItemRetention $DefaultPublicFolderMovedItemRetention.00:00:00"
+Check later after couple of hours if the $MailPublicFolder.contentmailbox TotalItemSize has reduced by running the below command.`nGet-MailboxStatistics $MailPublicFolder.contentmailbox |ft TotalItemSize `nIf the size is reduced, then the issue is fixed and you may set the MovedItemRetention back to old value of $DefaultPublicFolderMovedItemRetention.00:00:00 using below command.`n Set-OrganizationConfig -DefaultPublicFolderMovedItemRetention $DefaultPublicFolderMovedItemRetention.00:00:00
+"@
+$ContentPFMBXreached="Please ensure to follow the fix to mitigate your issue!"
+[PSCustomObject]$AutosplitcompletedHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring $ContentPFMBXreached
+$null = $TheObjectToConvertToHTML.Add($AutosplitcompletedHTML)
 }
 }
 ##Something other than DefaultPublicFolderMovedItemRetention value prevented items deletion
 else
 {
-Log the PublicFolderMailboxDiagnostics+ContentPFMBXStatistics+ContentPFMBXProperties for customer to raise a support request with it
-Write-Host "Please raise a support request to Microsoft including logs attached under FilePath to solve that issue."
+[string]$SectionTitle = "FIX"
+[string]$article="https://docs.microsoft.com/en-us/powershell/module/exchange/get-publicfoldermailboxdiagnostics?view=exchange-ps"
+[string]$Description = "Please raise a support request to Microsoft including output from Get-PublicFolderMailboxDiagnostics command for further investigation,for more information please refer to the following article: $article"
+$ContentPFMBXreached="Please ensure to follow the fix to mitigate your issue!"
+[PSCustomObject]$AutosplitunknownreasonHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring $ContentPFMBXreached
+$null = $TheObjectToConvertToHTML.Add($AutosplitunknownreasonHTML)
 }
 }
 ##Autosplit was done more than 7 days ago
 else
 {
 #Log the PublicFolderMailboxDiagnostics+ContentPFMBXStatistics+ContentPFMBXProperties for customer to raise a support request with it
-Write-Host "Please raise a support request to Microsoft including logs attached under FilePath to solve that issue."
+[string]$SectionTitle = "FIX"
+[string]$article="https://docs.microsoft.com/en-us/powershell/module/exchange/get-publicfoldermailboxdiagnostics?view=exchange-ps"
+[string]$Description = "Please raise a support request to Microsoft including output from Get-PublicFolderMailboxDiagnostics command for further investigation,for more information please refer to the following article: $article"
+$ContentPFMBXreached="Please ensure to follow the fix to mitigate your issue!"
+[PSCustomObject]$AutosplitunknownreasonHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring $ContentPFMBXreached
+$null = $TheObjectToConvertToHTML.Add($AutosplitunknownreasonHTML)
 }
 }
-else
+else 
 {
 ##Other Autosplit status 
-$PublicFolderSplitProcessor=$PublicFolderMailboxDiagnostics.AssistantInfo.ProcessorsState|Where-Object {$_ -like "*PublicFolderSplitProcessor*"}
-$DateofPublicFolderSplitProcessor=$PublicFolderSplitProcessor.Split("=")[1]
-##Validate Autosplitting process was recent
-if($DateofPublicFolderSplitProcessor -ge (get-date).AddDays(-2))
-{
 #Autosplit process is in PROGRESS, Log the PublicFolderMailboxDiagnostics+ContentPFMBXStatistics+ContentPFMBXProperties for customer to raise a support request with it
-Write-Host "Autosplit process is in PROGRESS, Please raise a support request to Microsoft including logs attached under FilePath to check if there are any issues blocking that progress."
+[string]$SectionTitle = "FIX"
+[string]$article="https://docs.microsoft.com/en-us/powershell/module/exchange/get-publicfoldermailboxdiagnostics?view=exchange-ps"
+[string]$Description = "Autosplit process is in PROGRESS so please raise a support request to Microsoft including output from Get-PublicFolderMailboxDiagnostics command for further investigation,for more information please refer to the following article: $article"
+$ContentPFMBXreached="Please ensure to follow the fix to mitigate your issue!"
+[PSCustomObject]$AutosplitHaltedHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring $ContentPFMBXreached
+$null = $TheObjectToConvertToHTML.Add($AutosplitHaltedHTML)
 }
-##Validate Autosplitting process hasn't ran for more than 2 days
-else
-{
-#Log the PublicFolderMailboxDiagnostics+ContentPFMBXStatistics+ContentPFMBXProperties for customer to raise a support request with it
-Write-Host "Please raise a support request to Microsoft including logs attached under FilePath to solve that issue."
 }
-}
+##add condition Check prohibitsendquota if it was set to a lower value
 }
 
 
 
-}
+
+
 Function Debug-MEPFNDRCause
 {
  Param(
@@ -478,14 +528,3 @@ if($MEPFProperties.IssueWarningQuota -like "unlimited")
 }
 }
 
-#region ResultReport
-[string]$FilePath = $ExportPath + "\PublicFolderTroubleshooter.html"
-Export-ReportToHTML -FilePath $FilePath -PageTitle "PublicFolderTroubleshooter" -ReportTitle "PublicFolderTroubleshooter" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
-#Question to ask enduser for opening the HTMl report
-$OpenHTMLfile=Read-Host "Do you wish to open HTML report file now?`nType Y(Yes) to open or N(No) to exit!"
-if ($OpenHTMLfile -like "*y*")
-{
-Write-Host "Opening report...." -ForegroundColor Cyan
-Start-Process $FilePath
-}
-#endregion ResultReport
