@@ -439,7 +439,6 @@ catch {
     write-log -Function "Diagnose mail enabled public folder" -Step $CurrentProperty -Description $CurrentDescription
 }
 
-
 #region ResultReport
 [string]$FilePath = $ExportPath + "\PublicFolderTroubleshooter.html"
 Export-ReportToHTML -FilePath $FilePath -PageTitle "PublicFolderTroubleshooter" -ReportTitle "PublicFolderTroubleshooter" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
@@ -456,40 +455,48 @@ Start-Process $FilePath
 
 
 
-#region Data collection function
-<#
-.SYNOPSIS
-
-.DESCRIPTION
-Long description
-
-.EXAMPLE
-An example
-
-.NOTES
-General notes
-#>
+#region public folder overview
 Function Start-PFDataCollection{
-
+    $PFData=@()
+    $PFData+="Public Folder Overview`n======================"
     $HostedConnectionFilterPolicy=Get-HostedConnectionFilterPolicy 
     $DirectoryBasedEdgeBlockModeStatus=$HostedConnectionFilterPolicy.DirectoryBasedEdgeBlockMode
     if($DirectoryBasedEdgeBlockModeStatus -like "Default")
     {
- Write-Host "DirectoryBasedEdgeBlockModeStatus = Enabled"
+        $PFData+="DirectoryBasedEdgeBlockModeStatus = Enabled"
     }
     else {
-     Write-Host "DirectoryBasedEdgeBlockModeStatus = Disabled"
+        $PFData+="DirectoryBasedEdgeBlockModeStatus = Disabled"
     }
     $OrganizationConfig=Get-OrganizationConfig
     $PublicFoldersLocation=$OrganizationConfig.PublicFoldersEnabled
     [Int]$PublicFolderMailboxesCount=(Get-Mailbox -PublicFolder -ResultSize unlimited).count
     [Int]$PublicFoldersCount=(Get-PublicFolder -Recurse -ResultSize unlimited).count - 1
     [Int]$MailEnabledPublicFoldersCount=(Get-MailPublicFolder -ResultSize unlimited).count
- ##if MEPFs are synced using AD connect/
- 
+    $RootPublicFolderMailbox=$OrganizationConfig.RootPublicFolderMailbox.HierarchyMailboxGuid.Guid.ToString()
+    $RemotePublicFolderMailboxes=@("mailbox1","mailbox2")
+    $RemotePublicFolderMailboxes=$OrganizationConfig.RemotePublicFolderMailboxes
+    $PFData+="PublicFoldersLocation = $PublicFoldersLocation"
+    if ($PublicFoldersLocation -eq "Local") {
+        $PFData+="PublicFolderMailboxesCount = $PublicFolderMailboxesCount"
+        $PFData+="PublicFoldersCount = $PublicFoldersCount"
+        $PFData+="RootPublicFolderMailbox = $RootPublicFolderMailbox"       
+    }
+    else {
+        $PFData+= "RemotePublicFolderMailboxes = $($RemotePublicFolderMailboxes -join ",")"
+    }
+    $PFData+="MailEnabledPublicFoldersCount = $MailEnabledPublicFoldersCount"
+    $PFData 
+    ##Add publicfolderservinghierarchyMBXs
+    ##add HRR MBXs in case exist
+    ##add check if primary PF MBX contain content as it should be only hierachy
+    ##add health quota check on PF MBXs 
+    ##add health quota check on individual PFs,check if we have Giant PFs
+    ##Think about adding Autosplit status
+    ##add MEPFs are synced using AD connect
  }
  
- #endregion Data collection
+#endregion public folder overview
 
 <#Function Debug-MEPFNDRCause
 {
