@@ -101,7 +101,7 @@ $ConditionEAP=New-Object PSObject
 # Bypass that step if there's no EAP 
  if($null -ne $eap)
  {
- $matchingEap = @( $eap | where-object{$_.RecipientFilter -eq "RecipientTypeDetails -eq 'GroupMailbox'" -and $_.EnabledEmailAddressTemplates.AddressTemplateString.ToString().Split("@")[1] -ne $dg.PrimarySmtpAddress.Domain.ToString()} )
+ $matchingEap = @( $eap | where-object{$_.RecipientFilter -eq "RecipientTypeDetails -eq 'GroupMailbox'" -and $_.EnabledEmailAddressTemplates.ToString().Split("@")[1] -ne $dg.PrimarySmtpAddress.ToString().Split("@")[1]})
  if ($matchingEap.Count -ne 0) {
      $count=1
      foreach($matcheap in $matchingEap)
