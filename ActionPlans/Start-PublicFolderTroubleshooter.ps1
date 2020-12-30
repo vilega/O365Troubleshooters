@@ -36,113 +36,16 @@ $ts= get-date -Format yyyyMMdd_HHmmss
 $ExportPath = "$global:WSPath\PublicFolderTroubleshooter_$ts"
 mkdir $ExportPath -Force |out-null
 #endregion Create working folder for Groups Diag
+
+##Initialize HTML Object
 [System.Collections.ArrayList]$TheObjectToConvertToHTML = @()
-
-##Code for Menu
-
-$PFMenu=@"
-1 - Public folder overview
-2 - Diagnosing 554 5.2.2 mailbox full NDR received on sending to MEPF
-Q  Quit
-     
-Select a task by number or Q to quit
-"@
-
-$menuchoice=read-host $PFMenu
-if ($menuchoice -eq 2)
-{
-    #region Get the affected MEPF SMTP
-    $MEPFSMTP=read-host "Please enter affected MEPF SMTP"
-    #endregion Get the affected MEPF SMTP
-    Start-MEPFNDRDiagnosis($MEPFSMTP)
-
-
-$MEPFSMTP="full1@EmbabyTrade.onmicrosoft.com"   
-[System.Collections.ArrayList]$TheObjectToConvertToHTML = @()
-#region Intro with group name 
-[string]$SectionTitle = "Introduction"
-[String]$article="https://docs.microsoft.com/en-us/exchange/troubleshoot/email-delivery/cannot-send-mail-mepf"
-[string]$Description = "This report illustrates causes behind a non-delivery report (NDR) with error code 554 5.2.2 when sending emails to a mail-enabled public folder: "+$MEPFSMTP+", Sections in RED are for checks BLOCKERS while Sections in GREEN are for checks ELIGIBILITIES"
-$Description=$Description+",for more informtion please check: $article"
-[PSCustomObject]$StartHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString "Please ensure to mitigate causes in case found by checking FIX section!"
-$null = $TheObjectToConvertToHTML.Add($StartHTML)
-#endregion Intro with group name    
-#region global variables used in functions
-try {
-    [PSCustomObject]$MailPublicFolder=Get-MailPublicFolder $MEPFSMTP
-    [PSCustomObject]$ContentPFMBXStatistics=Get-MailboxStatistics $MailPublicFolder.contentmailbox
-    [PSCustomObject]$ContentPFMBXProperties=Get-Mailbox -PublicFolder $MailPublicFolder.contentmailbox
-    [PSCustomObject]$OrganizationConfig=Get-OrganizationConfig
-        
-}
-catch {
-Write-Error -Message "Error"    
-}
-#endregion global variables used in functions
-Start-MEPFNDRDiagnosis($MEPFSMTP)
-#region ResultReport
-[string]$FilePath = $ExportPath + "\PublicFolderTroubleshooter.html"
-Export-ReportToHTML -FilePath $FilePath -PageTitle "PublicFolderTroubleshooter" -ReportTitle "PublicFolderTroubleshooter" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
-#Question to ask enduser for opening the HTMl report
-$OpenHTMLfile=Read-Host "Do you wish to open HTML report file now?`nType Y(Yes) to open or N(No) to exit!"
-if ($OpenHTMLfile -like "*y*")
-{
-Write-Host "Opening report...." -ForegroundColor Cyan
-Start-Process $FilePath
-}
-#endregion ResultReport
-Start-MEPFNDRDiagnosis("full1@EmbabyTrade.onmicrosoft.com")
-
-}
-
-#region Data collection
-<#
-.SYNOPSIS
-
-.DESCRIPTION
-Long description
-
-.EXAMPLE
-An example
-
-.NOTES
-General notes
-#>
-Function Start-PFDataCollection{
-
-   $HostedConnectionFilterPolicy=Get-HostedConnectionFilterPolicy 
-   $DirectoryBasedEdgeBlockModeStatus=$HostedConnectionFilterPolicy.DirectoryBasedEdgeBlockMode
-   if($DirectoryBasedEdgeBlockModeStatus -like "Default")
-   {
-Write-Host "DirectoryBasedEdgeBlockModeStatus = Enabled"
-   }
-   else {
-    Write-Host "DirectoryBasedEdgeBlockModeStatus = Disabled"
-   }
-   $OrganizationConfig=Get-OrganizationConfig
-   $PublicFoldersLocation=$OrganizationConfig.PublicFoldersEnabled
-   [Int]$PublicFolderMailboxesCount=(Get-Mailbox -PublicFolder -ResultSize unlimited).count
-   [Int]$PublicFoldersCount=(Get-PublicFolder -Recurse -ResultSize unlimited).count - 1
-   [Int]$MailEnabledPublicFoldersCount=(Get-MailPublicFolder -ResultSize unlimited).count
-
-
-}
-
-#endregion Data collection
-
-
 
 
 ##T.S 554 5.2.2 mailbox full NDR
 Function Start-MEPFNDRDiagnosis{
     Param(
         [parameter(Mandatory=$true)]
-        [String]$MEPFSMTP)
-
-
-        $ContentPFMBXProhibitSendReceiveQuotainB=$ContentPFMBXProperties.ProhibitSendReceiveQuota.Split("(")[1].split(" ")[0].Replace(",","")
-        [int]$ContentPFMBXSizeinB=[int]$ContentPFMBXStatistics.TotalItemSize.value.tostring().Split("(")[1].split(" ")[0].Replace(",","")+[int]$ContentPFMBXStatistics.TotalDeletedItemSize.value.tostring().Split("(")[1].split(" ")[0].Replace(",","")
-    
+        [String]$MEPFSMTP)   
 #region Validating that Content Public Folder mailbox hosting that mail-enabled public folder quota limit is not reached
 if($ContentPFMBXSizeinB -ge $ContentPFMBXProhibitSendReceiveQuotainB)
 {
@@ -157,7 +60,18 @@ Diagnose-MEPFNDRCause("ContentPFMBXfull")
 [string]$Description = "Checking if the content public folder mailbox hosting the mail-enabled public folder has reached its quota!"
 [PSCustomObject]$PFMBXContentQuotareachedHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring $Orgreached
 $null = $TheObjectToConvertToHTML.Add($PFMBXContentQuotareachedHTML)
-Repair-MEPFNDRCause("ContentPFMBXfull")
+try {
+    Repair-MEPFNDRCause("ContentPFMBXfull") -ErrorAction stop
+    $CurrentProperty = "Running repair function across affected mail enabld public folder $MEPFSMTP for ContentPFMBXfull reason"
+    $CurrentDescription = "Success"
+    write-log -Function "Repair affected mail enabled public folder" -Step $CurrentProperty -Description $CurrentDescription
+}
+catch {
+    $CurrentProperty = "Running repair function across affected mail enabld public folder $MEPFSMTP for ContentPFMBXfull reason"
+    $CurrentDescription = "Failure"
+    write-log -Function "Repair affected mail enabled public folder" -Step $CurrentProperty -Description $CurrentDescription
+}
+
 }
 else {
     [string]$SectionTitle = "Validating against content public folder mailbox quota"
@@ -168,19 +82,13 @@ else {
 }
 #endregion Validating that Content Public Folder mailbox hosting that mail-enabled public folder quota limit is not reached
 #region Validating individual/Organization public folder quota
-
-$MEPFStatistics=Get-PublicFolderStatistics -identity $MailPublicFolder.EntryID
-$MEPFProperties=Get-PublicFolder $MailPublicFolder.EntryID
-[Int]$MEPFTotalSizeinB=$MEPFStatistics.TotalItemSize.Split("(")[1].split(" ")[0].Replace(",","")+$MEPFStatistics.TotalDeletedItemSize.Split("(")[1].split(" ")[0].Replace(",","")
-[Int]$MEPFTotalSizeinGB = $MEPFTotalSizeinB /(1024*1024*1024)
 ##Validate if DefaultPublicFolderProhibitPostQuota at the organization level applies
 if($MEPFProperties.ProhibitPostQuota -eq "unlimited")
 {
 [string]$SectionTitle = "Validating against organization public folder post quota"
 [string]$Description = "Checking if public folder total size has reached organization public folder DefaultPublicFolderProhibitPostQuota value!"
 ##catch unlimited value
-$DefaultPublicFolderProhibitPostQuotainB=$OrganizationConfig.DefaultPublicFolderProhibitPostQuota.Split("(")[1].split(" ")[0].Replace(",","")
-$DefaultPublicFolderIssueWarningQuotainB=$OrganizationConfig.DefaultPublicFolderIssueWarningQuota.Split("(")[1].split(" ")[0].Replace(",","")
+
 ##Test to use foldersize or stick to the below
 ##Validate that MEPF size is < 20 GB AND greater than Org DefaultPublicFolderProhibitPostQuota
     if($MEPFTotalSizeinB -ge $DefaultPublicFolderProhibitPostQuotainB -and $MEPFTotalSizeinB -le 21474836480)
@@ -195,7 +103,18 @@ $DefaultPublicFolderIssueWarningQuotainB=$OrganizationConfig.DefaultPublicFolder
         #>
         [PSCustomObject]$MEPFOrgPostQuotareachedHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring $Orgreached
         $null = $TheObjectToConvertToHTML.Add($MEPFOrgPostQuotareachedHTML)
-        Repair-MEPFNDRCause("OrgProhibitPostQuotaReached")
+        try {
+            Repair-MEPFNDRCause("OrgProhibitPostQuotaReached") -ErrorAction stop
+            $CurrentProperty = "Running repair function across affected mail enabld public folder $MEPFSMTP for OrganizationProhibitPostQuotaReached reason"
+            $CurrentDescription = "Success"
+            write-log -Function "Repair affected mail enabled public folder" -Step $CurrentProperty -Description $CurrentDescription
+        }
+        catch {
+            $CurrentProperty = "Running repair function across affected mail enabld public folder $MEPFSMTP for OrganizationProhibitPostQuotaReached reason"
+            $CurrentDescription = "Failure"
+            write-log -Function "Repair affected mail enabled public folder" -Step $CurrentProperty -Description $CurrentDescription
+        }
+      
     }
     elseif($MEPFTotalSizeinB -ge $DefaultPublicFolderProhibitPostQuotainB -and $MEPFTotalSizeinB -ge 21474836480)
     {
@@ -225,18 +144,18 @@ $DefaultPublicFolderIssueWarningQuotainB=$OrganizationConfig.DefaultPublicFolder
 }
 else
 {
+    [Int]$script:MEPFProhibitPostQuotainB=$MEPFProperties.ProhibitPostQuota.Split("(")[1].split(" ")[0].Replace(",","")
     [string]$SectionTitle = "Validating against organization public folder post quota"
     [string]$Description = "Checking if public folder total size has reached organization public folder DefaultPublicFolderProhibitPostQuota value!"
     [PSCustomObject]$MEPFOrgPostQuotareachedHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDatastring "No issue found!"
     $null = $TheObjectToConvertToHTML.Add($MEPFOrgPostQuotareachedHTML)
     [string]$SectionTitle = "Validating against individual public folder post quota"
     [string]$Description = "Checking if public folder total size has reached individual public folder ProhibitPostQuota value!"
-    [Int]$MEPFProhibitPostQuotainB=$MEPFProperties.ProhibitPostQuota.Split("(")[1].split(" ")[0].Replace(",","")
-    [Int]$MEPFProhibitPostQuotainGB = $MEPFProhibitPostQuotainB /(1024*1024*1024)
+
 ##Validate that MEPF size is < 20 GB AND greater than Individual ProhibitPostQuota
 if($MEPFTotalSizeinB -ge $MEPFProhibitPostQuotainB -and $MEPFTotalSizeinB -le 21474836480)
 {
-$Orgreached="The individual public folder post quota (ProhibitPostQuota $MEPFProhibitPostQuotainB Bytes) has been reached!`nMail-enabled public folder size ($MEPFTotalSizeinB Bytes) is < 20 GB"
+$Orgreached="The individual public folder post quota (ProhibitPostQuota $MEPFProhibitPostQuotainB Bytes) has been reached!"
 <###Call FIXES function
 $UserAction=Read-Host "Do you wish to mitigate the issue by increasing the public folder ProhibitPostQuota value?`nType Y(Yes) to proceed or N(No) to exit!"
 if ($UserAction -like "*y*")
@@ -246,6 +165,17 @@ if ($UserAction -like "*y*")
 #>
 [PSCustomObject]$PFProhibitPostQuotareachedHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring $Orgreached
 $null = $TheObjectToConvertToHTML.Add($PFProhibitPostQuotareachedHTML)
+try {
+    Repair-MEPFNDRCause("IndProhibitPostQuotaReached") -ErrorAction stop
+    $CurrentProperty = "Running repair function across affected mail enabld public folder $MEPFSMTP for IndividualProhibitPostQuotaReached reason"
+    $CurrentDescription = "Success"
+    write-log -Function "Repair affected mail enabled public folder" -Step $CurrentProperty -Description $CurrentDescription
+}
+catch {
+    $CurrentProperty = "Running repair function across affected mail enabld public folder $MEPFSMTP for IndividualProhibitPostQuotaReached reason"
+    $CurrentDescription = "Failure"
+    write-log -Function "Repair affected mail enabled public folder" -Step $CurrentProperty -Description $CurrentDescription
+}
 }
 ##Validate that MEPF size is > 20 GB AND greater than Org DefaultPublicFolderProhibitPostQuota
 elseif($MEPFTotalSizeinB -ge $MEPFProhibitPostQuotainB -and $MEPFTotalSizeinB -ge 21474836480)
@@ -256,7 +186,7 @@ $null = $TheObjectToConvertToHTML.Add($PFProhibitPostQuotareachedHTML)
 }
 elseif($MEPFTotalSizeinB -le $MEPFProhibitPostQuotainB -and $MEPFTotalSizeinB -le 21474836480)
 {
-$Orgreached= "Mail-enabled public folder size ($MEPFTotalSizeinGB GB) is < 20 GB and didn't reach public folder ProhibitPostQuota ($MEPFProhibitPostQuotainGB GB) value!" 
+$Orgreached= "No issue found!" 
 [PSCustomObject]$PFProhibitPostQuotareachedHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDatastring $Orgreached
 $null = $TheObjectToConvertToHTML.Add($PFProhibitPostQuotareachedHTML)
 }
@@ -272,6 +202,7 @@ $null = $TheObjectToConvertToHTML.Add($PFProhibitPostQuotareachedHTML)
 
 #endregion Validating individual/Organization public folder quota
 
+##Present FIX for 554 5.2.2 mailbox full NDR
 Function Repair-MEPFNDRCause
 {
  Param(
@@ -292,24 +223,71 @@ Function Repair-MEPFNDRCause
  {
     if($MEPFProperties.IssueWarningQuota -like "unlimited")
     {
-#Either increase ProhibitPostQuota by value or set it to unlimited considering is lower than organization configuration value
-$valueusedforincrease=$MEPFTotalSizeinB-$MEPFProhibitPostQuotainB
-
-#Please ensure to cover that gap in next defind value
-
+        if ($MEPFTotalSizeinB -le $DefaultPublicFolderProhibitPostQuotainB -and $MEPFTotalSizeinB -le $DefaultPublicFolderIssueWarningQuotainB) 
+        {
+            [string]$SectionTitle = "FIX"
+            $article="https://docs.microsoft.com/en-us/powershell/module/exchange/set-publicfolder"
+            [string]$Description = "Please set public folder ProhibitPostQuota value to Unlimited to inherit from Organization setting or set a new public folder ProhibitPostQuota value ensuring that it's greater than the public folder size($MEPFTotalSizeinB Bytes)using command Set-PublicFolder,for more information please check the following article: $article"
+            $IndProhibitQuotaReached="Please ensure to follow the fix to mitigate your issue!"
+            [PSCustomObject]$IndquotaHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring $IndProhibitQuotaReached
+            $null = $TheObjectToConvertToHTML.Add($IndquotaHTML)
+        }
+        else {
+    #Either increase ProhibitPostQuota by value or set it to unlimited considering is lower than organization configuration value
+    [string]$SectionTitle = "FIX"
+    $article="https://docs.microsoft.com/en-us/powershell/module/exchange/set-publicfolder"
+    [string]$Description = "Please set a new public folder ProhibitPostQuota value ensuring that it's greater than the public folder size($MEPFTotalSizeinB Bytes)using command Set-PublicFolder,for more information please check the following article: $article"
+    $IndProhibitQuotaReached="Please ensure to follow the fix to mitigate your issue!"
+    [PSCustomObject]$IndquotaHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring $IndProhibitQuotaReached
+    $null = $TheObjectToConvertToHTML.Add($IndquotaHTML)
+}
+    }
+    else
+    {
+    if ($MEPFTotalSizeinB -le $DefaultPublicFolderProhibitPostQuotainB -and $MEPFTotalSizeinB -le $DefaultPublicFolderIssueWarningQuotainB) {
+    [string]$SectionTitle = "FIX"
+    $article="https://docs.microsoft.com/en-us/powershell/module/exchange/set-publicfolder"
+    [string]$Description = "Please set public folder ProhibitPostQuota\IssueWarningQuota values to Unlimited to inherit from Organization setting or set a new public folder ProhibitPostQuota\IssueWarningQuota values ensuring that they are greater than the public folder size($MEPFTotalSizeinB Bytes)using command Set-PublicFolder,for more information please check the following article: $article"
+    $IndProhibitQuotaReached="Please ensure to follow the fix to mitigate your issue!"
+    [PSCustomObject]$IndquotaHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring $IndProhibitQuotaReached
+    $null = $TheObjectToConvertToHTML.Add($IndquotaHTML)
     }
     else {
-        
+            [string]$SectionTitle = "FIX"
+            $article="https://docs.microsoft.com/en-us/powershell/module/exchange/set-publicfolder"
+            [string]$Description = "Please set a new public folder ProhibitPostQuota\IssueWarningQuota values ensuring that they are greater than the public folder size($MEPFTotalSizeinB Bytes)using command Set-PublicFolder,for more information please check the following article: $article"
+            $IndProhibitQuotaReached="Please ensure to follow the fix to mitigate your issue!"
+            [PSCustomObject]$IndquotaHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring $IndProhibitQuotaReached
+            $null = $TheObjectToConvertToHTML.Add($IndquotaHTML)
     }
-
-
-
-
- } 
+}
+}
+ 
  if($Cause -eq "ContentPFMBXfull")
  {
-##Validate if Autosplit status is Halted
-$PublicFolderMailboxDiagnostics=Get-PublicFolderMailboxDiagnostics $MailPublicFolder.contentmailbox
+##add condition Check prohibitsendquota if it was set to a lower value (up to 90 GB)
+if($ContentPFMBXProhibitSendReceiveQuotainB -le 96636764160)
+{   
+[string]$SectionTitle = "FIX"
+[string]$article="https://docs.microsoft.com/en-us/powershell/module/exchange/set-mailbox"
+[string]$Description = "Please ensure to use default value of ProhibitSendReceiveQuota(100 GB) or use a higher value than $ContentPFMBXProhibitSendReceiveQuotainB Bytes using set-mailbox command,for more information please refer to the following article: $article"
+$ContentPFMBXreached="Please ensure to follow the fix to mitigate your issue!"
+[PSCustomObject]$ContentPFMBXProhibitSendReceiveQuotainBHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring $ContentPFMBXreached
+$null = $TheObjectToConvertToHTML.Add($ContentPFMBXProhibitSendReceiveQuotainBHTML)    
+}
+else {
+    try {
+        $PublicFolderMailboxDiagnostics=Get-PublicFolderMailboxDiagnostics $MailPublicFolder.contentmailbox -ErrorAction stop
+        $CurrentProperty = "Retrieving: $MailPublicFolder content mailbox PublicFolderMailboxDiagnostics logs"
+        $CurrentDescription = "Success"
+        write-log -Function "Retrieve PublicFolderMailboxDiagnostics logs" -Step $CurrentProperty -Description $CurrentDescription
+    }
+    catch {
+        $CurrentProperty = "Retrieving: $MailPublicFolder content mailbox PublicFolderMailboxDiagnostics logs"
+        $CurrentDescription = "Failure"
+        write-log -Function "Retrieve PublicFolderMailboxDiagnostics logs" -Step $CurrentProperty -Description $CurrentDescription
+    }
+
 ##Validate Autosplit Halted status
 $Autosplitstatus=$PublicFolderMailboxDiagnostics.autosplitinfo.Substring(0,60).split(":")[1].split("")[1]
 if($Autosplitstatus -like "Halted")
@@ -333,22 +311,30 @@ if ($MRFValue -like "0")
 $PublicFolderSplitProcessor=$PublicFolderMailboxDiagnostics.AssistantInfo.ProcessorsState|Where-Object {$_ -like "*PublicFolderSplitProcessor*"}
 $DateofPublicFolderSplitProcessor=$PublicFolderSplitProcessor.Split("=")[1]
 ##Validate Autosplitting process was recent
-if($DateofPublicFolderSplitProcessor -ge (get-date).AddDays(-7))
+if((get-date $DateofPublicFolderSplitProcessor) -ge (get-date).AddDays(-7))
 {
 #Check if DefaultPublicFolderMovedItemRetention is keeping the mailbox full, even though AutoSplit completed successfully, you might reduce DefaultPublicFolderMovedItemRetention to be 1 day and then invoke mailbox assistant to process the mailbox.
 $DefaultPublicFolderMovedItemRetention=$OrganizationConfig.DefaultPublicFolderMovedItemRetention.Split(":")[0].split(".")[0]
-if($DateofPublicFolderSplitProcessor -ge (get-date).AddDays(-$DefaultPublicFolderMovedItemRetention))
+if((get-date $DateofPublicFolderSplitProcessor) -ge (get-date).AddDays(-$DefaultPublicFolderMovedItemRetention))
 {
 ##we might need to lower DefaultPublicFolderMovedItemRetention value to 1 day and invoke mailbox assistant
 [string]$SectionTitle = "FIX"
 [string]$Description = @"
 Organization DefaultPublicFolderMovedItemRetention is keeping the mailbox full, even though AutoSplit completed successfully, you still need to reduce DefaultPublicFolderMovedItemRetention to be 1 day and then invoke mailbox assistant to process the mailbox.Set-OrganizationConfig -DefaultPublicFolderMovedItemRetention 1.00:00:00
-Update-PublicFolderMailbox $MailPublicFolder.contentmailbox
-Check later after couple of hours if the $MailPublicFolder.contentmailbox TotalItemSize has reduced by running the below command.`nGet-MailboxStatistics $MailPublicFolder.contentmailbox |ft TotalItemSize `nIf the size is reduced, then the issue is fixed and you may set the MovedItemRetention back to old value of $DefaultPublicFolderMovedItemRetention.00:00:00 using below command.`n Set-OrganizationConfig -DefaultPublicFolderMovedItemRetention $DefaultPublicFolderMovedItemRetention.00:00:00
+Update-PublicFolderMailbox $($MailPublicFolder.contentmailbox)
+Check later after couple of hours if the $($MailPublicFolder.contentmailbox) TotalItemSize has reduced by running the below command.`nGet-MailboxStatistics $($MailPublicFolder.contentmailbox)|ft TotalItemSize `nIf the size is reduced, then the issue is fixed and you may set the MovedItemRetention back to old value of $DefaultPublicFolderMovedItemRetention.00:00:00 using below command.`n Set-OrganizationConfig -DefaultPublicFolderMovedItemRetention $DefaultPublicFolderMovedItemRetention.00:00:00
 "@
 $ContentPFMBXreached="Please ensure to follow the fix to mitigate your issue!"
 [PSCustomObject]$AutosplitcompletedHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring $ContentPFMBXreached
 $null = $TheObjectToConvertToHTML.Add($AutosplitcompletedHTML)
+}
+else {
+    [string]$SectionTitle = "FIX"
+    [string]$article="https://docs.microsoft.com/en-us/powershell/module/exchange/get-publicfoldermailboxdiagnostics?view=exchange-ps"
+    [string]$Description = "Please raise a support request to Microsoft including output from Get-PublicFolderMailboxDiagnostics command for further investigation,for more information please refer to the following article: $article"
+    $ContentPFMBXreached="Please ensure to follow the fix to mitigate your issue!"
+    [PSCustomObject]$AutosplitunknownreasonHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring $ContentPFMBXreached
+    $null = $TheObjectToConvertToHTML.Add($AutosplitunknownreasonHTML)        
 }
 }
 ##Something other than DefaultPublicFolderMovedItemRetention value prevented items deletion
@@ -386,14 +372,126 @@ $ContentPFMBXreached="Please ensure to follow the fix to mitigate your issue!"
 $null = $TheObjectToConvertToHTML.Add($AutosplitHaltedHTML)
 }
 }
-##add condition Check prohibitsendquota if it was set to a lower value
+}
+
 }
 
 
 
 
+##Code for Menu
+$PFMenu=@"
+1 - Public folder overview
+2 - Diagnosing 554 5.2.2 mailbox full NDR received on sending to MEPF
+Q  Quit
+     
+Select a task by number or Q to quit
+"@
 
-Function Debug-MEPFNDRCause
+$menuchoice=Read-Host $PFMenu
+if ($menuchoice -eq 2)
+{
+#region Get the affected MEPF SMTP
+$MEPFSMTP=Get-ValidEmailAddress("Email address of the mail enabled public folder ")
+#endregion Get the affected MEPF SMTP
+#region Intro with group name 
+[string]$SectionTitle = "Introduction"
+[String]$article="https://docs.microsoft.com/en-us/exchange/troubleshoot/email-delivery/cannot-send-mail-mepf"
+[string]$Description = "This report illustrates causes behind a non-delivery report (NDR) with error code 554 5.2.2 when sending emails to a mail-enabled public folder: "+$MEPFSMTP+", Sections in RED are for checks BLOCKERS while Sections in GREEN are for checks ELIGIBILITIES"
+$Description=$Description+",for more informtion please check: $article"
+[PSCustomObject]$StartHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString "Please ensure to mitigate causes in case found by checking FIX section!"
+$null = $TheObjectToConvertToHTML.Add($StartHTML)
+#endregion Intro with group name    
+#region script variables used in functions
+try {
+    [PSCustomObject]$MailPublicFolder=Get-MailPublicFolder $MEPFSMTP -ErrorAction stop
+    [PSCustomObject]$ContentPFMBXStatistics=Get-MailboxStatistics $MailPublicFolder.contentmailbox -ErrorAction stop
+    [PSCustomObject]$ContentPFMBXProperties=Get-Mailbox -PublicFolder $MailPublicFolder.contentmailbox -ErrorAction stop
+    [PSCustomObject]$OrganizationConfig=Get-OrganizationConfig -ErrorAction stop
+    [PSCustomObject]$MEPFStatistics=Get-PublicFolderStatistics -identity $MailPublicFolder.EntryID -ErrorAction stop
+    [PSCustomObject]$MEPFProperties=Get-PublicFolder $MailPublicFolder.EntryID -ErrorAction stop
+    [Int]$MEPFProhibitPostQuotainGB = $MEPFProhibitPostQuotainB /(1024*1024*1024)
+    $ContentPFMBXProhibitSendReceiveQuotainB=$ContentPFMBXProperties.ProhibitSendReceiveQuota.Split("(")[1].split(" ")[0].Replace(",","")
+    [int]$ContentPFMBXSizeinB=[int]$ContentPFMBXStatistics.TotalItemSize.value.tostring().Split("(")[1].split(" ")[0].Replace(",","")+[int]$ContentPFMBXStatistics.TotalDeletedItemSize.value.tostring().Split("(")[1].split(" ")[0].Replace(",","")
+    $DefaultPublicFolderProhibitPostQuotainB=$OrganizationConfig.DefaultPublicFolderProhibitPostQuota.Split("(")[1].split(" ")[0].Replace(",","")
+    $DefaultPublicFolderIssueWarningQuotainB=$OrganizationConfig.DefaultPublicFolderIssueWarningQuota.Split("(")[1].split(" ")[0].Replace(",","")
+    [Int]$script:MEPFTotalSizeinB=$MEPFStatistics.TotalItemSize.Split("(")[1].split(" ")[0].Replace(",","")+$MEPFStatistics.TotalDeletedItemSize.Split("(")[1].split(" ")[0].Replace(",","")
+    [Int]$MEPFTotalSizeinGB = $MEPFTotalSizeinB /(1024*1024*1024)
+    $CurrentProperty = "Retrieving: $MEPFSMTP object properties & statistics, content mailbox properties & statistics AND organization configuration"
+    $CurrentDescription = "Success"
+    write-log -Function "Retrieve object properties & statistics" -Step $CurrentProperty -Description $CurrentDescription
+}
+catch {
+    $CurrentProperty = "Retrieving: $MEPFSMTP object properties & statistics, content mailbox properties & statistics AND organization configuration"
+    $CurrentDescription = "Failure"
+    write-log -Function "Retrieve object properties & statistics" -Step $CurrentProperty -Description $CurrentDescription
+}
+#endregion global variables used in functions
+try {
+    Start-MEPFNDRDiagnosis($MEPFSMTP) -ErrorAction Stop
+    $CurrentProperty = "Diagnosing: $MEPFSMTP for 554 5.2.2 mailbox full NDR cause"
+    $CurrentDescription = "Success"
+    write-log -Function "Diagnose mail enabled public folder" -Step $CurrentProperty -Description $CurrentDescription
+}
+catch {
+    $CurrentProperty = "Diagnosing: $MEPFSMTP for 554 5.2.2 mailbox full NDR cause"
+    $CurrentDescription = "Failure"
+    write-log -Function "Diagnose mail enabled public folder" -Step $CurrentProperty -Description $CurrentDescription
+}
+
+
+#region ResultReport
+[string]$FilePath = $ExportPath + "\PublicFolderTroubleshooter.html"
+Export-ReportToHTML -FilePath $FilePath -PageTitle "PublicFolderTroubleshooter" -ReportTitle "PublicFolderTroubleshooter" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
+#Question to ask enduser for opening the HTMl report
+$OpenHTMLfile=Read-Host "Do you wish to open HTML report file now?`nType Y(Yes) to open or N(No) to exit!"
+if ($OpenHTMLfile -like "*y*")
+{
+Write-Host "Opening report...." -ForegroundColor Cyan
+Start-Process $FilePath
+}
+#endregion ResultReport
+}
+
+
+
+
+#region Data collection function
+<#
+.SYNOPSIS
+
+.DESCRIPTION
+Long description
+
+.EXAMPLE
+An example
+
+.NOTES
+General notes
+#>
+Function Start-PFDataCollection{
+
+    $HostedConnectionFilterPolicy=Get-HostedConnectionFilterPolicy 
+    $DirectoryBasedEdgeBlockModeStatus=$HostedConnectionFilterPolicy.DirectoryBasedEdgeBlockMode
+    if($DirectoryBasedEdgeBlockModeStatus -like "Default")
+    {
+ Write-Host "DirectoryBasedEdgeBlockModeStatus = Enabled"
+    }
+    else {
+     Write-Host "DirectoryBasedEdgeBlockModeStatus = Disabled"
+    }
+    $OrganizationConfig=Get-OrganizationConfig
+    $PublicFoldersLocation=$OrganizationConfig.PublicFoldersEnabled
+    [Int]$PublicFolderMailboxesCount=(Get-Mailbox -PublicFolder -ResultSize unlimited).count
+    [Int]$PublicFoldersCount=(Get-PublicFolder -Recurse -ResultSize unlimited).count - 1
+    [Int]$MailEnabledPublicFoldersCount=(Get-MailPublicFolder -ResultSize unlimited).count
+ ##if MEPFs are synced using AD connect/
+ 
+ }
+ 
+ #endregion Data collection
+
+<#Function Debug-MEPFNDRCause
 {
  Param(
  [parameter(Mandatory=$true)]
@@ -526,5 +624,4 @@ if($MEPFProperties.IssueWarningQuota -like "unlimited")
 
 ##Log the action
 }
-}
-
+}#>
