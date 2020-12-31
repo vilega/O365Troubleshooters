@@ -411,10 +411,10 @@ try {
     [PSCustomObject]$MEPFStatistics=Get-PublicFolderStatistics -identity $MailPublicFolder.EntryID -ErrorAction stop
     [PSCustomObject]$MEPFProperties=Get-PublicFolder $MailPublicFolder.EntryID -ErrorAction stop
     [Int]$MEPFProhibitPostQuotainGB = $MEPFProhibitPostQuotainB /(1024*1024*1024)
-    $ContentPFMBXProhibitSendReceiveQuotainB=$ContentPFMBXProperties.ProhibitSendReceiveQuota.Split("(")[1].split(" ")[0].Replace(",","")
-    [int]$ContentPFMBXSizeinB=[int]$ContentPFMBXStatistics.TotalItemSize.value.tostring().Split("(")[1].split(" ")[0].Replace(",","")+[int]$ContentPFMBXStatistics.TotalDeletedItemSize.value.tostring().Split("(")[1].split(" ")[0].Replace(",","")
-    $DefaultPublicFolderProhibitPostQuotainB=$OrganizationConfig.DefaultPublicFolderProhibitPostQuota.Split("(")[1].split(" ")[0].Replace(",","")
-    $DefaultPublicFolderIssueWarningQuotainB=$OrganizationConfig.DefaultPublicFolderIssueWarningQuota.Split("(")[1].split(" ")[0].Replace(",","")
+    [Int]$ContentPFMBXProhibitSendReceiveQuotainB=$ContentPFMBXProperties.ProhibitSendReceiveQuota.Split("(")[1].split(" ")[0].Replace(",","")
+    [Int]$ContentPFMBXSizeinB=[int]$ContentPFMBXStatistics.TotalItemSize.value.tostring().Split("(")[1].split(" ")[0].Replace(",","")+[int]$ContentPFMBXStatistics.TotalDeletedItemSize.value.tostring().Split("(")[1].split(" ")[0].Replace(",","")
+    [Int]$DefaultPublicFolderProhibitPostQuotainB=$OrganizationConfig.DefaultPublicFolderProhibitPostQuota.Split("(")[1].split(" ")[0].Replace(",","")
+    [Int]$DefaultPublicFolderIssueWarningQuotainB=$OrganizationConfig.DefaultPublicFolderIssueWarningQuota.Split("(")[1].split(" ")[0].Replace(",","")
     [Int]$script:MEPFTotalSizeinB=$MEPFStatistics.TotalItemSize.Split("(")[1].split(" ")[0].Replace(",","")+$MEPFStatistics.TotalDeletedItemSize.Split("(")[1].split(" ")[0].Replace(",","")
     [Int]$MEPFTotalSizeinGB = $MEPFTotalSizeinB /(1024*1024*1024)
     $CurrentProperty = "Retrieving: $MEPFSMTP object properties & statistics, content mailbox properties & statistics AND organization configuration"
@@ -457,46 +457,136 @@ Start-Process $FilePath
 
 #region public folder overview
 Function Start-PFDataCollection{
-    $PFData=@()
-    $PFData+="Public Folder Overview`n======================"
+    
+   
+    #region main public folders overview information
+    write-host
+    write-host
+    Write-Host "Public Folders Overview`n========================"  -ForegroundColor Cyan
     $HostedConnectionFilterPolicy=Get-HostedConnectionFilterPolicy 
     $DirectoryBasedEdgeBlockModeStatus=$HostedConnectionFilterPolicy.DirectoryBasedEdgeBlockMode
     if($DirectoryBasedEdgeBlockModeStatus -like "Default")
     {
-        $PFData+="DirectoryBasedEdgeBlockModeStatus = Enabled"
+        Write-Host "DirectoryBasedEdgeBlockModeStatus = Enabled"
     }
     else {
-        $PFData+="DirectoryBasedEdgeBlockModeStatus = Disabled"
+        Write-Host "DirectoryBasedEdgeBlockModeStatus = Disabled"
     }
     $OrganizationConfig=Get-OrganizationConfig
+    $Publicfolders=Get-PublicFolder -Recurse -ResultSize unlimited
     $PublicFoldersLocation=$OrganizationConfig.PublicFoldersEnabled
-    [Int]$PublicFolderMailboxesCount=(Get-Mailbox -PublicFolder -ResultSize unlimited).count
-    [Int]$PublicFoldersCount=(Get-PublicFolder -Recurse -ResultSize unlimited).count - 1
+    $PublicFolderMailboxes=Get-Mailbox -PublicFolder -ResultSize unlimited
+    [Int]$PublicFolderMailboxesCount=($PublicFolderMailboxes).count
+    [Int]$PublicFoldersCount=($Publicfolders).count - 1
     [Int]$MailEnabledPublicFoldersCount=(Get-MailPublicFolder -ResultSize unlimited).count
     $RootPublicFolderMailbox=$OrganizationConfig.RootPublicFolderMailbox.HierarchyMailboxGuid.Guid.ToString()
-    $RemotePublicFolderMailboxes=@("mailbox1","mailbox2")
     $RemotePublicFolderMailboxes=$OrganizationConfig.RemotePublicFolderMailboxes
-    $PFData+="PublicFoldersLocation = $PublicFoldersLocation"
+    Write-Host "PublicFoldersLocation = $PublicFoldersLocation"
     if ($PublicFoldersLocation -eq "Local") {
-        $PFData+="PublicFolderMailboxesCount = $PublicFolderMailboxesCount"
-        $PFData+="PublicFoldersCount = $PublicFoldersCount"
-        $PFData+="RootPublicFolderMailbox = $RootPublicFolderMailbox"       
+        Write-Host "PublicFolderMailboxesCount = $PublicFolderMailboxesCount"
+        Write-Host "PublicFoldersCount = $PublicFoldersCount"
+        Write-Host "RootPublicFolderMailbox = $RootPublicFolderMailbox"       
     }
     else {
-        $PFData+= "RemotePublicFolderMailboxes = $($RemotePublicFolderMailboxes -join ",")"
+        Write-Host "RemotePublicFolderMailboxes = $($RemotePublicFolderMailboxes -join ",")"
     }
-    $PFData+="MailEnabledPublicFoldersCount = $MailEnabledPublicFoldersCount"
-    $PFData 
-    ##Add publicfolderservinghierarchyMBXs
+    Write-Host "MailEnabledPublicFoldersCount = $MailEnabledPublicFoldersCount" 
+    #endregion main public folders overview information
+    #region retrieve publicfolderservinghierarchyMBXs and check if rootPF MBX is serving hierarchy
+    $publicfolderservinghierarchyMBXs=$PublicFolderMailboxes|Where-Object{$_.IsExcludedFromServingHierarchy -like "false" -and $_.IsHierarchyReady -like "true"}
+    Write-Host "Public folder hierarchy serving mailboxes: " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
+    $publicfolderservinghierarchyMBXs|Format-Table -Wrap -AutoSize Name,Alias,Guid,ExchangeGuid
+    #endregion retrieve publicfolderservinghierarchyMBXs and check if rootPF MBX is serving hierarchy
+    #region add check if primary PF MBX doesn't contain content nor serve hierachy to regular MBXs
+    Write-Host "Root public folder mailbox diagnosis:" -ForegroundColor Black -BackgroundColor Yellow
+    if ($publicfolderservinghierarchyMBXs|Where-Object {$_.ExchangeGuid -Like $RootPublicFolderMailbox}) 
+    {
+        Write-host "It's not recommended to use root public folder mailbox to serve hierarchy!" -ForegroundColor Red -NoNewline
+        $publicfolderservinghierarchyMBXs|Where-Object {$_.ExchangeGuid -Like $RootPublicFolderMailbox}|Format-Table -Wrap -AutoSize Name,Alias,Guid,ExchangeGuid
+    }
+    else {
+        Write-host "Root public folder mailbox is not used to serve hierachy" -ForegroundColor Green
+    }
+    if ([Int]($Publicfolders|Where-Object {$_.ContentMailboxGuid -Like $RootPublicFolderMailbox}).name.count -eq 1)
+    {
+        Write-host "RootPublicFolderMailbox is not hosting content of Public folders" -ForegroundColor Green
+    }
+    else {
+        Write-host "RootPublicFolderMailbox is hosting content of Public folders,it's recommended to stop creating public folders hosted on the primary public folder mailbox!" -ForegroundColor Red
+    }
+    #endregion add check if primary PF MBX doesn't contain content nor serve hierachy to regular MBXs
+    #region add health quota check on PF MBXs 
+    [Int]$unhealthyPFMBXcount=0
+    $unhealthyPFMBX=@()
+    #[Int]$percent=0
+    foreach($PublicFolderMailbox in $PublicFolderMailboxes)
+    {
+       # Write-Progress -Activity "Validating quota on PF MBXs" -Status "$(($percent/$PublicFolderMailboxes.count)*100)% Complete:" -PercentComplete (($percent/$PublicFolderMailboxes.count)*100)
+        $PublicFolderMailboxSendReceiveQuota= $PublicFolderMailbox.ProhibitSendReceiveQuota.Split("(")[1].split(" ")[0].Replace(",","")
+        try {
+            $PublicFolderMailboxMailboxStatistics= Get-MailboxStatistics $PublicFolderMailbox.Alias -ErrorAction stop -WarningAction:SilentlyContinue
+            [int]$PFMBXSizeinB=[int]$PublicFolderMailboxMailboxStatistics.TotalItemSize.value.tostring().Split("(")[1].split(" ")[0].Replace(",","")+[int]$PublicFolderMailboxMailboxStatistics.TotalDeletedItemSize.value.tostring().Split("(")[1].split(" ")[0].Replace(",","")
+        }
+        catch {
+           
+        }
+        
+        ##Validate PFMBXsize has excced 80% PublicFolderMailboxSendReceiveQuota
+        if ((($PublicFolderMailboxSendReceiveQuota-$PFMBXSizeinB)/(1024*1024*1024)) -le 20) {
+            $unhealthyPFMBXcount++
+            $unhealthyPFMBX+=$PublicFolderMailbox
+        }
+        #$percent++
+    }
+    Write-Host
+    write-host "Recommendations:`n================" -ForegroundColor Cyan
+    if($unhealthyPFMBXcount -eq 0)
+    {
+        Write-host "All Public folder mailboxes are on quota healthy state" -ForegroundColor Green
+    }
+    else {
+        Write-host "Please diagnose below public folder mailboxes as their size have exceeded autosplit threshold: " -NoNewline -ForegroundColor Black -BackgroundColor Red
+        $unhealthyPFMBX |Format-Table -Wrap -AutoSize Name,Alias,Guid,ExchangeGuid
+    }
+    #endregion add health quota check on PF MBXs 
+    #region add health quota check on PFs approaching individual/organization prohibitpostquota,check if we have Giant PFs
+    [Int]$unhealthyPFcount=0
+    $unhealthyPF=@()
+    foreach($Publicfolder in $Publicfolders)
+    {
+        [Int]$OrgPFProhibitPostQuotainB=$OrganizationConfig.DefaultPublicFolderProhibitPostQuota.Split("(")[1].split(" ")[0].Replace(",","")
+        $DefaultPublicFolderIssueWarningQuotainB=$OrganizationConfig.DefaultPublicFolderIssueWarningQuota.Split("(")[1].split(" ")[0].Replace(",","")
+        $Publicfolderstats=Get-PublicFolderStatistics $Publicfolder.EntryID
+        [Int]$PublicfolderTotalSize=$Publicfolderstats.TotalItemSize.Split("(")[1].split(" ")[0].Replace(",","")+$Publicfolderstats.TotalDeletedItemSize.Split("(")[1].split(" ")[0].Replace(",","")
+        if ($Publicfolder.ProhibitPostQuota -eq "unlimited") {
+            if ($PublicfolderTotalSize -ge $OrgPFProhibitPostQuotainB -and $PublicfolderTotalSize -ge 21474836480) {
+                $unhealthyPFcount++
+            }
+            if ($PublicfolderTotalSize -ge $OrgPFProhibitPostQuotainB -and $PublicfolderTotalSize -le 21474836480) {
+                $unhealthyPFcount++
+            }
+            if ($PublicfolderTotalSize -le $OrgPFProhibitPostQuotainB -and $PublicfolderTotalSize -ge 21474836480) {
+                
+            }
+            else {
+                
+            }
+        }
+        else {
+            
+        }
+
+    }
+    #endregion add health quota check on PFs approaching individual/organization prohibitpostquota,check if we have Giant PFs
+
+
     ##add HRR MBXs in case exist
-    ##add check if primary PF MBX contain content as it should be only hierachy
-    ##add health quota check on PF MBXs 
-    ##add health quota check on individual PFs,check if we have Giant PFs
     ##Think about adding Autosplit status
     ##add MEPFs are synced using AD connect
+    
  }
  
-#endregion public folder overview
+    
 
 <#Function Debug-MEPFNDRCause
 {
