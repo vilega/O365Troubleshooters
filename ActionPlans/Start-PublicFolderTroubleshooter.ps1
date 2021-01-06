@@ -473,22 +473,31 @@ Function Start-PFDataCollection{
         Write-Host "DirectoryBasedEdgeBlockModeStatus = Disabled"
     }
     $OrganizationConfig=Get-OrganizationConfig
-    $Publicfolders=Get-PublicFolder -Recurse -ResultSize unlimited
     $PublicFoldersLocation=$OrganizationConfig.PublicFoldersEnabled
     $PublicFolderMailboxes=Get-Mailbox -PublicFolder -ResultSize unlimited
     [Int]$PublicFolderMailboxesCount=($PublicFolderMailboxes).count
-    [Int]$PublicFoldersCount=($Publicfolders).count - 1
     [Int]$MailEnabledPublicFoldersCount=(Get-MailPublicFolder -ResultSize unlimited).count
     $RootPublicFolderMailbox=$OrganizationConfig.RootPublicFolderMailbox.HierarchyMailboxGuid.Guid.ToString()
-    $RemotePublicFolderMailboxes=$OrganizationConfig.RemotePublicFolderMailboxes
     Write-Host "PublicFoldersLocation = $PublicFoldersLocation"
     if ($PublicFoldersLocation -eq "Local") {
+        $Publicfolders=Get-PublicFolder -Recurse -ResultSize unlimited
+        [Int]$PublicFoldersCount=($Publicfolders).count - 1
         Write-Host "PublicFolderMailboxesCount = $PublicFolderMailboxesCount"
         Write-Host "PublicFoldersCount = $PublicFoldersCount"
         Write-Host "RootPublicFolderMailbox = $RootPublicFolderMailbox"       
     }
     else {
-        Write-Host "RemotePublicFolderMailboxes = $($RemotePublicFolderMailboxes -join ",")"
+        $RemotePublicFolderMailboxes=$OrganizationConfig.RemotePublicFolderMailboxes
+        $LockedForMigration=$OrganizationConfig.RootPublicFolderMailbox.LockedForMigration
+        if($LockedForMigration -like "True")
+        {
+            Write-Host "Public folder migration in PROGRESS!" -BackgroundColor Gray 
+            Write-Host "PublicFolderMailboxesCount = $PublicFolderMailboxesCount"
+        }
+        else {
+            Write-Host "RemotePublicFolderMailboxes = $($RemotePublicFolderMailboxes -join ",")"
+        }
+        
     }
     Write-Host "MailEnabledPublicFoldersCount = $MailEnabledPublicFoldersCount" 
     #endregion main public folders overview information
@@ -549,34 +558,101 @@ Function Start-PFDataCollection{
         $unhealthyPFMBX |Format-Table -Wrap -AutoSize Name,Alias,Guid,ExchangeGuid
     }
     #endregion add health quota check on PF MBXs 
-    #region add health quota check on PFs approaching individual/organization prohibitpostquota,check if we have Giant PFs
-    [Int]$unhealthyPFcount=0
-    $unhealthyPF=@()
-    foreach($Publicfolder in $Publicfolders)
-    {
+
+    ##Repro that part with smaller values
+    #region add health quota check on PFs approaching individual/organization prohibitpostquota,check if we have Giant PFs,that check to be ignored if PFs location is remote
+    if ($PublicFoldersLocation -eq "Local") {
+        [Int]$unhealthyPFcountapproachingIndQuota=0
+        [Int]$unhealthyPFcountapproachingOrgQuota=0
+        $unhealthyPF=@()
+        $GiantPF=@()
+        $UnhealthygiantPF=@()
+        foreach($Publicfolder in $Publicfolders)
+        {
         [Int]$OrgPFProhibitPostQuotainB=$OrganizationConfig.DefaultPublicFolderProhibitPostQuota.Split("(")[1].split(" ")[0].Replace(",","")
         $DefaultPublicFolderIssueWarningQuotainB=$OrganizationConfig.DefaultPublicFolderIssueWarningQuota.Split("(")[1].split(" ")[0].Replace(",","")
-        $Publicfolderstats=Get-PublicFolderStatistics $Publicfolder.EntryID
+        $Publicfolderstats=Get-PublicFolderStatistics $($Publicfolder.EntryID)
         [Int]$PublicfolderTotalSize=$Publicfolderstats.TotalItemSize.Split("(")[1].split(" ")[0].Replace(",","")+$Publicfolderstats.TotalDeletedItemSize.Split("(")[1].split(" ")[0].Replace(",","")
-        if ($Publicfolder.ProhibitPostQuota -eq "unlimited") {
-            if ($PublicfolderTotalSize -ge $OrgPFProhibitPostQuotainB -and $PublicfolderTotalSize -ge 21474836480) {
-                $unhealthyPFcount++
+        ##Check health in regards to Organization quota
+            if ($Publicfolder.ProhibitPostQuota -eq "unlimited") {
+             if ($PublicfolderTotalSize -ge $OrgPFProhibitPostQuotainB -and $PublicfolderTotalSize -ge 21474836480) {
+                $unhealthyPFcountapproachingOrgQuota++
+                $UnhealthygiantPF=$UnhealthygiantPF+$publicfolder
+                }
+                if ($PublicfolderTotalSize -ge $OrgPFProhibitPostQuotainB -and $PublicfolderTotalSize -le 21474836480) {
+                $unhealthyPFcountapproachingOrgQuota++
+                $unhealthyPF=$unhealthyPF+$publicfolder
+                }
+                if ($PublicfolderTotalSize -le $OrgPFProhibitPostQuotainB -and $PublicfolderTotalSize -ge 21474836480) {
+                    $unhealthyPFcountapproachingOrgQuota++
+                    $GiantPF=$GiantPF+$publicfolder
+                }
+                #No action done as it's healthy PF
             }
-            if ($PublicfolderTotalSize -ge $OrgPFProhibitPostQuotainB -and $PublicfolderTotalSize -le 21474836480) {
-                $unhealthyPFcount++
-            }
-            if ($PublicfolderTotalSize -le $OrgPFProhibitPostQuotainB -and $PublicfolderTotalSize -ge 21474836480) {
-                
-            }
+        ##Check health in regards to PF individual quota
             else {
-                
+                $ProhibitPostQuota=$Publicfolder.ProhibitPostQuota.Split("(")[1].split(" ")[0].Replace(",","")
+                if ($PublicfolderTotalSize -ge $ProhibitPostQuota -and $PublicfolderTotalSize -ge 21474836480) {
+                    $unhealthyPFcountapproachingIndQuota++
+                    $UnhealthygiantPF=$UnhealthygiantPF+$publicfolder
+                }
+                 if ($PublicfolderTotalSize -ge $ProhibitPostQuota -and $PublicfolderTotalSize -le 21474836480) {
+                    $unhealthyPFcountapproachingIndQuota++
+                    $unhealthyPF=$unhealthyPF+$publicfolder
+                 }
+                if ($PublicfolderTotalSize -le $ProhibitPostQuota -and $PublicfolderTotalSize -ge 21474836480) {
+                    $unhealthyPFcountapproachingIndQuota++
+                    $GiantPF=$GiantPF+$publicfolder
+                }
+                #No action done as it's healthy PF
             }
         }
-        else {
+        if ($unhealthyPFcountapproachingOrgQuota -ge 1)
+        {   
+            Write-host "Please diagnose below public folder(s) as their sizes are not compliant for the below reason: " -NoNewline -ForegroundColor Black -BackgroundColor Red
+            if($UnhealthygiantPF.Count -ge 1)
+            {
+                Write-host "Giant public folder(s) found exceeding OrganizationProhibitPostQuota:`n================================================="
+                $UnhealthygiantPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,Path,EntryID
+            }
+            if($unhealthyPF.Count -ge 1)
+            {
+                Write-host "Public folder(s) found exceeding OrganizationProhibitPostQuota:`n================================================="
+                $unhealthyPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,Path,EntryID
+            }
+            if($GiantPF.Count -ge 1)
+            {
+                Write-host "Giant Public folder(s) found:`n================================================="
+                $GiantPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,Path,EntryID
+            }
+        }
+        if ($unhealthyPFcountapproachingIndQuota -ge 1)
+        {
+            Write-host "Please diagnose below public folder(s) as their sizes are not compliant for the below reason: " -NoNewline -ForegroundColor Black -BackgroundColor Red
+            if($UnhealthygiantPF.Count -ge 1)
+            {
+                Write-host "Giant public folder(s) found exceeding ProhibitPostQuota:`n================================================="
+                $UnhealthygiantPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,Path,EntryID
+            }
+            if($unhealthyPF.Count -ge 1)
+            {
+                Write-host "Public folder(s) found exceeding ProhibitPostQuota:`n================================================="
+                $unhealthyPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,Path,EntryID
+            }
+            if($GiantPF.Count -ge 1)
+            {
+                Write-host "Giant Public folder(s) found:`n================================================="
+                $GiantPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,Path,EntryID
+            }
             
+            
+        }
+        else {
+            Write-Host "All Public folder are on quota healthy state" -ForegroundColor Green
         }
 
     }
+    
     #endregion add health quota check on PFs approaching individual/organization prohibitpostquota,check if we have Giant PFs
 
 
