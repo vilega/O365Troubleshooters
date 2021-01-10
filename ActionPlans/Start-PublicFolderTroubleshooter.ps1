@@ -389,6 +389,10 @@ Select a task by number or Q to quit
 "@
 
 $menuchoice=Read-Host $PFMenu
+if ($menuchoice -eq 1)
+{
+    Start-PFDataCollection
+}
 if ($menuchoice -eq 2)
 {
 #region Get the affected MEPF SMTP
@@ -450,6 +454,9 @@ Write-Host "Opening report...." -ForegroundColor Cyan
 Start-Process $FilePath
 }
 #endregion ResultReport
+}
+else {
+    Exit
 }
 
 
@@ -609,40 +616,40 @@ Function Start-PFDataCollection{
         }
         if ($unhealthyPFcountapproachingOrgQuota -ge 1)
         {   
-            Write-host "Please diagnose below public folder(s) as their sizes are not compliant for the below reason: " -NoNewline -ForegroundColor Black -BackgroundColor Red
+            Write-host "Please diagnose below public folder(s) as their sizes are not compliant for the below reason: " -ForegroundColor Black -BackgroundColor Red
             if($UnhealthygiantPF.Count -ge 1)
             {
-                Write-host "Giant public folder(s) found exceeding OrganizationProhibitPostQuota:`n================================================="
-                $UnhealthygiantPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,Path,EntryID
+                Write-host "Giant public folder(s) found exceeding OrganizationProhibitPostQuota:`n====================================================================="
+                $UnhealthygiantPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,EntryID
             }
             if($unhealthyPF.Count -ge 1)
             {
-                Write-host "Public folder(s) found exceeding OrganizationProhibitPostQuota:`n================================================="
-                $unhealthyPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,Path,EntryID
+                Write-host "Public folder(s) found exceeding OrganizationProhibitPostQuota:`n==============================================================="
+                $unhealthyPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,EntryID
             }
             if($GiantPF.Count -ge 1)
             {
-                Write-host "Giant Public folder(s) found:`n================================================="
-                $GiantPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,Path,EntryID
+                Write-host "Giant Public folder(s) found:`n============================="
+                $GiantPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,EntryID
             }
         }
         if ($unhealthyPFcountapproachingIndQuota -ge 1)
         {
-            Write-host "Please diagnose below public folder(s) as their sizes are not compliant for the below reason: " -NoNewline -ForegroundColor Black -BackgroundColor Red
+            Write-host "Please diagnose below public folder(s) as their sizes are not compliant for the below reason: "  -ForegroundColor Black -BackgroundColor Red
             if($UnhealthygiantPF.Count -ge 1)
             {
-                Write-host "Giant public folder(s) found exceeding ProhibitPostQuota:`n================================================="
-                $UnhealthygiantPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,Path,EntryID
+                Write-host "Giant public folder(s) found exceeding ProhibitPostQuota($ProhibitPostQuota Bytes):`n==================================================================================="
+                $UnhealthygiantPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,EntryID
             }
             if($unhealthyPF.Count -ge 1)
             {
-                Write-host "Public folder(s) found exceeding ProhibitPostQuota:`n================================================="
-                $unhealthyPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,Path,EntryID
+                Write-host "Public folder(s) found exceeding ProhibitPostQuota($ProhibitPostQuota Bytes):`n============================================================================="
+                $unhealthyPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,EntryID
             }
             if($GiantPF.Count -ge 1)
             {
-                Write-host "Giant Public folder(s) found:`n================================================="
-                $GiantPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,Path,EntryID
+                Write-host "Giant Public folder(s) found:`n============================="
+                $GiantPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,EntryID
             }
             
             
@@ -659,7 +666,7 @@ Function Start-PFDataCollection{
     ##add HRR MBXs in case exist
     ##Think about adding Autosplit status
     ##add MEPFs are synced using AD connect
-    
+    ##add print for report to html
  }
  
     
