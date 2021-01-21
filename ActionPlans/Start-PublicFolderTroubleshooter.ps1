@@ -234,7 +234,7 @@ Function Repair-MEPFNDRCause
         if ($MEPFTotalSizeinB -le $DefaultPublicFolderProhibitPostQuotainB -and $MEPFTotalSizeinB -le $DefaultPublicFolderIssueWarningQuotainB) 
         {
             [string]$article='<a href="https://docs.microsoft.com/en-us/powershell/module/exchange/set-publicfolder" target="_blank">https://docs.microsoft.com/en-us/powershell/module/exchange/set-publicfolder</a>'
-            [string]$Description = "Please set public folder ProhibitPostQuota value to Unlimited to inherit from Organization setting or set a new public folder ProhibitPostQuota value ensuring that it's greater than the public folder size($MEPFTotalSizeinB Bytes)using command Set-PublicFolder."+"<br>"+"For more information please check the following article: $article"
+            [string]$Description = "Please set public folder ProhibitPostQuota value to Unlimited to inherit from Organization setting(DefaultPublicFolderProhibitPostQuota $DefaultPublicFolderProhibitPostQuotainB Bytes) or set a new public folder ProhibitPostQuota value ensuring that it's greater than the public folder size($MEPFTotalSizeinB Bytes)using command Set-PublicFolder."+"<br>"+"For more information please check the following article: $article"
          #   [PSCustomObject]$IndquotaHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring $IndProhibitQuotaReached
           #  $null = $TheObjectToConvertToHTML.Add($IndquotaHTML)
         }
@@ -250,7 +250,7 @@ Function Repair-MEPFNDRCause
     {
     if ($MEPFTotalSizeinB -le $DefaultPublicFolderProhibitPostQuotainB -and $MEPFTotalSizeinB -le $DefaultPublicFolderIssueWarningQuotainB) {
     [string]$article='<a href="https://docs.microsoft.com/en-us/powershell/module/exchange/set-publicfolder" target="_blank">https://docs.microsoft.com/en-us/powershell/module/exchange/set-publicfolder</a>'
-    [string]$Description = "Please set public folder ProhibitPostQuota\IssueWarningQuota values to Unlimited to inherit from Organization setting or set a new public folder ProhibitPostQuota\IssueWarningQuota values ensuring that they are greater than the public folder size($MEPFTotalSizeinB Bytes)using command Set-PublicFolder."+"<br>"+"For more information please check the following article: $article"
+    [string]$Description = "Please set public folder ProhibitPostQuota\IssueWarningQuota values to Unlimited to inherit from Organization setting(DefaultPublicFolderProhibitPostQuota $DefaultPublicFolderProhibitPostQuotainB\DefaultPublicFolderIssueWarningQuota $DefaultPublicFolderIssueWarningQuotainB Bytes) or set a new public folder ProhibitPostQuota\IssueWarningQuota values ensuring that they are greater than the public folder size($MEPFTotalSizeinB Bytes)using command Set-PublicFolder."+"<br>"+"For more information please check the following article: $article"
     #[PSCustomObject]$IndquotaHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring $IndProhibitQuotaReached
     #$null = $TheObjectToConvertToHTML.Add($IndquotaHTML)
     }
@@ -269,7 +269,7 @@ Function Repair-MEPFNDRCause
 if($ContentPFMBXProhibitSendReceiveQuotainB -le 96636764160 -and $ContentPFMBXProhibitSendReceiveQuotainB -le $MEPFTotalSizeinB)
 {   
 [string]$article='<a href="https://docs.microsoft.com/en-us/powershell/module/exchange/set-mailbox" target="_blank">https://docs.microsoft.com/en-us/powershell/module/exchange/set-mailbox</a>'
-[string]$Description = "Please ensure to use default value of ProhibitSendReceiveQuota(100 GB) or use a higher value than $ContentPFMBXProhibitSendReceiveQuotainB Bytes using set-mailbox command."+"<br>"+"For more information please refer to the following article: $article"
+[string]$Description = "Please ensure to use default value of ProhibitSendReceiveQuota(100 GB) or use a higher value than $ContentPFMBXProhibitSendReceiveQuotainB Bytes for content public folder mailbox <b>$MEPFcontentmailbox</b> using set-mailbox command."+"<br>"+"For more information please refer to the following article: $article"
 #[PSCustomObject]$ContentPFMBXProhibitSendReceiveQuotainBHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring $ContentPFMBXreached
 #$null = $TheObjectToConvertToHTML.Add($ContentPFMBXProhibitSendReceiveQuotainBHTML)    
 
@@ -293,7 +293,7 @@ if($Autosplitstatus -like "Halted")
 {
 #Log the PublicFolderMailboxDiagnostics+ContentPFMBXStatistics+ContentPFMBXProperties for customer to raise a support request with it
 [string]$article='<a href="https://docs.microsoft.com/en-us/powershell/module/exchange/get-publicfoldermailboxdiagnostics?view=exchange-ps" target="_blank">https://docs.microsoft.com/en-us/powershell/module/exchange/get-publicfoldermailboxdiagnostics?view=exchange-ps</a>'
-[string]$Description = "AutoSplit status is Halted so please raise a support request to Microsoft including output from Get-PublicFolderMailboxDiagnostics command for further investigation."+"<br>"+"For more information please refer to the following article: $article"
+[string]$Description = "AutoSplit status is Halted for content public folder mailbox <b>$MEPFcontentmailbox</b> so please raise a support request to Microsoft including output from Get-PublicFolderMailboxDiagnostics command for further investigation."+"<br>"+"For more information please refer to the following article: $article"
 #[PSCustomObject]$AutosplitHaltedHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring $ContentPFMBXreached
 #$null = $TheObjectToConvertToHTML.Add($AutosplitHaltedHTML)
 }
@@ -325,7 +325,7 @@ return $Description
 }
 else {
     [string]$article='<a href="https://docs.microsoft.com/en-us/powershell/module/exchange/get-publicfoldermailboxdiagnostics?view=exchange-ps" target="_blank">https://docs.microsoft.com/en-us/powershell/module/exchange/get-publicfoldermailboxdiagnostics?view=exchange-ps</a>'
-    [string]$Description = "Please raise a support request to Microsoft including output from Get-PublicFolderMailboxDiagnostics command for further investigation."+"<br>"+"For more information please refer to the following article: $article"
+    [string]$Description = "Please raise a support request to Microsoft including output from Get-PublicFolderMailboxDiagnostics command for content public folder mailbox <b>$MEPFcontentmailbox</b> for further investigation."+"<br>"+"For more information please refer to the following article: $article"
     #[PSCustomObject]$AutosplitunknownreasonHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring $ContentPFMBXreached
     #$null = $TheObjectToConvertToHTML.Add($AutosplitunknownreasonHTML)        
 }
@@ -334,7 +334,7 @@ else {
 else
 {
 [string]$article='<a href="https://docs.microsoft.com/en-us/powershell/module/exchange/get-publicfoldermailboxdiagnostics?view=exchange-ps" target="_blank">https://docs.microsoft.com/en-us/powershell/module/exchange/get-publicfoldermailboxdiagnostics?view=exchange-ps</a>'
-[string]$Description = "Please raise a support request to Microsoft including output from Get-PublicFolderMailboxDiagnostics command for further investigation."+"<br>"+"For more information please refer to the following article: $article"
+[string]$Description = "Please raise a support request to Microsoft including output from Get-PublicFolderMailboxDiagnostics command for content public folder mailbox <b>$MEPFcontentmailbox</b> for further investigation."+"<br>"+"For more information please refer to the following article: $article"
 #[PSCustomObject]$AutosplitunknownreasonHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring $ContentPFMBXreached
 #$null = $TheObjectToConvertToHTML.Add($AutosplitunknownreasonHTML)
 }
@@ -344,7 +344,7 @@ else
 {
 #Log the PublicFolderMailboxDiagnostics+ContentPFMBXStatistics+ContentPFMBXProperties for customer to raise a support request with it
 [string]$article='<a href="https://docs.microsoft.com/en-us/powershell/module/exchange/get-publicfoldermailboxdiagnostics?view=exchange-ps" target="_blank">https://docs.microsoft.com/en-us/powershell/module/exchange/get-publicfoldermailboxdiagnostics?view=exchange-ps</a>'
-[string]$Description = "Please raise a support request to Microsoft including output from Get-PublicFolderMailboxDiagnostics command for further investigation."+"<br>"+"For more information please refer to the following article: $article"
+[string]$Description = "Please raise a support request to Microsoft including output from Get-PublicFolderMailboxDiagnostics command for content public folder mailbox <b>$MEPFcontentmailbox</b> for further investigation."+"<br>"+"For more information please refer to the following article: $article"
 #[PSCustomObject]$AutosplitunknownreasonHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring $ContentPFMBXreached
 #$null = $TheObjectToConvertToHTML.Add($AutosplitunknownreasonHTML)
 }
@@ -354,7 +354,7 @@ else
 ##Other Autosplit status 
 #Autosplit process is in PROGRESS, Log the PublicFolderMailboxDiagnostics+ContentPFMBXStatistics+ContentPFMBXProperties for customer to raise a support request with it
 [string]$article='<a href="https://docs.microsoft.com/en-us/powershell/module/exchange/get-publicfoldermailboxdiagnostics?view=exchange-ps" target="_blank">https://docs.microsoft.com/en-us/powershell/module/exchange/get-publicfoldermailboxdiagnostics?view=exchange-ps</a>'
-[string]$Description = "Autosplit process is in PROGRESS so please raise a support request to Microsoft including output from Get-PublicFolderMailboxDiagnostics command for further investigation."+"<br>"+"For more information please refer to the following article: $article"
+[string]$Description = "Autosplit process is in PROGRESS for content public folder mailbox <b>$MEPFcontentmailbox</b> so please raise a support request to Microsoft including output from Get-PublicFolderMailboxDiagnostics command for further investigation."+"<br>"+"For more information please refer to the following article: $article"
 #[PSCustomObject]$AutosplitHaltedHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring $ContentPFMBXreached
 #$null = $TheObjectToConvertToHTML.Add($AutosplitHaltedHTML)
 }
@@ -389,7 +389,7 @@ $MEPFSMTP=Get-ValidEmailAddress("Email address of the mail enabled public folder
 #region Intro with group name 
 [string]$SectionTitle = "Introduction"
 [String]$article='<a href="https://docs.microsoft.com/en-us/exchange/troubleshoot/email-delivery/cannot-send-mail-mepf" target="_blank">Error when sending email to mail-enabled public folders in Office 365: 554 5.2.2 mailbox full</a>'
-[string]$Description = "This report illustrates causes behind a non-delivery report (NDR) with error code 554 5.2.2 when sending emails to a mail-enabled public folder: "+$MEPFSMTP+", Sections in RED are for checks BLOCKERS while Sections in GREEN are for checks PASSED!"
+[string]$Description = "This report illustrates causes behind a non-delivery report (NDR) with error code 554 5.2.2 when sending emails to a mail-enabled public folder: "+"<b>$MEPFSMTP</b>"+", Sections in RED are for checks BLOCKERS while Sections in GREEN are for checks PASSED!"
 $Description=$Description+"<br>"+"For more informtion please check: $article"
 [PSCustomObject]$StartHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString "Please ensure to mitigate causes in case found by checking FIX section!"
 $null = $TheObjectToConvertToHTML.Add($StartHTML)
@@ -402,6 +402,7 @@ try {
     [PSCustomObject]$OrganizationConfig=Get-OrganizationConfig -ErrorAction stop
     [PSCustomObject]$MEPFStatistics=Get-PublicFolderStatistics -identity $MailPublicFolder.EntryID -ErrorAction stop
     [PSCustomObject]$MEPFProperties=Get-PublicFolder $MailPublicFolder.EntryID -ErrorAction stop
+    [string]$MEPFcontentmailbox=$MailPublicFolder.contentmailbox
     [Int64]$MEPFProhibitPostQuotainGB = $MEPFProhibitPostQuotainB /(1024*1024*1024)
     [Int64]$ContentPFMBXProhibitSendReceiveQuotainB=$ContentPFMBXProperties.ProhibitSendReceiveQuota.Split("(")[1].split(" ")[0].Replace(",","")
     [Int64]$ContentPFMBXSizeinB=[Int64]$ContentPFMBXStatistics.TotalItemSize.value.tostring().Split("(")[1].split(" ")[0].Replace(",","")+[Int64]$ContentPFMBXStatistics.TotalDeletedItemSize.value.tostring().Split("(")[1].split(" ")[0].Replace(",","")
@@ -453,7 +454,7 @@ else {
 #region public folder overview
 Function Start-PFDataCollection{
     
-   
+   ##add org config values & check ind post quota health 
     #region main public folders overview information
     write-host
     write-host
