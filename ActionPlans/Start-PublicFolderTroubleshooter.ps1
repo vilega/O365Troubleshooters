@@ -379,7 +379,8 @@ Select a task by number or Q to quit
 $menuchoice=Read-Host $PFMenu
 if ($menuchoice -eq 1)
 {
-    Start-PFDataCollection
+    Write-host "Under construction"
+    #Start-PFDataCollection
 }
 if ($menuchoice -eq 2)
 {
@@ -418,6 +419,8 @@ catch {
     $CurrentProperty = "Retrieving: $MEPFSMTP object properties & statistics, content mailbox properties & statistics AND organization configuration"
     $CurrentDescription = "Failure"
     write-log -Function "Retrieve object properties & statistics" -Step $CurrentProperty -Description $CurrentDescription
+    Write-Error -Message $error[0]
+    exit
 }
 #endregion global variables used in functions
 try {
