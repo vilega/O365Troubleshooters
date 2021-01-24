@@ -379,7 +379,7 @@ Select a task by number or Q to quit
 $menuchoice=Read-Host $PFMenu
 if ($menuchoice -eq 1)
 {
-    Write-host "Under construction"
+    Write-host "This diagnostic is going to be released over O365Troubleshooter upcoming module!"
     #Start-PFDataCollection
 }
 if ($menuchoice -eq 2)
@@ -419,7 +419,7 @@ catch {
     $CurrentProperty = "Retrieving: $MEPFSMTP object properties & statistics, content mailbox properties & statistics AND organization configuration"
     $CurrentDescription = "Failure"
     write-log -Function "Retrieve object properties & statistics" -Step $CurrentProperty -Description $CurrentDescription
-    Write-Error -Message $error[0]
+    Write-Error -Message $error[-1]
     exit
 }
 #endregion global variables used in functions
