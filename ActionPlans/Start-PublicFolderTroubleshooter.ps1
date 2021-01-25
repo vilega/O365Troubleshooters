@@ -419,8 +419,8 @@ catch {
     $CurrentProperty = "Retrieving: $MEPFSMTP object properties & statistics, content mailbox properties & statistics AND organization configuration"
     $CurrentDescription = "Failure"
     write-log -Function "Retrieve object properties & statistics" -Step $CurrentProperty -Description $CurrentDescription
-    Write-Error -Message $error[-1]
-    exit
+    $error[-1]
+    break
 }
 #endregion global variables used in functions
 try {
@@ -450,7 +450,11 @@ Start-Process $FilePath
 else {
     Exit
 }
-
+Write-Host "`nOutput was exported in the following location: $ExportPath" -ForegroundColor Yellow 
+Start-Sleep -Seconds 3
+Read-Key
+# Go back to the main menu
+Start-O365TroubleshootersMenu
 
 
 
