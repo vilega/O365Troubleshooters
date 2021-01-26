@@ -416,11 +416,17 @@ try {
     write-log -Function "Retrieve object properties & statistics" -Step $CurrentProperty -Description $CurrentDescription
 }
 catch {
+    $Errorencountered=$Global:error[0].Exception
     $CurrentProperty = "Retrieving: $MEPFSMTP object properties & statistics, content mailbox properties & statistics AND organization configuration"
-    $CurrentDescription = "Failure"
+    $CurrentDescription = "Failure with error: "+$Errorencountered
     write-log -Function "Retrieve object properties & statistics" -Step $CurrentProperty -Description $CurrentDescription
-    $error[-1]
-    break
+    Write-Host "Error encountered during executing the script!"-ForegroundColor Red
+    Write-Host $Errorencountered -ForegroundColor Red
+    Write-Host "`nOutput was exported in the following location: $ExportPath" -ForegroundColor Yellow 
+    Start-Sleep -Seconds 3
+    Read-Key
+    # Go back to the main menu
+    Start-O365TroubleshootersMenu
 }
 #endregion global variables used in functions
 try {

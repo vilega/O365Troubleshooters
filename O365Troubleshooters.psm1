@@ -1894,7 +1894,7 @@ Function Start-O365TroubleshootersMenu {
     7  Tools: Exchange Online Audit Search
     8  Tools: Unified Logging Audit Search
     9  Tools: Azure AD Audit Sign In Log Search
-    10  Tools: Find all users with a specific RBAC Role
+    10 Tools: Find all users with a specific RBAC Role
     11 Tools: Find all users with all RBAC Roles
     12 Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox
     13 Tools: Decode SafeLinks URL
