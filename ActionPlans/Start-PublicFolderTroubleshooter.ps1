@@ -377,12 +377,16 @@ Select a task by number or Q to quit
 "@
 
 $menuchoice=Read-Host $PFMenu
+$menuchoice = $menuchoice.ToLower()
 if ($menuchoice -eq 1)
 {
-    Write-host "This diagnostic is going to be released over O365Troubleshooter upcoming module!"
+    Write-host "This diagnostic is going to be released over O365Troubleshooter upcoming release!"
+    Read-Key
+    Clear-Host
+    $menuchoice=Read-Host $PFMenu
     #Start-PFDataCollection
 }
-if ($menuchoice -eq 2)
+elseif ($menuchoice -eq 2)
 {
 #region Get the affected MEPF SMTP
 $MEPFSMTP=Get-ValidEmailAddress("Email address of the mail enabled public folder ")
@@ -453,8 +457,22 @@ Start-Process $FilePath
 }
 #endregion ResultReport
 }
+elseif($menuchoice -eq "q")
+{
+    Write-Host "Quitting...."
+    Write-Host "Relaunching the main menu again" -ForegroundColor Yellow 
+    Start-Sleep -Seconds 3
+    Read-Key
+    # Go back to the main menu
+    Start-O365TroubleshootersMenu
+}
 else {
-    Exit
+    Write-Host "You didn't provide an expected input!"
+    Write-Host "Relaunching the main menu again" -ForegroundColor Yellow 
+    Start-Sleep -Seconds 3
+    Read-Key
+    # Go back to the main menu
+    Start-O365TroubleshootersMenu
 }
 Write-Host "`nOutput was exported in the following location: $ExportPath" -ForegroundColor Yellow 
 Start-Sleep -Seconds 3
