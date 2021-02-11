@@ -402,8 +402,8 @@ $null = $TheObjectToConvertToHTML.Add($StartHTML)
 #region script variables used in functions
 try {
     [PSCustomObject]$MailPublicFolder=Get-MailPublicFolder $MEPFSMTP -ErrorAction stop
-    [PSCustomObject]$ContentPFMBXStatistics=Get-MailboxStatistics $MailPublicFolder.contentmailbox -ErrorAction stop
     [PSCustomObject]$ContentPFMBXProperties=Get-Mailbox -PublicFolder $MailPublicFolder.contentmailbox -ErrorAction stop
+    [PSCustomObject]$ContentPFMBXStatistics=Get-MailboxStatistics $ContentPFMBXProperties.Guid.ToString() -ErrorAction stop
     [PSCustomObject]$OrganizationConfig=Get-OrganizationConfig -ErrorAction stop
     [PSCustomObject]$MEPFStatistics=Get-PublicFolderStatistics -identity $MailPublicFolder.EntryID -ErrorAction stop
     [PSCustomObject]$MEPFProperties=Get-PublicFolder $MailPublicFolder.EntryID -ErrorAction stop

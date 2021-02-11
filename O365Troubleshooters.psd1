@@ -12,7 +12,7 @@
 RootModule = '.\O365Troubleshooters.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.0.0.15'
+ModuleVersion = '2.0.0.16'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -27,7 +27,7 @@ Author = 'vilega@microsoft.com'
 CompanyName = 'Victor Legat'
 
 # Copyright statement for this module
-Copyright = '(c) 2020 vilega@microsoft.com. All rights reserved.'
+Copyright = '(c) 2021 vilega@microsoft.com. All rights reserved.'
 
 # Description of the functionality provided by this module
 Description = 'Office 365 Troubleshooters module has been designed to help Office 365 Administrators to do troubleshooting on Office 365 services. 
@@ -113,6 +113,7 @@ FileList = @(
     'ActionPlans\Connect-ServicesWithTokens.ps1'
     'ActionPlans\Start-MailboxMigrationAnalyzer.ps1'
     'ActionPlans\Start-DlToO365GroupUpgradeChecks.ps1'
+    'ActionPlans\Start-PublicFolderTroubleshooter.ps1'
 )
 
 # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
@@ -121,7 +122,7 @@ PrivateData = @{
     PSData = @{
 
         # Tags applied to this module. These help with module discovery in online galleries.
-        Tags = @("O365","Office365","Exchange","EXO","ExchangeOnline","Compliance","Security","Identity","Audit","OME","AIP","OfficeMessageEncryption","Azure","Protection","AzureInformationProtection","UnifiedLabeling","Diagnostic","Migration","Move","Actionplan","Report","Tool")
+        Tags = @("O365","Office365","Exchange","EXO","ExchangeOnline","Compliance","Security","Identity","Audit","OME","AIP","OfficeMessageEncryption","Azure","Protection","AzureInformationProtection","UnifiedLabeling","Diagnostic","Migration","Move","Actionplan","Report","Tool","PublicFolder","PF")
 
         # A URL to the license for this module.
         # LicenseUri = ''
@@ -134,6 +135,7 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = '
+        2.0.0.16 - Public Folder troubleshooter, fix some Exchange Online connectivity issues requiring old module
         2.0.0.15 - Improved HTML report, new action plan for DL to O365 Groups Upgrade Check, some improvments on Compromised Investigation,Get-ValidEmailAddress and Safe Links Decode URL
         2.0.0.14 - HTML Report and HTML Report object builder as generic functions, Analyze Mailbox move (Hybrid migration), fix minor bugs
         2.0.0.13 - Implemented one prompt only for modern (except AzureAdPreview), Implemeneted Compromised Investigation with HTML report
