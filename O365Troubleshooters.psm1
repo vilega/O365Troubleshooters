@@ -60,7 +60,7 @@ Function Request-Credential {
 Function Connect-O365PS { # Function to connecto to O365 services
 
     # Parameter request and validation
-    param ([ValidateSet("Msol","AzureAd","AzureAdPreview","Exo","ExoBasic","Exo2","Eop","Scc","AIPService","Spo","Sfb","Teams")][Parameter(Mandatory=$true)] 
+    param ([ValidateSet("Msol","AzureAd","AzureAdPreview","Exo","ExoBasic","Exo2","Eop","Scc","AIPService","Spo","Sfb","Teams","ActiveDirectory")][Parameter(Mandatory=$true)] 
             $O365Service 
     )
     $Try = 0
@@ -70,6 +70,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
 
     
 #region Module Checks
+
 
     # Azure Module is mandatory
 
@@ -113,6 +114,29 @@ Function Connect-O365PS { # Function to connecto to O365 services
         }
     }
 
+    # Active Directory module check
+
+    if ((Get-Module -ListAvailable -Name ActiveDirectory).count -eq 0) 
+    {
+        $CurrentProperty = "Checking ActiveDirectory Module"
+        $CurrentDescription = "ActiveDirectory module is not installed. You need to install it first to support connection to local Active Directory"
+        write-host "`n$CurrentDescription" -ForegroundColor Red
+        Write-Host "`n The Remote Server Administration Tool (RSAT) which contains ActiveDiretory PowerShell module is not installed on you machine. Please go to https://www.microsoft.com/en-us/download/details.aspx?id=45520 and install RSAT first." -ForegroundColor Red
+        write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
+        start-sleep -Seconds 10
+        Write-Host "`n We are reloading main menu"
+        Start-O365TroubleshootersMenu 
+    }
+    elseif ((Get-Module -Name ActiveDirectory).count -eq 0) 
+    {
+        Import-Module ActiveDirectory -Global -DisableNameChecking  -ErrorAction SilentlyContinue | Out-Null
+        $CurrentProperty = "Import ActiveDirectory Module"
+        $CurrentDescription = "Success"
+        write-host "`n$CurrentDescription" -ForegroundColor Green
+        write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
+    }
+
+    
     # Checking if required modules are installed
     If ( $O365Service -eq "MSOL") {
         $updateMSOL = $false
