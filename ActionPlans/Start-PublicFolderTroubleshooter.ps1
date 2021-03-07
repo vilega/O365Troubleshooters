@@ -402,8 +402,8 @@ $null = $TheObjectToConvertToHTML.Add($StartHTML)
 #region script variables used in functions
 try {
     [PSCustomObject]$MailPublicFolder=Get-MailPublicFolder $MEPFSMTP -ErrorAction stop
+    [PSCustomObject]$ContentPFMBXStatistics=Get-MailboxStatistics $MailPublicFolder.contentmailbox -ErrorAction stop
     [PSCustomObject]$ContentPFMBXProperties=Get-Mailbox -PublicFolder $MailPublicFolder.contentmailbox -ErrorAction stop
-    [PSCustomObject]$ContentPFMBXStatistics=Get-MailboxStatistics $ContentPFMBXProperties.Guid.ToString() -ErrorAction stop
     [PSCustomObject]$OrganizationConfig=Get-OrganizationConfig -ErrorAction stop
     [PSCustomObject]$MEPFStatistics=Get-PublicFolderStatistics -identity $MailPublicFolder.EntryID -ErrorAction stop
     [PSCustomObject]$MEPFProperties=Get-PublicFolder $MailPublicFolder.EntryID -ErrorAction stop
@@ -686,141 +686,8 @@ Function Start-PFDataCollection{
     ##Think about adding Autosplit status
     ##add MEPFs are synced using AD connect
     ##add print for report to html
+    ##New function code
  }
  
     
 
-<#Function Debug-MEPFNDRCause
-{
- Param(
- [parameter(Mandatory=$true)]
- [String]$Cause 
- )
-
-if($Cause -eq "ContentPFMBXfull")
- {
-##Validate if Autosplit status is Halted
-$PublicFolderMailboxDiagnostics=Get-PublicFolderMailboxDiagnostics $MailPublicFolder.contentmailbox
-##Validate Autosplit status
-$Autosplitstatus=$PublicFolderMailboxDiagnostics.autosplitinfo.Substring(0,60).split(":")[1].split("")[1]
-if($Autosplitstatus -like "Halted")
-{
-#Log the PublicFolderMailboxDiagnostics+ContentPFMBXStatistics+ContentPFMBXProperties for customer to raise a support request with it
-Write-Host "AutoSplit status is Halted so please raise a support request to Microsoft including logs attached under FilePath to solve that issue."
-}
-elseif($Autosplitstatus -like "SplitCompleted"){
-##Validate the date of split
-$PublicFolderSplitProcessor=$PublicFolderMailboxDiagnostics.AssistantInfo.ProcessorsState|where {$_ -like "*PublicFolderSplitProcessor*"}
-$DateofPublicFolderSplitProcessor=$PublicFolderSplitProcessor.Split("=")[1]
-##Validate Autosplitting process was recent
-if($DateofPublicFolderSplitProcessor -ge (get-date).AddDays(-7))
-{
-#Check if DefaultPublicFolderMovedItemRetention is keeping the mailbox full, even though AutoSplit completed successfully, you might reduce DefaultPublicFolderMovedItemRetention to be 1 day and then invoke mailbox assistant to process the mailbox.
-$DefaultPublicFolderMovedItemRetention=$OrganizationConfig.DefaultPublicFolderMovedItemRetention.Split(":")[0].split(".")[0]
-if($DateofPublicFolderSplitProcessor -ge (get-date).AddDays(-$DefaultPublicFolderMovedItemRetention))
-{##we might need to lower DefaultPublicFolderMovedItemRetention value to 1 day and invoke mailbox assistant
-$UserAction=Read-Host "Organization DefaultPublicFolderMovedItemRetention is keeping the mailbox full, even though AutoSplit completed successfully, you still need to reduce DefaultPublicFolderMovedItemRetention to be 1 day and then invoke mailbox assistant to process the mailbox.Do you wish to proceed with that?`nType Y(Yes) to proceed or N(No) to exit!"
-if ($UserAction -like "*y*")
-{
-Set-OrganizationConfig -DefaultPublicFolderMovedItemRetention 1.00:00:00
-Update-PublicFolderMailbox $MailPublicFolder.contentmailbox
-Write-Host "Check later after couple of hours if the $MailPublicFolder.contentmailbox TotalItemSize has reduced by running the below command.`nGet-MailboxStatistics $MailPublicFolder.contentmailbox |ft TotalItemSize `nIf the size is reduced, then the issue is fixed and you may set the MovedItemRetention back to old value of $DefaultPublicFolderMovedItemRetention.00:00:00 using below command.`n Set-OrganizationConfig -DefaultPublicFolderMovedItemRetention $DefaultPublicFolderMovedItemRetention.00:00:00"
-}
-}
-##Something other than DefaultPublicFolderMovedItemRetention value prevented items deletion
-else
-{
-Log the PublicFolderMailboxDiagnostics+ContentPFMBXStatistics+ContentPFMBXProperties for customer to raise a support request with it
-Write-Host "Please raise a support request to Microsoft including logs attached under FilePath to solve that issue."
-}
-}
-##Autosplit was done more than 7 days ago
-else
-{
-#Log the PublicFolderMailboxDiagnostics+ContentPFMBXStatistics+ContentPFMBXProperties for customer to raise a support request with it
-Write-Host "Please raise a support request to Microsoft including logs attached under FilePath to solve that issue."
-}
-}
-else
-{
-##Other Autosplit status 
-$PublicFolderSplitProcessor=$PublicFolderMailboxDiagnostics.AssistantInfo.ProcessorsState|where {$_ -like "*PublicFolderSplitProcessor*"}
-$DateofPublicFolderSplitProcessor=$PublicFolderSplitProcessor.Split("=")[1]
-##Validate Autosplitting process was recent
-if($DateofPublicFolderSplitProcessor -ge (get-date).AddDays(-2))
-{
-#Autosplit process is in PROGRESS, Log the PublicFolderMailboxDiagnostics+ContentPFMBXStatistics+ContentPFMBXProperties for customer to raise a support request with it
-Write-Host "Autosplit process is in PROGRESS, Please raise a support request to Microsoft including logs attached under FilePath to check if there are any issues blocking that progress."
-}
-##Validate Autosplitting process hasn't ran for more than 2 days
-else
-{
-#Log the PublicFolderMailboxDiagnostics+ContentPFMBXStatistics+ContentPFMBXProperties for customer to raise a support request with it
-Write-Host "Please raise a support request to Microsoft including logs attached under FilePath to solve that issue."
-}
-}
-}
-if($Cause -eq "OrgProhibitPostQuotaReached")
-{
-##Increase Org DefaultPublicFolderProhibitPostQuota by 2 GB to mitigate 
-##Log the action
-$UsernewDefaultPublicFolderProhibitPostQuotavalue=Read-Host "Please insert a new Organization DefaultPublicFolderProhibitPostQuota value in Bytes greater than MEPF size($MEPFTotalSizeinB Bytes)"
-$UsernewDefaultPublicFolderIssueWarningQuotavalue=Read-Host "Please insert a new Organization DefaultPublicFolderIssueWarningQuota value in Bytes greater than the old value($DefaultPublicFolderIssueWarningQuotainB Bytes) & lower than $UsernewDefaultPublicFolderProhibitPostQuotavalue Bytes!"
-if($UsernewDefaultPublicFolderProhibitPostQuotavalue -ge $DefaultPublicFolderProhibitPostQuotainB -and $UsernewDefaultPublicFolderIssueWarningQuotavalue -ge $DefaultPublicFolderIssueWarningQuotainB -and $UsernewDefaultPublicFolderProhibitPostQuotavalue -ge $UsernewDefaultPublicFolderIssueWarningQuotavalue -and $UsernewDefaultPublicFolderProhibitPostQuotavalue -ge $MEPFTotalSizeinB)
-{
-Set-OrganizationConfig -DefaultPublicFolderProhibitPostQuota $UsernewDefaultPublicFolderProhibitPostQuotavalue -DefaultPublicFolderIssueWarningQuota $UsernewDefaultPublicFolderIssueWarningQuotavalue
-}
-else
-{
-##Values entered are inconsistent
-Write-Host "Org. DefaultPublicFolderProhibitPostQuota & DefaultPublicFolderIssueWarningQuota NEW defined values are inconsistent!"
-##exit
-}
-}
-if($Cause -eq "IndProhibitPostQuotaReached")
-{
-$UsernewProhibitPostQuotaValue=Read-Host "Please insert Unlimited to inherit from Organization Public folder Post Quota or a new public folder ProhibitPostQuota value greater than the old value($MEPFProhibitPostQuotainB Bytes) considering that all values entered are in BYTES!"
-##Validate warning quota over MEPF
-if($MEPFProperties.IssueWarningQuota -like "unlimited")
-{
-    if($UsernewProhibitPostQuotaValue -like "unlimited")
-    {
-        try {
-            Set-PublicFolder $MEPFProperties.entryid -ProhibitPostQuota $UsernewProhibitPostQuotaValue    
-        }
-        catch {
-            
-        }
-        
-    }
-    else {
-        if($UsernewProhibitPostQuotaValue -ge $MEPFProhibitPostQuotainB -and $UsernewProhibitPostQuotaValue -ge $MEPFTotalSizeinB)
-        {
-        Set-PublicFolder $MEPFProperties.entryid -ProhibitPostQuota $UsernewProhibitPostQuotaValue
-        }
-        else
-        {
-        write-host "Public folder ProhibitPostQuota NEW defined value is either LOWER than OLD post quota value or PF Item Size value!, please rerun and ensure to specify consistent value!"
-        }
-        }
-
-    }
-    else
-        {
-        ##IssueWarningQuota has numeric value
-        Set-PublicFolder $MEPFProperties.entryid -ProhibitPostQuota $UsernewProhibitPostQuotaValue
-        $MEPFIssueWarningQuotainB=$MEPFProperties.IssueWarningQuota.Split("(")[1].split(" ")[0]
-        $UsernewIssueWarningQuotaValue=Read-Host "Please insert Unlimited to inherit from Organization Public folder warning Quota or a new public folder IssueWarningQuota value greater than the old value($MEPFIssueWarningQuotainB Bytes) & lower than new Post Quota value $UsernewProhibitPostQuotaValue Bytes! considering that all values entered are in BYTES"
-        if($UsernewIssueWarningQuotaValue -le $UsernewProhibitPostQuotaValue -and $UsernewIssueWarningQuotaValue -ge $MEPFIssueWarningQuotainB)
-        {
-        Set-PublicFolder $MEPFProperties.entryid -IssueWarningQuota $UsernewIssueWarningQuotaValue
-        }
-        else
-        {
-        write-host "Public folder IssueWarningQuota NEW defined value is GREATER than NEW defined public folder ProhibitPostQuota value!, please rerun and ensure to specify consistent value!"
-        }
-}
-
-##Log the action
-}
-}#>
