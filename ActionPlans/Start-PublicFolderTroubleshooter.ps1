@@ -371,6 +371,7 @@ return $fix
 $PFMenu=@"
 1 - Public folder overview
 2 - Diagnosing 554 5.2.2 mailbox full NDR received on sending to MEPF
+3 - Diagnosing the cause behind the failure of deleting a public folder item or the whole public folder
 Q  Quit
      
 Select a task by number or Q to quit
@@ -380,11 +381,11 @@ $menuchoice=Read-Host $PFMenu
 $menuchoice = $menuchoice.ToLower()
 if ($menuchoice -eq 1)
 {
-    Write-host "This diagnostic is going to be released over O365Troubleshooter upcoming release!"
-    Read-Key
-    Clear-Host
-    $menuchoice=Read-Host $PFMenu
-    #Start-PFDataCollection
+    #Write-host "This diagnostic is going to be released over O365Troubleshooter upcoming release!"
+    #Read-Key
+    #Clear-Host
+    #$menuchoice=Read-Host $PFMenu
+    Start-PFDataCollection
 }
 elseif ($menuchoice -eq 2)
 {
@@ -457,6 +458,12 @@ Start-Process $FilePath
 }
 #endregion ResultReport
 }
+if ($menuchoice -eq 3)
+{
+    $Publicfolder=Read-Host "Please enter the affected public folder identity or EntryID ex.\PF1"
+    ValidatePFDumpster($Publicfolder)
+}
+
 elseif($menuchoice -eq "q")
 {
     Write-Host "Quitting...."
@@ -489,7 +496,7 @@ Function Start-PFDataCollection{
     #region main public folders overview information
     write-host
     write-host
-    Write-Host "Public Folders Overview`n========================"  -ForegroundColor Cyan
+    Write-Host "Organization Publicfolders Overview`n-----------------------------------`n"  -ForegroundColor Cyan 
     $HostedConnectionFilterPolicy=Get-HostedConnectionFilterPolicy 
     $DirectoryBasedEdgeBlockModeStatus=$HostedConnectionFilterPolicy.DirectoryBasedEdgeBlockMode
     if($DirectoryBasedEdgeBlockModeStatus -like "Default")
@@ -534,7 +541,7 @@ Function Start-PFDataCollection{
     $publicfolderservinghierarchyMBXs|Format-Table -Wrap -AutoSize Name,Alias,Guid,ExchangeGuid
     #endregion retrieve publicfolderservinghierarchyMBXs and check if rootPF MBX is serving hierarchy
     #region add check if primary PF MBX doesn't contain content nor serve hierachy to regular MBXs
-    Write-Host "Root public folder mailbox diagnosis:" -ForegroundColor Black -BackgroundColor Yellow
+    Write-Host "Primary public folder mailbox diagnosis:" -ForegroundColor Black -BackgroundColor Yellow
     if ($publicfolderservinghierarchyMBXs|Where-Object {$_.ExchangeGuid -Like $RootPublicFolderMailbox}) 
     {
         Write-host "It's not recommended to use root public folder mailbox to serve hierarchy!" -ForegroundColor Red -NoNewline
@@ -560,15 +567,15 @@ Function Start-PFDataCollection{
        # Write-Progress -Activity "Validating quota on PF MBXs" -Status "$(($percent/$PublicFolderMailboxes.count)*100)% Complete:" -PercentComplete (($percent/$PublicFolderMailboxes.count)*100)
         $PublicFolderMailboxSendReceiveQuota= $PublicFolderMailbox.ProhibitSendReceiveQuota.Split("(")[1].split(" ")[0].Replace(",","")
         try {
-            $PublicFolderMailboxMailboxStatistics= Get-MailboxStatistics $PublicFolderMailbox.Alias -ErrorAction stop -WarningAction:SilentlyContinue
+            $PublicFolderMailboxMailboxStatistics= Get-MailboxStatistics $PublicFolderMailbox.Guid.Guid.ToString() -ErrorAction stop -WarningAction:SilentlyContinue
             [int]$PFMBXSizeinB=[int]$PublicFolderMailboxMailboxStatistics.TotalItemSize.value.tostring().Split("(")[1].split(" ")[0].Replace(",","")+[int]$PublicFolderMailboxMailboxStatistics.TotalDeletedItemSize.value.tostring().Split("(")[1].split(" ")[0].Replace(",","")
         }
         catch {
-           
+           ##write failue in the log
         }
         
-        ##Validate PFMBXsize has excced 80% PublicFolderMailboxSendReceiveQuota
-        if ((($PublicFolderMailboxSendReceiveQuota-$PFMBXSizeinB)/(1024*1024*1024)) -le 20) {
+        ##Validate PFMBXsize has exceeded 85% PublicFolderMailboxSendReceiveQuota
+        if ((($PublicFolderMailboxSendReceiveQuota-$PFMBXSizeinB)/(1024*1024*1024)) -le 15) {
             $unhealthyPFMBXcount++
             $unhealthyPFMBX+=$PublicFolderMailbox
         }
@@ -585,15 +592,15 @@ Function Start-PFDataCollection{
         $unhealthyPFMBX |Format-Table -Wrap -AutoSize Name,Alias,Guid,ExchangeGuid
     }
     #endregion add health quota check on PF MBXs 
-
-    ##Repro that part with smaller values
     #region add health quota check on PFs approaching individual/organization prohibitpostquota,check if we have Giant PFs,that check to be ignored if PFs location is remote
     if ($PublicFoldersLocation -eq "Local") {
         [Int]$unhealthyPFcountapproachingIndQuota=0
         [Int]$unhealthyPFcountapproachingOrgQuota=0
-        $unhealthyPF=@()
+        $unhealthyOrgPF=@()
+        $unhealthyIndPF=@()
         $GiantPF=@()
-        $UnhealthygiantPF=@()
+        $UnhealthygiantOrgPF=@()
+        $UnhealthygiantIndPF=@()
         foreach($Publicfolder in $Publicfolders)
         {
         [Int64]$OrgPFProhibitPostQuotainB=$OrganizationConfig.DefaultPublicFolderProhibitPostQuota.Split("(")[1].split(" ")[0].Replace(",","")
@@ -604,13 +611,13 @@ Function Start-PFDataCollection{
             if ($Publicfolder.ProhibitPostQuota -eq "unlimited") {
              if ($PublicfolderTotalSize -ge $OrgPFProhibitPostQuotainB -and $PublicfolderTotalSize -ge 21474836480) {
                 $unhealthyPFcountapproachingOrgQuota++
-                $UnhealthygiantPF=$UnhealthygiantPF+$publicfolder
+                $UnhealthygiantOrgPF=$UnhealthygiantOrgPF+$publicfolder
                 }
-                if ($PublicfolderTotalSize -ge $OrgPFProhibitPostQuotainB -and $PublicfolderTotalSize -le 21474836480) {
+                elseif ($PublicfolderTotalSize -ge $OrgPFProhibitPostQuotainB -and $PublicfolderTotalSize -le 21474836480) {
                 $unhealthyPFcountapproachingOrgQuota++
-                $unhealthyPF=$unhealthyPF+$publicfolder
+                $unhealthyOrgPF=$unhealthyOrgPF+$publicfolder
                 }
-                if ($PublicfolderTotalSize -le $OrgPFProhibitPostQuotainB -and $PublicfolderTotalSize -ge 21474836480) {
+                elseif ($PublicfolderTotalSize -le $OrgPFProhibitPostQuotainB -and $PublicfolderTotalSize -ge 21474836480) {
                     $unhealthyPFcountapproachingOrgQuota++
                     $GiantPF=$GiantPF+$publicfolder
                 }
@@ -621,13 +628,13 @@ Function Start-PFDataCollection{
                 [Int64]$ProhibitPostQuota=$Publicfolder.ProhibitPostQuota.Split("(")[1].split(" ")[0].Replace(",","")
                 if ($PublicfolderTotalSize -ge $ProhibitPostQuota -and $PublicfolderTotalSize -ge 21474836480) {
                     $unhealthyPFcountapproachingIndQuota++
-                    $UnhealthygiantPF=$UnhealthygiantPF+$publicfolder
+                    $UnhealthygiantIndPF=$UnhealthygiantIndPF+$publicfolder
                 }
-                 if ($PublicfolderTotalSize -ge $ProhibitPostQuota -and $PublicfolderTotalSize -le 21474836480) {
+                 elseif($PublicfolderTotalSize -ge $ProhibitPostQuota -and $PublicfolderTotalSize -le 21474836480) {
                     $unhealthyPFcountapproachingIndQuota++
-                    $unhealthyPF=$unhealthyPF+$publicfolder
+                    $unhealthyIndPF=$unhealthyIndPF+$publicfolder
                  }
-                if ($PublicfolderTotalSize -le $ProhibitPostQuota -and $PublicfolderTotalSize -ge 21474836480) {
+                elseif ($PublicfolderTotalSize -le $ProhibitPostQuota -and $PublicfolderTotalSize -ge 21474836480) {
                     $unhealthyPFcountapproachingIndQuota++
                     $GiantPF=$GiantPF+$publicfolder
                 }
@@ -637,15 +644,15 @@ Function Start-PFDataCollection{
         if ($unhealthyPFcountapproachingOrgQuota -ge 1)
         {   
             Write-host "Please diagnose below public folder(s) as their sizes are not compliant for the below reason: " -ForegroundColor Black -BackgroundColor Red
-            if($UnhealthygiantPF.Count -ge 1)
+            if($UnhealthygiantOrgPF.Count -ge 1)
             {
                 Write-host "Giant public folder(s) found exceeding OrganizationProhibitPostQuota:`n====================================================================="
-                $UnhealthygiantPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,EntryID
+                $UnhealthygiantOrgPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,EntryID
             }
-            if($unhealthyPF.Count -ge 1)
+            if($unhealthyOrgPF.Count -ge 1)
             {
                 Write-host "Public folder(s) found exceeding OrganizationProhibitPostQuota:`n==============================================================="
-                $unhealthyPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,EntryID
+                $unhealthyOrgPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,EntryID
             }
             if($GiantPF.Count -ge 1)
             {
@@ -656,15 +663,15 @@ Function Start-PFDataCollection{
         if ($unhealthyPFcountapproachingIndQuota -ge 1)
         {
             Write-host "Please diagnose below public folder(s) as their sizes are not compliant for the below reason: "  -ForegroundColor Black -BackgroundColor Red
-            if($UnhealthygiantPF.Count -ge 1)
+            if($UnhealthygiantIndPF.Count -ge 1)
             {
-                Write-host "Giant public folder(s) found exceeding ProhibitPostQuota($ProhibitPostQuota Bytes):`n==================================================================================="
-                $UnhealthygiantPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,EntryID
+                Write-host "Giant public folder(s) found exceeding individual ProhibitPostQuota:`n==================================================================================="
+                $UnhealthygiantIndPF|Format-Table -Wrap -AutoSize Name,Identity,ProhibitPostQuota,EntryID
             }
-            if($unhealthyPF.Count -ge 1)
+            if($unhealthyIndPF.Count -ge 1)
             {
-                Write-host "Public folder(s) found exceeding ProhibitPostQuota($ProhibitPostQuota Bytes):`n============================================================================="
-                $unhealthyPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,EntryID
+                Write-host "Public folder(s) found exceeding their individual ProhibitPostQuota:`n===================================================================="
+                $unhealthyIndPF|Format-Table -Wrap -AutoSize Name,Identity,ProhibitPostQuota,EntryID
             }
             if($GiantPF.Count -ge 1)
             {
@@ -680,14 +687,117 @@ Function Start-PFDataCollection{
     }
     
     #endregion add health quota check on PFs approaching individual/organization prohibitpostquota,check if we have Giant PFs
-
-
+    #condition for validation on root PFs have dumpsterentryIDs
     ##add HRR MBXs in case exist
-    ##Think about adding Autosplit status
+    ##Think about adding Autosplit status will take so much time for huge enviroments
     ##add MEPFs are synced using AD connect
     ##add print for report to html
-    ##New function code
  }
  
-    
+Function ValidatePermission
+{
+Param(
+[parameter(Mandatory=$true)]
+[PSCustomObject]$Perms 
+        )  
+[ArrayList]$workingpermissions=@("editor","owner","publishingeditor","deleteallitems")
+if ($null -ne $Perms) {
+foreach($perm in $Perms.AccessRights)
+    {
+        if($workingpermissions.Contains($($perm.ToLower())))
+        {
+        ##user has the permission skip by break the forloop
+        return "user has permission"
+        }
+        else {
+            
+            $noperm++
+        }
+    }
+    return "user has no permission"
+}
+else {
+    return "user has no permission"
+}
+}
+
+ Function ValidatePFDumpster{
+    Param(
+        [parameter(Mandatory=$true)]
+        [String]$Publicfolder 
+        )
+try {
+    $Publicfolder=Get-PublicFolder $Publicfolder -ErrorAction stop
+    $Publicfolderdumpster=Get-PublicFolder $Publicfolder.dumspterentryid -ErrorAction stop
+    $PfMBXstats=Get-mailboxStatistics $Publicfolder.ContentMailboxGuid.Guid -ErrorAction stop
+    $IPM_SUBTREE=Get-PublicFolder \
+    $NON_IPM_SUBTREE=Get-PublicFolder \NON_IPM_SUBTREE
+    $DUMPSTER_ROOT=Get-PublicFolder \NON_IPM_SUBTREE\DUMPSTER_ROOT
+}
+catch {
+    ##write log and exit function
+}
+#region to validate permissions across the public folder
+#validate explict permission & default permission
+$Affecteduser=Get-ValidEmailAddress("Please provide an affected user smtp!")
+try {
+    $User=Get-Mailbox $Affecteduser -ErrorAction stop
+    $Explicitperms=Get-PublicFolderClientPermission $Publicfolder.EntryId -User $User.Guid.Guid.tostring() -ErrorAction SilentlyContinue
+    $Defaultperms=Get-PublicFolderClientPermission $Publicfolder.EntryId -User Default -ErrorAction SilentlyContinue
+    if($null -ne $Explicitperms -or $null -ne $Defaultperms)
+    {
+        $Explicitpermsresult=ValidatePermission($Explicitperms)
+        $Defaultpermsresult=ValidatePermission($Defaultperms)
+    if ($Explicitpermsresult -match "user has no permission" -and $Defaultpermsresult -match "user has permission") 
+    {
+        #user has no permission to delete
+    }
+    else {
+        #user has permission to delete
+    }
+
+    }
+}
+catch {
+    #log the error and quit
+}
+#endregion to validate permissions across the public folder
+
+#region to validate content PF MBX across both PF & its dumpster
+if($Publicfolder.ContentMailboxGuid.Guid -ne $Publicfolderdumpster.ContentMailboxGuid.Guid)
+{
+#raise a support request for microsoft including get-publicfolder logs 
+}
+#endregion to validate content PF MBX across both PF & its dumpster
+
+#region to validate EntryId &DumspterEnryID values are mapped properly 
+if($Publicfolder.EntryId -ne $Publicfolderdumpster.DumspterEnryID -or $Publicfolder.DumspterEnryID -ne $Publicfolderdumpster.EntryId)
+{
+#raise a support request for microsoft including get-publicfolder logs 
+}
+#endregion to validate EntryId &DumspterEnryID values are mapped properly
+
+#region to validate public folder mailbox TotalDeletedItemSize value hasn’t reached its RecoverableItemsQuota value
+[Int64]$pfmbxRecoverableItemsQuotainB=[Int64]$pfmbx.RecoverableItemsQuota.Split("(")[1].split(" ")[0].Replace(",","")
+[Int64]$PfMBXstatsinB=[Int64]$PfMBXstats.TotalDeletedItemSize.Split("(")[1].split(" ")[0].Replace(",","")        
+if($PfMBXstatsinB -ge $pfmbxRecoverableItemsQuotainB  )
+{
+<#
+To resolve a scenario where content public folder mailbox TotalDeletedItemSize value has reached RecoverableItemsQuota value, users could manually clean up the dumpster using:
+	Outlook RecoverDeletedItems
+	MFCMAPI please refer to following article to check steps related to get to public folder dumpster using MFCMAPI then select unrequired items to be purged permanently
+#>
+}
+#endregion to validate public folder mailbox TotalDeletedItemSize value hasn’t reached its RecoverableItemsQuota value
+
+#region to validate that root public folders “IPM_SUBTREE & NON_IPM_SUBTREE & DUMPSTER_ROOT” DumpsterEntryID values are populated 
+if($null -eq $IPM_SUBTREE.DumpsterEntryId -or $null -eq $NON_IPM_SUBTREE.DumpsterEntryId -or $null -eq $DUMPSTER_ROOT.DumpsterEntryId)
+{
+#raise a support request for microsoft including get-publicfolder for root folder logs 
+}
+#endregion to validate that root public folders “IPM_SUBTREE & NON_IPM_SUBTREE & DUMPSTER_ROOT” DumpsterEntryID values are populated  
+
+
+
+ }
 
