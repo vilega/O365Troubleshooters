@@ -709,10 +709,6 @@ foreach($perm in $Perms.AccessRights)
         ##user has the permission skip by break the forloop
         return "user has permission"
         }
-        else {
-            
-            $noperm++
-        }
     }
     return "user has no permission"
 }
@@ -726,17 +722,39 @@ else {
         [parameter(Mandatory=$true)]
         [String]$Publicfolder 
         )
+
+#region public folder diagnosis        
 try {
     $Publicfolder=Get-PublicFolder $Publicfolder -ErrorAction stop
     $Publicfolderdumpster=Get-PublicFolder $Publicfolder.dumspterentryid -ErrorAction stop
     $PfMBXstats=Get-mailboxStatistics $Publicfolder.ContentMailboxGuid.Guid -ErrorAction stop
-    $IPM_SUBTREE=Get-PublicFolder \
-    $NON_IPM_SUBTREE=Get-PublicFolder \NON_IPM_SUBTREE
-    $DUMPSTER_ROOT=Get-PublicFolder \NON_IPM_SUBTREE\DUMPSTER_ROOT
+    $IPM_SUBTREE=Get-PublicFolder \ -ErrorAction stop
+    $NON_IPM_SUBTREE=Get-PublicFolder \NON_IPM_SUBTREE -ErrorAction stop
+    $DUMPSTER_ROOT=Get-PublicFolder \NON_IPM_SUBTREE\DUMPSTER_ROOT -ErrorAction stop
+    $CurrentProperty = "Retrieving: $($Publicfolder.identity) & its dumpster for diagnosing"
+    $CurrentDescription = "Success"
+    write-log -Function "Retrieve public folder & its dumpster statistics" -Step $CurrentProperty -Description $CurrentDescription
+    [string]$SectionTitle = "Introduction"
+    [string]$Description = "This report illustrates causes behind users with sufficient permissions cannot delete items under public folder using OWA\Outlook or cannot remove the entire public folder as a whole." + "<br>"+ "Checks run on Public folder: <b>$($Publicfolder.identity)</b>"
+    [PSCustomObject]$StartHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString "Please ensure to mitigate causes in case found by checking FIX section!"
+    $null = $TheObjectToConvertToHTML.Add($StartHTML)
 }
 catch {
+    $Errorencountered=$Global:error[0].Exception
+    $CurrentProperty = "Retrieving: $($Publicfolder.identity) & its dumpster for diagnosing"
+    $CurrentDescription = "Failure with error: "+$Errorencountered
+    write-log -Function "Retrieve public folder & its dumpster statistics" -Step $CurrentProperty -Description $CurrentDescription
+    Write-Host "Error encountered during executing the script!"-ForegroundColor Red
+    Write-Host $Errorencountered -ForegroundColor Red
+    Write-Host "`nOutput was exported in the following location: $ExportPath" -ForegroundColor Yellow 
+    Start-Sleep -Seconds 3
+    Read-Key
+    # Go back to the main menu
+    Start-O365TroubleshootersMenu
     ##write log and exit function
 }
+#endregion public folder diagnosis
+
 #region to validate permissions across the public folder
 #validate explict permission & default permission
 $Affecteduser=Get-ValidEmailAddress("Please provide an affected user smtp!")
@@ -748,25 +766,54 @@ try {
     {
         $Explicitpermsresult=ValidatePermission($Explicitperms)
         $Defaultpermsresult=ValidatePermission($Defaultperms)
-    if ($Explicitpermsresult -match "user has no permission" -and $Defaultpermsresult -match "user has permission") 
+    if ($Explicitpermsresult -match "user has no permission" -and $Defaultpermsresult -match "user has no permission") 
     {
-        #user has no permission to delete
+        #user has no permission to delete break the script
+        [string]$SectionTitle = "Validating User Permission"
+        [string]$Description = "Checking if user has sufficient permissions to delete"   
+        [PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring "user has no sufficient permissions to delete"
+        $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
     }
     else {
-        #user has permission to delete
+        #user has permission to delete continue with the script
+        [string]$SectionTitle = "Validating User Permission"
+        [string]$Description = "Checking if user has sufficient permissions to delete"   
+        [PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDatastring "No issue found!"
+        $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
     }
-
     }
 }
 catch {
     #log the error and quit
+    $Errorencountered=$Global:error[0].Exception
+    $CurrentProperty = "Validating if user has sufficient permissions to delete"
+    $CurrentDescription = "Failure with error: "+$Errorencountered
+    write-log -Function "Validate user permissions" -Step $CurrentProperty -Description $CurrentDescription
+    Write-Host "Error encountered during executing the script!"-ForegroundColor Red
+    Write-Host $Errorencountered -ForegroundColor Red
+    Write-Host "`nOutput was exported in the following location: $ExportPath" -ForegroundColor Yellow 
+    Start-Sleep -Seconds 3
+    Read-Key
+    # Go back to the main menu
+    Start-O365TroubleshootersMenu
+    ##write log and exit function
 }
 #endregion to validate permissions across the public folder
 
 #region to validate content PF MBX across both PF & its dumpster
 if($Publicfolder.ContentMailboxGuid.Guid -ne $Publicfolderdumpster.ContentMailboxGuid.Guid)
 {
-#raise a support request for microsoft including get-publicfolder logs 
+    #raise a support request for microsoft including get-publicfolder logs 
+    [string]$SectionTitle = "Validating content public folder mailbox"
+    [string]$Description = "Checking if public folder & its dumpster has the same content public folder mailbox"   
+    [PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring "Please raise a support request for microsoft including get-publicfolder logs"
+    $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
+}
+else {
+    [string]$SectionTitle = "Validating content public folder mailbox"
+    [string]$Description = "Checking if public folder & its dumpster has the same content public folder mailbox"   
+    [PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDatastring "No issue found!"
+    $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
 }
 #endregion to validate content PF MBX across both PF & its dumpster
 
@@ -774,6 +821,16 @@ if($Publicfolder.ContentMailboxGuid.Guid -ne $Publicfolderdumpster.ContentMailbo
 if($Publicfolder.EntryId -ne $Publicfolderdumpster.DumspterEnryID -or $Publicfolder.DumspterEnryID -ne $Publicfolderdumpster.EntryId)
 {
 #raise a support request for microsoft including get-publicfolder logs 
+[string]$SectionTitle = "Validating content public folder mailbox"
+[string]$Description = "Checking if public folder & its dumpster has the same content public folder mailbox"   
+[PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring "Please raise a support request for microsoft including get-publicfolder logs"
+$null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
+}
+else {
+[string]$SectionTitle = "Validating content public folder mailbox"
+[string]$Description = "Checking if public folder & its dumpster has the same content public folder mailbox"   
+[PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDatastring "No issue found!"
+$null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
 }
 #endregion to validate EntryId &DumspterEnryID values are mapped properly
 
@@ -787,6 +844,21 @@ To resolve a scenario where content public folder mailbox TotalDeletedItemSize v
 	Outlook RecoverDeletedItems
 	MFCMAPI please refer to following article to check steps related to get to public folder dumpster using MFCMAPI then select unrequired items to be purged permanently
 #>
+$article='<a href="https://docs.microsoft.com/en-us/archive/blogs/exovoice/public-folders-data-recovery-scenarios" target="_blank">article</a>'
+$RecoverDeletedItems='<a href="https://docs.microsoft.com/en-us/exchange/troubleshoot/public-folders/cannot-delete-items-public-folder" target="_blank">RecoverDeletedItems</a>'
+$FixTotalDeletedItemSize="To resolve a scenario where content public folder mailbox TotalDeletedItemSize value has reached RecoverableItemsQuota value, users could manually clean up the dumpster using:
+->Outlook $RecoverDeletedItems
+->MFCMAPI please refer to the following $article to check steps related to get to public folder dumpster using MFCMAPI then select unrequired items to be purged permanently"
+[string]$SectionTitle = "Validating TotalDeletedItemSize for content public folder mailbox"
+[string]$Description = "Checking if public folder mailbox TotalDeletedItemSize value hasn’t reached its RecoverableItemsQuota value"   
+[PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring $FixTotalDeletedItemSize
+$null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
+}
+else {
+[string]$SectionTitle = "Validating TotalDeletedItemSize for content public folder mailbox"
+[string]$Description = "Checking if public folder mailbox TotalDeletedItemSize value hasn’t reached its RecoverableItemsQuota value"   
+[PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDatastring "No issue found!"
+$null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
 }
 #endregion to validate public folder mailbox TotalDeletedItemSize value hasn’t reached its RecoverableItemsQuota value
 
@@ -794,6 +866,16 @@ To resolve a scenario where content public folder mailbox TotalDeletedItemSize v
 if($null -eq $IPM_SUBTREE.DumpsterEntryId -or $null -eq $NON_IPM_SUBTREE.DumpsterEntryId -or $null -eq $DUMPSTER_ROOT.DumpsterEntryId)
 {
 #raise a support request for microsoft including get-publicfolder for root folder logs 
+[string]$SectionTitle = "Validating root public folders"
+[string]$Description = "Checking if root public folders have DumpsterEntryId value"   
+[PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring "Please raise a support request for microsoft including get-publicfolder for \,\NON_IPM_SUBTREE & \NON_IPM_SUBTREE\DUMPSTER_ROOT logs"
+$null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
+}
+else {
+[string]$SectionTitle = "Validating root public folders"
+[string]$Description = "Checking if root public folders have DumpsterEntryId value"   
+[PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDatastring "No issue found!"
+$null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
 }
 #endregion to validate that root public folders “IPM_SUBTREE & NON_IPM_SUBTREE & DUMPSTER_ROOT” DumpsterEntryID values are populated  
 
