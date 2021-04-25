@@ -518,7 +518,9 @@ Function Start-PFDataCollection{
         [Int]$PublicFoldersCount=($Publicfolders).count - 1
         Write-Host "PublicFolderMailboxesCount = $PublicFolderMailboxesCount"
         Write-Host "PublicFoldersCount = $PublicFoldersCount"
-        Write-Host "RootPublicFolderMailbox = $RootPublicFolderMailbox"       
+        Write-Host "RootPublicFolderMailbox = $RootPublicFolderMailbox"
+        Write-Host "OrgPublicFolderProhibitPostQuota" = $OrganizationConfig.DefaultPublicFolderProhibitPostQuota.Split("(")[0]
+        Write-Host "OrgPublicFolderIssueWarningQuota" = $OrganizationConfig.DefaultPublicFolderIssueWarningQuota.Split("(")[0]
     }
     else {
         $RemotePublicFolderMailboxes=$OrganizationConfig.RemotePublicFolderMailboxes
@@ -723,6 +725,7 @@ else {
         [String]$Pfolder 
         )
 
+        #TODO:Blockers in Red,add spaces in report name
 #region public folder diagnosis        
 try {
     $Publicfolder=Get-PublicFolder $Pfolder -ErrorAction stop
@@ -742,7 +745,7 @@ try {
 }
 catch {
     $Errorencountered=$Global:error[0].Exception
-    $CurrentProperty = "Retrieving: $($Publicfolder.identity) & its dumpster for diagnosing"
+    $CurrentProperty = "Retrieving: $($Pfolder) & its dumpster for diagnosing"
     $CurrentDescription = "Failure with error: "+$Errorencountered
     write-log -Function "Retrieve public folder & its dumpster statistics" -Step $CurrentProperty -Description $CurrentDescription
     Write-Host "Error encountered during executing the script!"-ForegroundColor Red
@@ -791,7 +794,8 @@ try {
         [PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDatastring "No issue found!"
         $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
     }
-    
+    #TODO:Identify if item or folder
+    #TODO:Identify the type of permission that has the trouble ,add the user to the report
 }
 catch {
     #log the error and quit
@@ -812,7 +816,7 @@ catch {
 
 #region to validate content PF MBX across both PF & its dumpster
 if($Publicfolder.ContentMailboxGuid.Guid -ne $Publicfolderdumpster.ContentMailboxGuid.Guid)
-{
+{   #TODO:add the report to the request + logs folder
     #raise a support request for microsoft including get-publicfolder logs 
     [string]$SectionTitle = "Validating content public folder mailbox"
     [string]$Description = "Checking if public folder & its dumpster has the same content public folder mailbox"   
@@ -829,7 +833,7 @@ else{
 
 #region to validate EntryId &DumpsterEntryID values are mapped properly 
 if($Publicfolder.EntryId -ne $Publicfolderdumpster.DumpsterEntryID -or $Publicfolder.DumpsterEntryID -ne $Publicfolderdumpster.EntryId)
-{
+{#TODO:add the report to the request +logs folder
 #raise a support request for microsoft including get-publicfolder logs 
 [string]$SectionTitle = "Validating public folder EntryId mapping"
 [string]$Description = "Checking if public folder EntryId & DumpsterEntryID values are mapped properly"   
@@ -874,7 +878,7 @@ $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
 
 #region to validate that root public folders “IPM_SUBTREE & NON_IPM_SUBTREE & DUMPSTER_ROOT” DumpsterEntryID values are populated 
 if($null -eq $IPM_SUBTREE.DumpsterEntryId -or $null -eq $NON_IPM_SUBTREE.DumpsterEntryId -or $null -eq $DUMPSTER_ROOT.DumpsterEntryId)
-{
+{#TODO:add the report to the request + logs folder
 #raise a support request for microsoft including get-publicfolder for root folder logs 
 [string]$SectionTitle = "Validating root public folders"
 [string]$Description = "Checking if root public folders have DumpsterEntryId value"   
@@ -899,4 +903,6 @@ Write-Host "Opening report...." -ForegroundColor Cyan
 Start-Process $FilePath
 }
 #endregion ResultReport
+#TODO:create zip file for logs folder
+#TODO:modify copyrights from 2020 to 2021
  }
