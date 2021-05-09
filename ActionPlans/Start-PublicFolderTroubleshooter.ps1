@@ -8,7 +8,7 @@
 ##
 ######################################################################################
 <# 1st requirement install the module O365 TS
-Import-Module C:\Users\a-haemb\Documents\GitHub\O365Troubleshooters\O365Troubleshooters.psm1 -Force
+Import-Module C:\Users\haembab\Documents\GitHub\O365Troubleshooters\O365Troubleshooters.psm1 -Force
 # 2nd requirement Execute set global variables
 Set-GlobalVariables
 # 3rd requirement to start the menu
@@ -724,12 +724,12 @@ else {
         [parameter(Mandatory=$true)]
         [String]$Pfolder 
         )
-
-        #TODO:Blockers in Red,add spaces in report name
+#Blockers in Red,add spaces in report name
 #region public folder diagnosis        
 try {
     $Publicfolder=Get-PublicFolder $Pfolder -ErrorAction stop
-    $Publicfolderdumpster=Get-PublicFolder $Publicfolder.DumpsterEntryId -ErrorAction stop
+    #$Publicfolderdumpster=Get-PublicFolder $Publicfolder.DumpsterEntryId -ErrorAction stop
+    $Publicfolderdumpster="0000000096CE4B52BB898C4FA11E7E230A3C8EE7010077B56B4D3B88794B9817E41A07D18FF500000000001F0000"
     $pfmbx=Get-mailbox -PublicFolder $Publicfolder.ContentMailboxGuid.Guid
     $PfMBXstats=Get-mailboxStatistics $Publicfolder.ContentMailboxGuid.Guid -ErrorAction stop
     $IPM_SUBTREE=Get-PublicFolder \ -ErrorAction stop
@@ -740,7 +740,8 @@ try {
     write-log -Function "Retrieve public folder & its dumpster statistics" -Step $CurrentProperty -Description $CurrentDescription
     [string]$SectionTitle = "Introduction"
     [string]$Description = "This report illustrates causes behind users with sufficient permissions cannot delete items under public folder using OWA\Outlook or cannot remove the entire public folder as a whole." + "<br>"+ "Checks run on Public folder: <b>$($Publicfolder.identity)</b>"
-    [PSCustomObject]$StartHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString "Please ensure to mitigate BLOCKERS in case found!"
+    $blockersinhtml='<span style="color: red">BLOCKERS</span>'
+    [PSCustomObject]$StartHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString "Please ensure to mitigate $blockersinhtml in case found!"
     $null = $TheObjectToConvertToHTML.Add($StartHTML)
 }
 catch {
@@ -760,7 +761,10 @@ catch {
 #endregion public folder diagnosis
 
 #region to validate permissions across the public folder
-#validate explict permission & default permission
+#Identify if item or folder
+$ItemORFolder=Read-Host "Please specify if the issue is related to a user who is not able to delete an item inside a public folder or neither a user with owner permissions nor the admin are not able to delete the Public folder as awhole, Type (I) for Item or (F) for Folder"
+if ($ItemORFolder.ToLower() -eq "i") {
+    #validate explict permission & default permission if item
 $Affecteduser=Get-ValidEmailAddress("Please provide an affected user smtp!")
 try {
     $User=Get-Mailbox $Affecteduser -ErrorAction stop
@@ -783,19 +787,20 @@ try {
     {
         #user has no permission to delete break the script
         [string]$SectionTitle = "Validating User Permission"
-        [string]$Description = "Checking if user has sufficient permissions to delete"   
-        [PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring "user has no sufficient permissions to delete"
+        [string]$Description = "Checking if user $($User.PrimarySmtpAddress) has sufficient permissions to delete"   
+        [PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring "Neither $($User.PrimarySmtpAddress) nor Default user have sufficient permissions to delete items inside $($publicfolder.identity)"
         $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
+        #Identify the type of permission that has the trouble ,add the user to the report
     }
     else {
         #user has permission to delete continue with the script
         [string]$SectionTitle = "Validating User Permission"
-        [string]$Description = "Checking if user has sufficient permissions to delete"   
+        [string]$Description = "Checking if user($User.PrimarySmtpAddress) has sufficient permissions to delete"   
         [PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDatastring "No issue found!"
         $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
     }
-    #TODO:Identify if item or folder
-    #TODO:Identify the type of permission that has the trouble ,add the user to the report
+    
+    
 }
 catch {
     #log the error and quit
@@ -812,16 +817,32 @@ catch {
     Start-O365TroubleshootersMenu
     ##write log and exit function
 }
+}
+elseif ($ItemORFolder.ToLower() -eq "f") {
+
+    #continue with the script    
+}
+else {
+    Write-Host "You didn't provide an expected input!" -ForegroundColor Red
+    Write-Host "Relaunching the main menu again" -ForegroundColor Yellow 
+    Start-Sleep -Seconds 3
+    Read-Key
+    # Go back to the main menu
+    Start-O365TroubleshootersMenu
+}
+
 #endregion to validate permissions across the public folder
 
 #region to validate content PF MBX across both PF & its dumpster
 if($Publicfolder.ContentMailboxGuid.Guid -ne $Publicfolderdumpster.ContentMailboxGuid.Guid)
-{   #TODO:add the report to the request + logs folder
+{   
     #raise a support request for microsoft including get-publicfolder logs 
     [string]$SectionTitle = "Validating content public folder mailbox"
     [string]$Description = "Checking if public folder & its dumpster has the same content public folder mailbox"   
-    [PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring "Please raise a support request for microsoft including get-publicfolder logs"
+    [PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring "Please raise a support request for microsoft including the HTML report & compressed logs folder"
     $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
+    #add the report to the request + logs folder
+
 }
 else{
     [string]$SectionTitle = "Validating content public folder mailbox"
@@ -833,12 +854,13 @@ else{
 
 #region to validate EntryId &DumpsterEntryID values are mapped properly 
 if($Publicfolder.EntryId -ne $Publicfolderdumpster.DumpsterEntryID -or $Publicfolder.DumpsterEntryID -ne $Publicfolderdumpster.EntryId)
-{#TODO:add the report to the request +logs folder
+{
 #raise a support request for microsoft including get-publicfolder logs 
 [string]$SectionTitle = "Validating public folder EntryId mapping"
 [string]$Description = "Checking if public folder EntryId & DumpsterEntryID values are mapped properly"   
-[PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring "Please raise a support request for microsoft including get-publicfolder logs"
+[PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring "Please raise a support request for microsoft including the HTML report & compressed logs folder"
 $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
+#add the report to the request +logs folder
 }
 else {
 [string]$SectionTitle = "Validating public folder EntryId mapping"
@@ -878,12 +900,13 @@ $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
 
 #region to validate that root public folders “IPM_SUBTREE & NON_IPM_SUBTREE & DUMPSTER_ROOT” DumpsterEntryID values are populated 
 if($null -eq $IPM_SUBTREE.DumpsterEntryId -or $null -eq $NON_IPM_SUBTREE.DumpsterEntryId -or $null -eq $DUMPSTER_ROOT.DumpsterEntryId)
-{#TODO:add the report to the request + logs folder
+{
 #raise a support request for microsoft including get-publicfolder for root folder logs 
 [string]$SectionTitle = "Validating root public folders"
 [string]$Description = "Checking if root public folders have DumpsterEntryId value"   
-[PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring "Please raise a support request for microsoft including get-publicfolder for \,\NON_IPM_SUBTREE & \NON_IPM_SUBTREE\DUMPSTER_ROOT logs"
+[PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring "Please raise a support request for microsoft including the HTML report & compressed logs folder"
 $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
+#add the report to the request +logs folder
 }
 else {
 [string]$SectionTitle = "Validating root public folders"
@@ -894,7 +917,7 @@ $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
 #endregion to validate that root public folders “IPM_SUBTREE & NON_IPM_SUBTREE & DUMPSTER_ROOT” DumpsterEntryID values are populated  
 #region ResultReport
 [string]$FilePath = $ExportPath + "\PublicFolderdumpsterTroubleshooter.html"
-Export-ReportToHTML -FilePath $FilePath -PageTitle "PublicFolderTroubleshooter" -ReportTitle "PublicFolderdumpsterTroubleshooter" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
+Export-ReportToHTML -FilePath $FilePath -PageTitle "Public Folder Troubleshooter" -ReportTitle "Public Folder Dumpster Troubleshooter" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
 #Question to ask enduser for opening the HTMl report
 $OpenHTMLfile=Read-Host "Do you wish to open HTML report file now?`nType Y(Yes) to open or N(No) to exit!"
 if ($OpenHTMLfile -like "*y*")
@@ -903,6 +926,19 @@ Write-Host "Opening report...." -ForegroundColor Cyan
 Start-Process $FilePath
 }
 #endregion ResultReport
-#TODO:create zip file for logs folder
-#TODO:modify copyrights from 2020 to 2021
+#create zip file for logs folder
+$tstamp= get-date -Format yyyyMMdd_HHmmss
+if (!(Test-Path  "$ExportPath\logs_$tstamp"))
+{
+    mkdir "$ExportPath\logs_$tstamp" -Force |out-null
+}
+$Publicfolder|Format-List|Out-File -FilePath "$ExportPath\logs_$tstamp\Publicfolder.txt" -NoClobber 
+$Publicfolderdumpster|Format-List|Out-File -FilePath "$ExportPath\logs_$tstamp\Publicfolderdumpster.txt" -NoClobber
+$pfmbx|Format-List|Out-File -FilePath "$ExportPath\logs_$tstamp\pfmbx.txt" -NoClobber
+$PfMBXstats|Format-List|Out-File -FilePath "$ExportPath\logs_$tstamp\PfMBXstats.txt" -NoClobber 
+$IPM_SUBTREE|Format-List|Out-File -FilePath "$ExportPath\logs_$tstamp\IPM_SUBTREE.txt" -NoClobber
+$NON_IPM_SUBTREE|Format-List|Out-File -FilePath "$ExportPath\logs_$tstamp\NON_IPM_SUBTREE.txt" -NoClobber
+$DUMPSTER_ROOT|Format-List|Out-File -FilePath "$ExportPath\logs_$tstamp\DUMPSTER_ROOT.txt" -NoClobber
+Compress-Archive -Path "$ExportPath\logs_$tstamp" -DestinationPath $ExportPath\logs_$tstamp
+#modify copyrights from 2020 to 2021
  }
