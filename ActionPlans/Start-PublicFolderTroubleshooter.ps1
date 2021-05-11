@@ -728,8 +728,8 @@ else {
 #region public folder diagnosis        
 try {
     $Publicfolder=Get-PublicFolder $Pfolder -ErrorAction stop
-    #$Publicfolderdumpster=Get-PublicFolder $Publicfolder.DumpsterEntryId -ErrorAction stop
-    $Publicfolderdumpster="0000000096CE4B52BB898C4FA11E7E230A3C8EE7010077B56B4D3B88794B9817E41A07D18FF500000000001F0000"
+    $Publicfolderdumpster=Get-PublicFolder $Publicfolder.DumpsterEntryId -ErrorAction stop
+    #$Publicfolderdumpster="0000000096CE4B52BB898C4FA11E7E230A3C8EE7010077B56B4D3B88794B9817E41A07D18FF500000000001F0000"
     $pfmbx=Get-mailbox -PublicFolder $Publicfolder.ContentMailboxGuid.Guid
     $PfMBXstats=Get-mailboxStatistics $Publicfolder.ContentMailboxGuid.Guid -ErrorAction stop
     $IPM_SUBTREE=Get-PublicFolder \ -ErrorAction stop
