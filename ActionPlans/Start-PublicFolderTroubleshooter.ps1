@@ -795,7 +795,7 @@ try {
     else {
         #user has permission to delete continue with the script
         [string]$SectionTitle = "Validating User Permission"
-        [string]$Description = "Checking if user($User.PrimarySmtpAddress) has sufficient permissions to delete"   
+        [string]$Description = "Checking if user $($User.PrimarySmtpAddress) has sufficient permissions to delete"   
         [PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDatastring "No issue found!"
         $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
     }
@@ -941,4 +941,12 @@ $NON_IPM_SUBTREE|Format-List|Out-File -FilePath "$ExportPath\logs_$tstamp\NON_IP
 $DUMPSTER_ROOT|Format-List|Out-File -FilePath "$ExportPath\logs_$tstamp\DUMPSTER_ROOT.txt" -NoClobber
 Compress-Archive -Path "$ExportPath\logs_$tstamp" -DestinationPath $ExportPath\logs_$tstamp
 #modify copyrights from 2020 to 2021
+#add outputs are exported here 
+#relanuching main menu again
+Write-Host "`nOutput was exported in the following location: $ExportPath" -ForegroundColor Yellow 
+    Start-Sleep -Seconds 3
+    Read-Key
+    # Go back to the main menu
+    Start-O365TroubleshootersMenu
+    #write log and exit function
  }
