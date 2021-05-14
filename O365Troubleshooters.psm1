@@ -60,7 +60,7 @@ Function Request-Credential {
 Function Connect-O365PS { # Function to connecto to O365 services
 
     # Parameter request and validation
-    param ([ValidateSet("Msol","AzureAd","AzureAdPreview","Exo","ExoBasic","Exo2","Eop","Scc","AIPService","Spo","Sfb","Teams")][Parameter(Mandatory=$true)] 
+    param ([ValidateSet("Msol","AzureAd","AzureAdPreview","Exo","ExoBasic","Exo2","Eop","Scc","AIPService","Spo","Sfb","Teams","AADSync")][Parameter(Mandatory=$true)] 
             $O365Service 
     )
     $Try = 0
@@ -251,6 +251,20 @@ Function Connect-O365PS { # Function to connecto to O365 services
     # TODO: SPO prerequisites & modern module check
 
     # TODO: SFB prerequisites & modern module check
+
+    If ( $O365Service -eq "AADSync") {
+        If ((Get-Module -ListAvailable -Name AADSync).count -eq 0) {
+            $CurrentProperty = "Checking AADSync Module"
+            $CurrentDescription = "This dianostic have to be executed on AAD Connect server to have access to AADSync PowerShell Module"
+            Write-Host "`n$CurrentDescription" -ForegroundColor Red
+            write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
+            Write-Host "The script was not executed from AAD Connect server." -ForegroundColor Red
+            Write-Host "Returning to the main menu" -ForegroundColor Red
+            Read-Key
+            Start-O365TroubleshootersMenu
+        }
+    }
+
    
     #$Global:proxy = Read-Host
     if ($null -eq $Global:proxy) {
@@ -924,6 +938,19 @@ Function Connect-O365PS { # Function to connecto to O365 services
             } while (($Try -le 2) -and ($null -ne $Global:Error)) 
         }
         &$Global:DisplayConnect
+    }
+    "AADSync" {
+
+        try {
+
+        Import-Module (Import-PSSession AADSync -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue
+        $CurrentDescription = "Success"
+
+        }
+        catch 
+        {
+            $CurrentDescription = "`""+$CurrentError.ErrorRecord.Exception +"`""
+        } 
     }
   }
 }
@@ -1892,16 +1919,17 @@ Function Start-O365TroubleshootersMenu {
     3  Migration: Analyze Mailbox move (Hybrid migration)
     4  Security: Compromised Tenant Investigation
     5  Groups: DL to O365 Groups Upgrade Checker
-    6  Public Folder Troubleshooter
-    7  Tools: Exchange Online Audit Search
-    8  Tools: Unified Logging Audit Search
-    9  Tools: Azure AD Audit Sign In Log Search
-    10 Tools: Find all users with a specific RBAC Role
-    11 Tools: Find all users with all RBAC Roles
-    12 Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox
-    13 Tools: Decode SafeLinks URL
-    14 Tools: Export Quarantine Messages
-    15 Tools: Transform IMCEAEX (old LegacyExchangeDN) to X500 address
+    6  DDG to Exchange Online Contact automatically synchronization with AAD Connect
+    7  Public Folder Troubleshooter
+    8  Tools: Exchange Online Audit Search
+    9  Tools: Unified Logging Audit Search
+    10 Tools: Azure AD Audit Sign In Log Search
+    11 Tools: Find all users with a specific RBAC Role
+    12 Tools: Find all users with all RBAC Roles
+    13 Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox
+    14 Tools: Decode SafeLinks URL
+    15 Tools: Export Quarantine Messages
+    16 Tools: Transform IMCEAEX (old LegacyExchangeDN) to X500 address
     Q  Quit
      
     Select a task by number or Q to quit
@@ -1938,57 +1966,62 @@ Switch ($r) {
     }
 
     "5" {
-        Write-Host "DL to O365 Groups Upgrade Checker" -ForegroundColor Green
+        Write-Host "Action Plan: DL to O365 Groups Upgrade Checker" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-DlToO365GroupUpgradeChecks.ps1
     }
+
     "6" {
+        Write-Host "Action Plan: DDG to Exchange Online Contact automatically synchronization with AAD Connect" -ForegroundColor Green
+        . $script:modulePath\ActionPlans\Start-SyncDDGasContactwithAADConnect.ps1
+    }
+    "7" {
         Write-Host "Public Folder Troubleshooter" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-PublicFolderTroubleshooter.ps1
     }
-    "7" {
+    "8" {
         Write-Host "Tools: Exchange Online Audit Search" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-ExchangeOnlineAuditSearch.ps1
         Start-ExchangeOnlineAuditSearch
     }
 
-    "8" {
+    "9" {
         Write-Host "Tools: Unified Logging Audit Search" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-UnifiedAuditLogSearch.ps1
     }
 
-    "9" {
+    "10" {
         Write-Host "Tools: Azure AD Audit Sign In Log Search" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-AzureADAuditSignInLogSearch.ps1
         Start-AzureADAuditSignInLogSearch
     }
 
-    "10" {
+    "11" {
         Write-Host "Tools: Find all users with a specific RBAC Role" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-FindUserWithSpecificRbacRole.ps1
     }
 
-    "11" {
+    "12" {
         Write-Host "Tools: Find all users with all RBAC Role" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-AllUsersWithAllRoles.ps1
     }
     
-    "12" {
+    "13" {
         Write-Host "Tools: Export All Available  Mailbox Diagnostic Logs for a given mailbox" -ForegroundColor Green
         Start-Sleep -Seconds 3
         . $script:modulePath\ActionPlans\Start-MailboxDiagnosticLogs.ps1
     }
      
-    "13" {
+    "14" {
         Write-Host "Tools: Decode SafeLinks URL" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Start-DecodeSafeLinksURL.ps1
     }
 
-    "14" {
+    "15" {
         Write-Host "Tools: Export Quarantine Message" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Export-ExoQuarantineMessages.ps1
     }
 
-    "15" {
+    "16" {
         Write-Host "Tools: Transform IMCEAEX (old LegacyExchangeDN) to X500 address" -ForegroundColor Green
         . $script:modulePath\ActionPlans\Get-X500FromImceaexNDR.ps1
     }
