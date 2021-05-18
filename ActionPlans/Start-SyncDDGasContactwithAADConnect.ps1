@@ -1,5 +1,4 @@
 Function new-AADSyncDDGRules {
-    # Remove-Variable syncRule -Force
 
     #region Create ADSync PROVISION rule
     $ruleName = 'Custom In from AD - Dynamic Distribtution Group - Provision'
@@ -23,7 +22,7 @@ Function new-AADSyncDDGRules {
             -Connector '12ab56a5-9827-4480-b624-3e8af2fcce7d' `
             -LinkType 'Provision' `
             -SoftDeleteExpiryInterval 0 `
-            -OutVariable syncRule
+            -OutVariable syncRule | Out-Null
         #endregion Create ADSync PROVISION rule
 
         #region Created Attribute Flow Mappings for the PROVISION rule
@@ -33,7 +32,7 @@ Function new-AADSyncDDGRules {
             -FlowType 'Expression' `
             -ValueMergeType 'Update' `
             -Expression 'IIF(IsPresent([isCriticalSystemObject]) || ( (InStr([displayName], "(MSOL)") > 0) && (CBool([msExchHideFromAddressLists]))) || (Left([mailNickname], 4) = "CAS_" && (InStr([mailNickname], "}") > 0)) || CBool(InStr(DNComponent(CRef([dn]),1),"\\0ACNF:")>0), True, NULL)' `
-            -OutVariable syncRule
+            -OutVariable syncRule | Out-Null
 
         Add-ADSyncAttributeFlowMapping  `
             -SynchronizationRule $syncRule[0] `
@@ -41,24 +40,24 @@ Function new-AADSyncDDGRules {
             -FlowType 'Expression' `
             -ValueMergeType 'Update' `
             -Expression 'IIF(( (IsPresent([proxyAddresses]) = True) && (Contains([proxyAddresses], "SMTP:") > 0) && (InStr(Item([proxyAddresses], Contains([proxyAddresses], "SMTP:")), "@") > 0)) ||  (IsPresent([mail]) = True && (InStr([mail], "@") > 0)), True, False)' `
-            -OutVariable syncRule
+            -OutVariable syncRule | Out-Null
         #endregion Created Attribute Flow Mappings for the PROVISION rule
 
         #region Create Scope Condition to match all Dynamic Distribtuion object type for PROVISION rule
         New-Object  `
             -TypeName 'Microsoft.IdentityManagement.PowerShell.ObjectModel.ScopeCondition' `
             -ArgumentList 'isCriticalSystemObject', 'True', 'NOTEQUAL' `
-            -OutVariable condition0
+            -OutVariable condition0 | Out-Null
 
         New-Object  `
             -TypeName 'Microsoft.IdentityManagement.PowerShell.ObjectModel.ScopeCondition' `
             -ArgumentList 'msExchRecipientDisplayType', '3', 'EQUAL' `
-            -OutVariable condition1
+            -OutVariable condition1  | Out-Null
 
         Add-ADSyncScopeConditionGroup  `
             -SynchronizationRule $syncRule[0] `
             -ScopeConditions @($condition0[0], $condition1[0]) `
-            -OutVariable syncRule
+            -OutVariable syncRule  | Out-Null
 
         #endregion Create Scope Condition to match all Dynamic Distribtuion object type
 
@@ -66,20 +65,16 @@ Function new-AADSyncDDGRules {
         New-Object  `
             -TypeName 'Microsoft.IdentityManagement.PowerShell.ObjectModel.JoinCondition' `
             -ArgumentList 'mail', 'mail', $false `
-            -OutVariable condition0
+            -OutVariable condition0  | Out-Null
 
         Add-ADSyncJoinConditionGroup  `
             -SynchronizationRule $syncRule[0] `
             -JoinConditions @($condition0[0]) `
-            -OutVariable syncRule
+            -OutVariable syncRule  | Out-Null
         #endregion Create Join Condition for PROVISION rule
 
         #region Create the PROVISION rule
         Add-ADSyncRule -SynchronizationRule $syncRule[0] | Out-Null
-
-        # Check rule creating for testing
-        # Get-ADSyncRule -Identifier $syncRule[0].Identifier
-
         Remove-Variable syncRule -Force
     }
 #endregion Create the PROVISION rule
@@ -107,7 +102,7 @@ Function new-AADSyncDDGRules {
             -Connector '12ab56a5-9827-4480-b624-3e8af2fcce7d' `
             -LinkType 'Join' `
             -SoftDeleteExpiryInterval 0 `
-            -OutVariable syncRule
+            -OutVariable syncRule  | Out-Null
         #endregion Create ADSync JOIN rule
 
         #region Create Attribute Flow Mappings
@@ -117,18 +112,7 @@ Function new-AADSyncDDGRules {
             -Destination 'distinguishedName' `
             -FlowType 'Direct' `
             -ValueMergeType 'Update' `
-            -OutVariable syncRule
-
-
-        <#
-Add-ADSyncAttributeFlowMapping  `
--SynchronizationRule $syncRule[0] `
--Source @('assistant') `
--Destination 'assistant' `
--FlowType 'Direct' `
--ValueMergeType 'Update' `
--OutVariable syncRule
-#>
+            -OutVariable syncRule  | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -137,7 +121,7 @@ Add-ADSyncAttributeFlowMapping  `
             -Destination 'authOrig' `
             -FlowType 'Direct' `
             -ValueMergeType 'Update' `
-            -OutVariable syncRule
+            -OutVariable syncRule  | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -146,27 +130,7 @@ Add-ADSyncAttributeFlowMapping  `
             -Destination 'cn' `
             -FlowType 'Direct' `
             -ValueMergeType 'Update' `
-            -OutVariable syncRule
-
-
-        <#
-Add-ADSyncAttributeFlowMapping  `
--SynchronizationRule $syncRule[0] `
--Destination 'company' `
--FlowType 'Expression' `
--ValueMergeType 'Update' `
--Expression 'Trim([company])' `
--OutVariable syncRule
-
-
-Add-ADSyncAttributeFlowMapping  `
--SynchronizationRule $syncRule[0] `
--Destination 'department' `
--FlowType 'Expression' `
--ValueMergeType 'Update' `
--Expression 'Trim([department])' `
--OutVariable syncRule
-#>
+            -OutVariable syncRule  | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -175,7 +139,7 @@ Add-ADSyncAttributeFlowMapping  `
             -FlowType 'Expression' `
             -ValueMergeType 'Update' `
             -Expression 'IIF(IsNullOrEmpty([description]),NULL,Left(Trim(Item([description],1)),448))' `
-            -OutVariable syncRule
+            -OutVariable syncRule  | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -184,7 +148,7 @@ Add-ADSyncAttributeFlowMapping  `
             -FlowType 'Expression' `
             -ValueMergeType 'Update' `
             -Expression 'IIF(IsNullOrEmpty([displayName]),[cn],[displayName])' `
-            -OutVariable syncRule
+            -OutVariable syncRule  | Out-Null
 
 
         # to verify what the attribute is doing
@@ -194,7 +158,7 @@ Add-ADSyncAttributeFlowMapping  `
             -Destination 'dLMemSubmitPerms' `
             -FlowType 'Direct' `
             -ValueMergeType 'Update' `
-            -OutVariable syncRule
+            -OutVariable syncRule  | Out-Null
 
 
         # to verify what the attribute is doing
@@ -204,7 +168,7 @@ Add-ADSyncAttributeFlowMapping  `
             -Destination 'dLMemRejectPerms' `
             -FlowType 'Direct' `
             -ValueMergeType 'Update' `
-            -OutVariable syncRule
+            -OutVariable syncRule  | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -213,7 +177,7 @@ Add-ADSyncAttributeFlowMapping  `
             -FlowType 'Expression' `
             -ValueMergeType 'Update' `
             -Expression 'Trim([extensionAttribute1])' `
-            -OutVariable syncRule
+            -OutVariable syncRule  | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -222,7 +186,7 @@ Add-ADSyncAttributeFlowMapping  `
             -FlowType 'Expression' `
             -ValueMergeType 'Update' `
             -Expression 'Trim([extensionAttribute2])' `
-            -OutVariable syncRule
+            -OutVariable syncRule  | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -231,7 +195,7 @@ Add-ADSyncAttributeFlowMapping  `
             -FlowType 'Expression' `
             -ValueMergeType 'Update' `
             -Expression 'Trim([extensionAttribute3])' `
-            -OutVariable syncRule
+            -OutVariable syncRule  | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -240,7 +204,7 @@ Add-ADSyncAttributeFlowMapping  `
             -FlowType 'Expression' `
             -ValueMergeType 'Update' `
             -Expression 'Trim([extensionAttribute4])' `
-            -OutVariable syncRule
+            -OutVariable syncRule  | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -249,7 +213,7 @@ Add-ADSyncAttributeFlowMapping  `
             -FlowType 'Expression' `
             -ValueMergeType 'Update' `
             -Expression 'Trim([extensionAttribute5])' `
-            -OutVariable syncRule
+            -OutVariable syncRule  | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -258,7 +222,7 @@ Add-ADSyncAttributeFlowMapping  `
             -FlowType 'Expression' `
             -ValueMergeType 'Update' `
             -Expression 'Trim([extensionAttribute6])' `
-            -OutVariable syncRule
+            -OutVariable syncRule  | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -267,7 +231,7 @@ Add-ADSyncAttributeFlowMapping  `
             -FlowType 'Expression' `
             -ValueMergeType 'Update' `
             -Expression 'Trim([extensionAttribute7])' `
-            -OutVariable syncRule
+            -OutVariable syncRule  | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -276,7 +240,7 @@ Add-ADSyncAttributeFlowMapping  `
             -FlowType 'Expression' `
             -ValueMergeType 'Update' `
             -Expression 'Trim([extensionAttribute8])' `
-            -OutVariable syncRule
+            -OutVariable syncRule  | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -285,7 +249,7 @@ Add-ADSyncAttributeFlowMapping  `
             -FlowType 'Expression' `
             -ValueMergeType 'Update' `
             -Expression 'Trim([extensionAttribute9])' `
-            -OutVariable syncRule
+            -OutVariable syncRule  | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -294,7 +258,7 @@ Add-ADSyncAttributeFlowMapping  `
             -FlowType 'Expression' `
             -ValueMergeType 'Update' `
             -Expression 'Trim([extensionAttribute10])' `
-            -OutVariable syncRule
+            -OutVariable syncRule  | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -303,7 +267,7 @@ Add-ADSyncAttributeFlowMapping  `
             -FlowType 'Expression' `
             -ValueMergeType 'Update' `
             -Expression 'Trim([extensionAttribute11])' `
-            -OutVariable syncRule
+            -OutVariable syncRule  | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -312,7 +276,7 @@ Add-ADSyncAttributeFlowMapping  `
             -FlowType 'Expression' `
             -ValueMergeType 'Update' `
             -Expression 'Trim([extensionAttribute12])' `
-            -OutVariable syncRule
+            -OutVariable syncRule  | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -321,7 +285,7 @@ Add-ADSyncAttributeFlowMapping  `
             -FlowType 'Expression' `
             -ValueMergeType 'Update' `
             -Expression 'Trim([extensionAttribute13])' `
-            -OutVariable syncRule
+            -OutVariable syncRule  | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -330,7 +294,7 @@ Add-ADSyncAttributeFlowMapping  `
             -FlowType 'Expression' `
             -ValueMergeType 'Update' `
             -Expression 'Trim([extensionAttribute14])' `
-            -OutVariable syncRule
+            -OutVariable syncRule  | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -339,29 +303,7 @@ Add-ADSyncAttributeFlowMapping  `
             -FlowType 'Expression' `
             -ValueMergeType 'Update' `
             -Expression 'Trim([extensionAttribute15])' `
-            -OutVariable syncRule
-
-
-        <#
-Add-ADSyncAttributeFlowMapping  `
--SynchronizationRule $syncRule[0] `
--Destination 'info' `
--FlowType 'Expression' `
--ValueMergeType 'Update' `
--Expression 'Left(Trim([info]),448)' `
--OutVariable syncRule
-#>
-
-
-        <#
-Add-ADSyncAttributeFlowMapping  `
--SynchronizationRule $syncRule[0] `
--Destination 'l' `
--FlowType 'Expression' `
--ValueMergeType 'Update' `
--Expression 'Trim([l])' `
--OutVariable syncRule
-#>
+            -OutVariable syncRule  | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -370,7 +312,7 @@ Add-ADSyncAttributeFlowMapping  `
             -FlowType 'Expression' `
             -ValueMergeType 'Update' `
             -Expression 'IIF(IsPresent([legacyExchangeDN]), [legacyExchangeDN], NULL)' `
-            -OutVariable syncRule
+            -OutVariable syncRule | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -379,7 +321,7 @@ Add-ADSyncAttributeFlowMapping  `
             -FlowType 'Expression' `
             -ValueMergeType 'Update' `
             -Expression 'Trim([mail])' `
-            -OutVariable syncRule
+            -OutVariable syncRule | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -388,7 +330,7 @@ Add-ADSyncAttributeFlowMapping  `
             -FlowType 'Expression' `
             -ValueMergeType 'Update' `
             -Expression 'IIF(IsPresent([mailNickname]), [mailNickname], [cn])' `
-            -OutVariable syncRule
+            -OutVariable syncRule | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -397,7 +339,7 @@ Add-ADSyncAttributeFlowMapping  `
             -Destination 'msDS-HABSeniorityIndex' `
             -FlowType 'Direct' `
             -ValueMergeType 'Update' `
-            -OutVariable syncRule
+            -OutVariable syncRule | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -406,45 +348,7 @@ Add-ADSyncAttributeFlowMapping  `
             -Destination 'msDS-PhoneticDisplayName' `
             -FlowType 'Direct' `
             -ValueMergeType 'Update' `
-            -OutVariable syncRule
-
-
-        <#
-Add-ADSyncAttributeFlowMapping  `
--SynchronizationRule $syncRule[0] `
--Source @('msExchAssistantName') `
--Destination 'msExchAssistantName' `
--FlowType 'Direct' `
--ValueMergeType 'Update' `
--OutVariable syncRule
-#>
-
-
-        Add-ADSyncAttributeFlowMapping  `
-            -SynchronizationRule $syncRule[0] `
-            -Source @('msExchBlockedSendersHash') `
-            -Destination 'msExchBlockedSendersHash' `
-            -FlowType 'Direct' `
-            -ValueMergeType 'Update' `
-            -OutVariable syncRule
-
-
-        Add-ADSyncAttributeFlowMapping  `
-            -SynchronizationRule $syncRule[0] `
-            -Source @('msExchBypassModerationFromDLMembersLink') `
-            -Destination 'msExchBypassModerationFromDLMembersLink' `
-            -FlowType 'Direct' `
-            -ValueMergeType 'Update' `
-            -OutVariable syncRule
-
-
-        Add-ADSyncAttributeFlowMapping  `
-            -SynchronizationRule $syncRule[0] `
-            -Source @('msExchBypassModerationLink') `
-            -Destination 'msExchBypassModerationLink' `
-            -FlowType 'Direct' `
-            -ValueMergeType 'Update' `
-            -OutVariable syncRule
+            -OutVariable syncRule | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -453,7 +357,7 @@ Add-ADSyncAttributeFlowMapping  `
             -Destination 'msExchExtensionCustomAttribute1' `
             -FlowType 'Direct' `
             -ValueMergeType 'Update' `
-            -OutVariable syncRule
+            -OutVariable syncRule | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -462,7 +366,7 @@ Add-ADSyncAttributeFlowMapping  `
             -Destination 'msExchExtensionCustomAttribute2' `
             -FlowType 'Direct' `
             -ValueMergeType 'Update' `
-            -OutVariable syncRule
+            -OutVariable syncRule | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -471,7 +375,7 @@ Add-ADSyncAttributeFlowMapping  `
             -Destination 'msExchExtensionCustomAttribute3' `
             -FlowType 'Direct' `
             -ValueMergeType 'Update' `
-            -OutVariable syncRule
+            -OutVariable syncRule | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -480,7 +384,7 @@ Add-ADSyncAttributeFlowMapping  `
             -Destination 'msExchExtensionCustomAttribute4' `
             -FlowType 'Direct' `
             -ValueMergeType 'Update' `
-            -OutVariable syncRule
+            -OutVariable syncRule | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -489,7 +393,7 @@ Add-ADSyncAttributeFlowMapping  `
             -Destination 'msExchExtensionCustomAttribute5' `
             -FlowType 'Direct' `
             -ValueMergeType 'Update' `
-            -OutVariable syncRule
+            -OutVariable syncRule | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -498,45 +402,7 @@ Add-ADSyncAttributeFlowMapping  `
             -Destination 'msExchHideFromAddressLists' `
             -FlowType 'Direct' `
             -ValueMergeType 'Update' `
-            -OutVariable syncRule
-
-
-        <#
-Add-ADSyncAttributeFlowMapping  `
--SynchronizationRule $syncRule[0] `
--Source @('msExchLitigationHoldDate') `
--Destination 'msExchLitigationHoldDate' `
--FlowType 'Direct' `
--ValueMergeType 'Update' `
--OutVariable syncRule
-
-
-Add-ADSyncAttributeFlowMapping  `
--SynchronizationRule $syncRule[0] `
--Source @('msExchLitigationHoldOwner') `
--Destination 'msExchLitigationHoldOwner' `
--FlowType 'Direct' `
--ValueMergeType 'Update' `
--OutVariable syncRule
-#>
-
-
-        Add-ADSyncAttributeFlowMapping  `
-            -SynchronizationRule $syncRule[0] `
-            -Source @('msExchModeratedByLink') `
-            -Destination 'msExchModeratedByLink' `
-            -FlowType 'Direct' `
-            -ValueMergeType 'Update' `
-            -OutVariable syncRule
-
-
-        Add-ADSyncAttributeFlowMapping  `
-            -SynchronizationRule $syncRule[0] `
-            -Source @('msExchModerationFlags') `
-            -Destination 'msExchModerationFlags' `
-            -FlowType 'Direct' `
-            -ValueMergeType 'Update' `
-            -OutVariable syncRule
+            -OutVariable syncRule | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -545,7 +411,7 @@ Add-ADSyncAttributeFlowMapping  `
             -Destination 'msExchRecipientDisplayType' `
             -FlowType 'Direct' `
             -ValueMergeType 'Update' `
-            -OutVariable syncRule
+            -OutVariable syncRule | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -554,7 +420,7 @@ Add-ADSyncAttributeFlowMapping  `
             -Destination 'msExchRecipientTypeDetails' `
             -FlowType 'Direct' `
             -ValueMergeType 'Update' `
-            -OutVariable syncRule
+            -OutVariable syncRule | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -563,47 +429,7 @@ Add-ADSyncAttributeFlowMapping  `
             -Destination 'msExchRequireAuthToSendTo' `
             -FlowType 'Direct' `
             -ValueMergeType 'Update' `
-            -OutVariable syncRule
-
-
-        <#
-Add-ADSyncAttributeFlowMapping  `
--SynchronizationRule $syncRule[0] `
--Source @('msExchRetentionComment') `
--Destination 'msExchRetentionComment' `
--FlowType 'Direct' `
--ValueMergeType 'Update' `
--OutVariable syncRule
-#>
-
-
-        <#
-Add-ADSyncAttributeFlowMapping  `
--SynchronizationRule $syncRule[0] `
--Source @('msExchRetentionURL') `
--Destination 'msExchRetentionURL' `
--FlowType 'Direct' `
--ValueMergeType 'Update' `
--OutVariable syncRule
-#>
-
-
-        Add-ADSyncAttributeFlowMapping  `
-            -SynchronizationRule $syncRule[0] `
-            -Source @('msExchSafeRecipientsHash') `
-            -Destination 'msExchSafeRecipientsHash' `
-            -FlowType 'Direct' `
-            -ValueMergeType 'Update' `
-            -OutVariable syncRule
-
-
-        Add-ADSyncAttributeFlowMapping  `
-            -SynchronizationRule $syncRule[0] `
-            -Source @('msExchSafeSendersHash') `
-            -Destination 'msExchSafeSendersHash' `
-            -FlowType 'Direct' `
-            -ValueMergeType 'Update' `
-            -OutVariable syncRule
+            -OutVariable syncRule | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -612,7 +438,7 @@ Add-ADSyncAttributeFlowMapping  `
             -Destination 'msExchSenderHintTranslations' `
             -FlowType 'Direct' `
             -ValueMergeType 'Update' `
-            -OutVariable syncRule
+            -OutVariable syncRule | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -621,7 +447,7 @@ Add-ADSyncAttributeFlowMapping  `
             -FlowType 'Expression' `
             -ValueMergeType 'Update' `
             -Expression 'RemoveDuplicates(Trim(ImportedValue("proxyAddresses")))' `
-            -OutVariable syncRule
+            -OutVariable syncRule | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -630,7 +456,7 @@ Add-ADSyncAttributeFlowMapping  `
             -FlowType 'Expression' `
             -ValueMergeType 'Update' `
             -Expression 'ConvertToBase64([objectGUID])' `
-            -OutVariable syncRule
+            -OutVariable syncRule | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -639,7 +465,7 @@ Add-ADSyncAttributeFlowMapping  `
             -Destination 'sourceAnchorBinary' `
             -FlowType 'Direct' `
             -ValueMergeType 'Update' `
-            -OutVariable syncRule
+            -OutVariable syncRule | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -648,18 +474,7 @@ Add-ADSyncAttributeFlowMapping  `
             -Destination 'sourceObjectType' `
             -FlowType 'Constant' `
             -ValueMergeType 'Update' `
-            -OutVariable syncRule
-
-
-        <#
-Add-ADSyncAttributeFlowMapping  `
--SynchronizationRule $syncRule[0] `
--Source @('targetAddress') `
--Destination 'targetAddress' `
--FlowType 'Direct' `
--ValueMergeType 'Update' `
--OutVariable syncRule
-#>
+            -OutVariable syncRule | Out-Null
 
 
         Add-ADSyncAttributeFlowMapping  `
@@ -680,15 +495,6 @@ Add-ADSyncAttributeFlowMapping  `
             -OutVariable syncRule
 
 
-        <#
-Add-ADSyncAttributeFlowMapping  `
--SynchronizationRule $syncRule[0] `
--Destination 'url' `
--FlowType 'Expression' `
--ValueMergeType 'Update' `
--Expression 'IIF(IsNullOrEmpty([url]),NULL,Left(Trim(Item([url],1)),448))' `
--OutVariable syncRule
-#>
         #endregion Create Attribute Flow Mappings
 
         #region Create Scope Condition to match all Dynamic Distribtuion object type
@@ -706,10 +512,8 @@ Add-ADSyncAttributeFlowMapping  `
 
         # Add the rule in the AAD Connect engine
         Add-ADSyncRule -SynchronizationRule $syncRule[0] | Out-Null
-
-        # Get-ADSyncRule  -Identifier $syncRule[0].Identifier
+        Remove-Variable syncRule -Force
     }
-    #Remove-Variable syncRule -Force
 
 }
 
