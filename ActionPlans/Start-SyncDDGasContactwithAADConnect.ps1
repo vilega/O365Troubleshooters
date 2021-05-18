@@ -3,7 +3,7 @@ Function new-AADSyncDDGRules {
 
     #region Create ADSync PROVISION rule
     $ruleName = 'Custom In from AD - Dynamic Distribtution Group - Provision'
-    $slot = Get-FirstADSyncRuleFreeSlot -ruleName $ruleName 
+    $slot = Get-ADSyncRuleFreeSlot -ruleName $ruleName 
     if ($slot.count -eq 0) {
         Write-Host "You select CANCEL so the rule `"$ruleName`" won't be created"
         #TODO: write this on the report
@@ -87,7 +87,7 @@ Function new-AADSyncDDGRules {
 
 #region Create ADSync JOIN rule (Has All Attribute Transformations)
     $ruleName = 'Custom In from AD - Dynamic Distribution Group - Join'
-    $slot = Get-FirstADSyncRuleFreeSlot -ruleName $ruleName 
+    $slot = Get-ADSyncRuleFreeSlot -ruleName $ruleName 
     if ($slot.count -eq 0) {
         Write-Host "You select CANCEL so the rule `"$ruleName`" won't be created"
         #TODO: write this on the report
@@ -729,7 +729,7 @@ Function Get-AADSyncDDGRulesExists {
     ($AdSyncDDG_Join).ScopeFilter.ScopeConditionList
 }
 
-Function Get-FirstADSyncRuleFreeSlot {
+Function Get-ADSyncRuleFreeSlot {
     param ([string]$ruleName)
  
     $ADSyncRulesAndEmptySlots = New-Object Collections.ArrayList
