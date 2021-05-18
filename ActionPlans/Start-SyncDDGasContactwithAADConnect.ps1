@@ -3,8 +3,8 @@ Remove-Variable syncRule -Force
 
 #region Create ADSync PROVISION rule
 New-ADSyncRule  `
--Name 'In from AD - Dynamic Distribtution Group - Provision' `
--Description 'Dynamic Groups sync' `
+-Name 'Custom In from AD - Dynamic Distribtution Group - Provision' `
+-Description 'Dynamic Distribution Groups provision rule' `
 -Direction 'Inbound' `
 -Precedence 1 `
 -PrecedenceAfter '00000000-0000-0000-0000-000000000000' `
@@ -26,7 +26,6 @@ Add-ADSyncAttributeFlowMapping  `
 -Expression 'IIF(IsPresent([isCriticalSystemObject]) || ( (InStr([displayName], "(MSOL)") > 0) && (CBool([msExchHideFromAddressLists]))) || (Left([mailNickname], 4) = "CAS_" && (InStr([mailNickname], "}") > 0)) || CBool(InStr(DNComponent(CRef([dn]),1),"\\0ACNF:")>0), True, NULL)' `
 -OutVariable syncRule
 
-
 Add-ADSyncAttributeFlowMapping  `
 -SynchronizationRule $syncRule[0] `
 -Destination 'mailEnabled' `
@@ -42,12 +41,10 @@ New-Object  `
 -ArgumentList 'isCriticalSystemObject','True','NOTEQUAL' `
 -OutVariable condition0
 
-
 New-Object  `
 -TypeName 'Microsoft.IdentityManagement.PowerShell.ObjectModel.ScopeCondition' `
 -ArgumentList 'msExchRecipientDisplayType','3','EQUAL' `
 -OutVariable condition1
-
 
 Add-ADSyncScopeConditionGroup  `
 -SynchronizationRule $syncRule[0] `
@@ -56,12 +53,11 @@ Add-ADSyncScopeConditionGroup  `
 
 #endregion Create Scope Condition to match all Dynamic Distribtuion object type
 
-#region Create Join Condition for PROVISION rule
+#region Create join condition for PROVISION rule
 New-Object  `
 -TypeName 'Microsoft.IdentityManagement.PowerShell.ObjectModel.JoinCondition' `
 -ArgumentList 'mail','mail',$false `
 -OutVariable condition0
-
 
 Add-ADSyncJoinConditionGroup  `
 -SynchronizationRule $syncRule[0] `
@@ -69,21 +65,19 @@ Add-ADSyncJoinConditionGroup  `
 -OutVariable syncRule
 #endregion Create Join Condition for PROVISION rule
 
-
+#region Create the PROVISION rule
 Add-ADSyncRule -SynchronizationRule $syncRule[0]
 
 Get-ADSyncRule -Identifier $syncRule[0].Identifier
 
-
 Remove-Variable syncRule -Force
-
-
+#endregion Create the PROVISION rule
 
 
 #region Create ADSync JOIN rule (Has All Attribute Transformations)
 New-ADSyncRule  `
--Name 'In from AD - Dynamic Distribution Group - Join' `
--Description 'Dynamic Distribution List object with Exchange schema in Active Directory.' `
+-Name 'Custom In from AD - Dynamic Distribution Group - Join' `
+-Description 'Dynamic Distribution Group Join - Transformations rule' `
 -Direction 'Inbound' `
 -Precedence 3 `
 -PrecedenceAfter '00000000-0000-0000-0000-000000000000' `
@@ -94,8 +88,6 @@ New-ADSyncRule  `
 -LinkType 'Join' `
 -SoftDeleteExpiryInterval 0 `
 -OutVariable syncRule
-#-Identifier '73838bb7-dd6c-42fe-b19f-b85e8d6808f6' `
-#-ImmutableTag 'Microsoft.InfromADContactCommon.006' `
 #endregion Create ADSync JOIN rule
 
 #region Create Attribute Flow Mappings
@@ -684,7 +676,6 @@ New-Object  `
 -TypeName 'Microsoft.IdentityManagement.PowerShell.ObjectModel.ScopeCondition' `
 -ArgumentList 'msExchRecipientDisplayType','3','EQUAL' `
 -OutVariable condition0
-
 
 Add-ADSyncScopeConditionGroup  `
 -SynchronizationRule $syncRule[0] `
