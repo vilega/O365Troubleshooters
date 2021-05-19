@@ -2,6 +2,9 @@ Function new-AADSyncDDGRules {
 
     # select local AD connector
     $selectConnector = Get-ADSyncConnector | Where-Object { $_.Name -notlike "*onmicrosoft*" } | Select-Object name, identifier | Out-GridView -Title "Please select the connector to your local Active Directory!" -OutputMode Single
+    if ($selectConnector)
+    {
+
 
     #region Create ADSync PROVISION rule
     $ruleName = 'Custom In from AD - Dynamic Distribtution Group - Provision'
@@ -536,6 +539,15 @@ Function new-AADSyncDDGRules {
         write-log -Function "Start-SyncDDGasContactwithAADConnect" -Step $CurrentProperty -Description $CurrentDescription 
         Read-Key    
     }
+}
+else {
+    #TODO: write in report
+    $CurrentProperty = "selectConnector"
+    $CurrentDescription = "No connector was selected!"
+    write-log -Function "Start-SyncDDGasContactwithAADConnect" -Step $CurrentProperty -Description $CurrentDescription 
+    Write-Host $CurrentDescription
+    read-Key    
+}
 }
 
 Function Get-AADSyncDDGRulesExists {
