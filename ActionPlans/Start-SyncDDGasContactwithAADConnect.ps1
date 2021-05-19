@@ -1,11 +1,11 @@
 Function new-AADSyncDDGRules {
 
     # select local AD connector
-    $selectConnector = Get-ADSyncConnector |Where-Object { $_.Name -notlike "*onmicrosoft*" } |Select-Object name, identifier |Out-GridView -Title "Please select the connector to your local Active Directory!" -OutputMode Single
+    $selectConnector = Get-ADSyncConnector | Where-Object { $_.Name -notlike "*onmicrosoft*" } | Select-Object name, identifier | Out-GridView -Title "Please select the connector to your local Active Directory!" -OutputMode Single
 
     #region Create ADSync PROVISION rule
     $ruleName = 'Custom In from AD - Dynamic Distribtution Group - Provision'
-    if (!(Get-ADSyncRule | Where-Object{($_.Name -eq  $ruleName)-and ($_.Connector -eq $selectConnector.identifier.guid)})) {
+    if (!(Get-ADSyncRule | Where-Object { ($_.Name -eq $ruleName) -and ($_.Connector -eq $selectConnector.identifier.guid) })) {
 
         $slot = Get-ADSyncRuleFreeSlot -ruleName $ruleName 
         if ($slot.count -eq 0) {
@@ -84,23 +84,20 @@ Function new-AADSyncDDGRules {
         }
     }
     else {
-            Write-Host "Rule `"$ruleName`" already exist. If you want to re-create it, you can delete it from AAD Connect and re-run the script to re-created with the latest version"
-            Read-Key
+        Write-Host "Rule `"$ruleName`" already exist. If you want to re-create it, you can delete it from AAD Connect and re-run the script to re-created with the latest version"
+        Read-Key
 
-            Write-Host "You choosed not to go further for implementing the AADConnect rules to sync on-premises DDG to AAD/EXO Contacts" -ForegroundColor Red
-            $CurrentProperty = "New-AADSyncDDGRules"
-            $CurrentDescription = "rule `"$ruleName`" was already created"
-            write-log -Function "Start-SyncDDGasContactwithAADConnect" -Step $CurrentProperty -Description $CurrentDescription 
-            Write-Host "The script will return to main menu"
-            read-Key    
-            Start-O365TroubleshootersMenu
+        $CurrentProperty = "New-AADSyncDDGRules"
+        $CurrentDescription = "rule `"$ruleName`" was already created"
+        write-log -Function "Start-SyncDDGasContactwithAADConnect" -Step $CurrentProperty -Description $CurrentDescription 
+        read-Key    
     }
     #endregion Create the PROVISION rule
 
 
     #region Create ADSync JOIN rule (Has All Attribute Transformations)
     $ruleName = 'Custom In from AD - Dynamic Distribution Group - Join'
-    if (!(Get-ADSyncRule | Where-Object{($_.Name -eq  $ruleName)-and ($_.Connector -eq $selectConnector.identifier.guid)})) {
+    if (!(Get-ADSyncRule | Where-Object { ($_.Name -eq $ruleName) -and ($_.Connector -eq $selectConnector.identifier.guid) })) {
 
         $slot = Get-ADSyncRuleFreeSlot -ruleName $ruleName 
         if ($slot.count -eq 0) {
@@ -535,16 +532,11 @@ Function new-AADSyncDDGRules {
         }
     }
     else {
-            Write-Host "Rule `"$ruleName`" already exist. If you want to re-create it, you can delete it from AAD Connect and re-run the script to re-created with the latest version"
-            Read-Key
-    
-            Write-Host "You choosed not to go further for implementing the AADConnect rules to sync on-premises DDG to AAD/EXO Contacts" -ForegroundColor Red
-            $CurrentProperty = "New-AADSyncDDGRules"
-            $CurrentDescription = "rule `"$ruleName`" was already created"
-            write-log -Function "Start-SyncDDGasContactwithAADConnect" -Step $CurrentProperty -Description $CurrentDescription 
-            Write-Host "The script will return to main menu"
-            read-Key    
-            Start-O365TroubleshootersMenu
+        Write-Host "Rule `"$ruleName`" already exist. If you want to re-create it, you can delete it from AAD Connect and re-run the script to re-created with the latest version"
+        $CurrentProperty = "New-AADSyncDDGRules"
+        $CurrentDescription = "rule `"$ruleName`" was already created"
+        write-log -Function "Start-SyncDDGasContactwithAADConnect" -Step $CurrentProperty -Description $CurrentDescription 
+        Read-Key    
     }
 }
 
@@ -616,7 +608,8 @@ Read-Key
 
 Clear-Host
 $Workloads = "ADSync"
-Connect-O365PS $Workloads
+Connect-O365PS -O365Service $Workloads -requireCredentials $false
+#Connect-O365PS ($Workloads, $false)
 
 
 $CurrentProperty = "Connecting to: $Workloads"
@@ -627,42 +620,21 @@ $ts = get-date -Format yyyyMMdd_HHmmss
 $ExportPath = "$global:WSPath\UnifiedAudit_$ts"
 mkdir $ExportPath -Force | Out-Null
 
-if (!(Get-AADSyncDDGRulesExists )) {
-    $CurrentProperty = "Check if no other rules for DDG synchronization already implemented in AAD Connect"
-    $CurrentDescription = "Success"
-    write-log -Function "Start-SyncDDGasContactwithAADConnect" -Step $CurrentProperty -Description $CurrentDescription 
-    Write-Host $CurrentProperty -ForegroundColor Cyan -NoNewline
-    Write-Host " - No such rules are created" -ForegroundColor Green
-    Start-Sleep -Seconds 5
-    new-AADSyncDDGRules
-}
-else {
-    $CurrentProperty = "Check if no other rules for DDG synchronization already implemented in AAD Connect"
-    $CurrentDescription = "Already present"
-    write-log -Function "Start-SyncDDGasContactwithAADConnect" -Step $CurrentProperty -Description $CurrentDescription 
-    Write-Host $CurrentProperty -ForegroundColor Cyan -NoNewline
-    Write-Host " - Such rules are already created" -ForegroundColor Red
-    Read-Host "Do you want to proceed further?"
-    $answer = Get-Choice -OptionsList "Yes", "No"  
-    if ($answer -eq 0) {
-        new-AADSyncDDGRules
-    }
-    else {
-        Write-Host "You choosed not to go further for implementing the AADConnect rules to sync on-premises DDG to AAD/EXO Contacts" -ForegroundColor Red
-        $CurrentProperty = "Some rules to implement AADConnect rules to sync on-premises DDG to AAD/EXO Contacts"
-        $CurrentDescription = "Customer choosed to exit"
-        write-log -Function "Start-SyncDDGasContactwithAADConnect" -Step $CurrentProperty -Description $CurrentDescription 
-        Write-Host "The script will return to main menu"
-        read-Key    
-        Start-O365TroubleshootersMenu
-    }
+$CurrentProperty = "new-AADSyncDDGRules"
+$CurrentDescription = "Start"
+write-log -Function "Start-SyncDDGasContactwithAADConnect" -Step $CurrentProperty -Description $CurrentDescription 
+new-AADSyncDDGRules
+
+$CurrentProperty = "HTML report which contains information about creation of the AAD Connect rules can be found here: $ExportPath "
+$CurrentDescription = "The script will return to main menu!"
+write-log -Function "Start-SyncDDGasContactwithAADConnect" -Step $CurrentProperty -Description $CurrentDescription 
+Write-Host $CurrentProperty
+Write-Host $CurrentDescription
+read-Key    
+Start-O365TroubleshootersMenu
     
-}
 
 #TODO: write all steps in logs
 #TODO: check what can be exported in HTML report 
 #TODO: track if any error while creating the rules
 #TODO: maybe would be better to check if the rules are implemented to show in Report
-
-Read-Key
-Start-O365TroubleshootersMenu
