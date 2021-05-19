@@ -943,7 +943,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
 
         try {
 
-        Import-Module (Import-PSSession ADSync -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue
+        Import-Module  ADSync -DisableNameChecking -Global -ErrorAction SilentlyContinue
         $CurrentDescription = "Success"
 
         }
