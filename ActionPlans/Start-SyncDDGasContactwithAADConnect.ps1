@@ -2,7 +2,7 @@ Function new-AADSyncDDGRules {
 
     #region Create ADSync PROVISION rule
     $ruleName = 'Custom In from AD - Dynamic Distribtution Group - Provision'
-    if (!(Get-ADSyncRule -Identity $ruleName -ErrorAction SilentlyContinue)) {
+    if (!(Get-ADSyncRule | Where-Object Name -eq  $ruleName)) {
 
     
 
@@ -101,7 +101,7 @@ Function new-AADSyncDDGRules {
 
     #region Create ADSync JOIN rule (Has All Attribute Transformations)
     $ruleName = 'Custom In from AD - Dynamic Distribution Group - Join'
-    if (!(Get-ADSyncRule -Identity $ruleName -ErrorAction SilentlyContinue)) {
+    if (!(Get-ADSyncRule | Where-Object Name -eq  $ruleName)) {
 
         $slot = Get-ADSyncRuleFreeSlot -ruleName $ruleName 
         if ($slot.count -eq 0) {
