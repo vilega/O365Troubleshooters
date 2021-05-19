@@ -16,6 +16,7 @@ Function new-AADSyncDDGRules {
         $slot = Get-ADSyncRuleFreeSlot -ruleName $ruleName 
         if ($slot.count -eq 0) {
             Write-Host "You select CANCEL so the rule `"$ruleName`" won't be created"
+            Read-Key
             #TODO: write this on the report
 
             [string]$SectionTitle = "`"$ruleName`" - creation"
@@ -116,7 +117,7 @@ Function new-AADSyncDDGRules {
         
         [string]$SectionTitle = "`"$ruleName`" - creation"
         [string]$Description = "The rule `"$ruleName`" has not been succesfully created using selected connector: $($selectConnector.name) because already exists."
-        [PSCustomObject]$RuleHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring ""
+        [PSCustomObject]$RuleHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Yellow" -Description $Description -DataType "String" -EffectiveDatastring ""
         $null = $TheCollectionToConvertToHTML.Add($RuleHTML)
 
         Read-Key    
@@ -588,7 +589,7 @@ Function new-AADSyncDDGRules {
 
         [string]$SectionTitle = "`"$ruleName`" - creation"
         [string]$Description = "The rule `"$ruleName`" has not been succesfully created using selected connector: $($selectConnector.name) because already exists."
-        [PSCustomObject]$RuleHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring ""
+        [PSCustomObject]$RuleHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Yellow" -Description $Description -DataType "String" -EffectiveDatastring ""
         $null = $TheCollectionToConvertToHTML.Add($RuleHTML)
 
         Read-Key    
@@ -601,7 +602,7 @@ else {
     write-log -Function "Start-SyncDDGasContactwithAADConnect" -Step $CurrentProperty -Description $CurrentDescription 
     Write-Host $CurrentDescription
 
-    string]$SectionTitle = "On-premises AD Connector used by the created rules"
+    [string]$SectionTitle = "On-premises AD Connector used by the created rules"
     [string]$Description = "No On-premises AD Connector was selected."
     [PSCustomObject]$OnPremisesADConnectorSelectedHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring "No rules will be created!"
     $null = $TheCollectionToConvertToHTML.Add($OnPremisesADConnectorSelectedHTML)
@@ -710,8 +711,8 @@ new-AADSyncDDGRules
 $CurrentProperty = "HTML report which contains information about creation of the AAD Connect rules can be found here: $ExportPath "
 $CurrentDescription = "The script will return to main menu!"
 write-log -Function "Start-SyncDDGasContactwithAADConnect" -Step $CurrentProperty -Description $CurrentDescription 
-Write-Host $CurrentProperty
-Write-Host $CurrentDescription
+#Write-Host $CurrentProperty
+#Write-Host $CurrentDescription
 read-Key    
 #Start-O365TroubleshootersMenu
     
@@ -732,6 +733,9 @@ if ($OpenHTMLfile.ToLower() -eq "y")
 {
     Write-Host "Opening report...." -ForegroundColor Cyan
     Start-Process $FilePath
+    Write-Host "The script will return to main menu!" -ForegroundColor Yellow
+    Read-Key
+    Start-O365TroubleshootersMenu
 
 }
 elseif($OpenHTMLfile.ToLower() -eq "n")
@@ -739,8 +743,10 @@ elseif($OpenHTMLfile.ToLower() -eq "n")
     Write-Host "Quitting...."
     Write-Host "Relaunching the main menu again" -ForegroundColor Yellow 
     Start-Sleep -Seconds 3
+    Write-Host "The script will return to main menu!" -ForegroundColor Cyan
     Read-Key
     # Go back to the main menu
+
     Start-O365TroubleshootersMenu
 }
 else {
@@ -751,6 +757,3 @@ else {
     # Go back to the main menu
     Start-O365TroubleshootersMenu
 }
-
-Start-Sleep -Seconds 3
-Read-Key
