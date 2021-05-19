@@ -364,7 +364,468 @@ else
 return $fix
 }
 
-
+#region public folder overview
+Function Start-PFDataCollection{
+    
+    ##add org config values & check ind post quota health 
+     #region main public folders overview information
+     write-host
+     write-host
+     Write-Host "Organization Publicfolders Overview`n-----------------------------------`n"  -ForegroundColor Cyan 
+     $HostedConnectionFilterPolicy=Get-HostedConnectionFilterPolicy 
+     $DirectoryBasedEdgeBlockModeStatus=$HostedConnectionFilterPolicy.DirectoryBasedEdgeBlockMode
+     if($DirectoryBasedEdgeBlockModeStatus -like "Default")
+     {
+         Write-Host "DirectoryBasedEdgeBlockModeStatus = Enabled"
+     }
+     else {
+         Write-Host "DirectoryBasedEdgeBlockModeStatus = Disabled"
+     }
+     $OrganizationConfig=Get-OrganizationConfig
+     $PublicFoldersLocation=$OrganizationConfig.PublicFoldersEnabled
+     $PublicFolderMailboxes=Get-Mailbox -PublicFolder -ResultSize unlimited
+     [Int]$PublicFolderMailboxesCount=($PublicFolderMailboxes).count
+     [Int]$MailEnabledPublicFoldersCount=(Get-MailPublicFolder -ResultSize unlimited).count
+     $RootPublicFolderMailbox=$OrganizationConfig.RootPublicFolderMailbox.HierarchyMailboxGuid.Guid.ToString()
+     Write-Host "PublicFoldersLocation = $PublicFoldersLocation"
+     if ($PublicFoldersLocation -eq "Local") {
+         $Publicfolders=Get-PublicFolder -Recurse -ResultSize unlimited
+         [Int]$PublicFoldersCount=($Publicfolders).count - 1
+         Write-Host "PublicFolderMailboxesCount = $PublicFolderMailboxesCount"
+         Write-Host "PublicFoldersCount = $PublicFoldersCount"
+         Write-Host "RootPublicFolderMailbox = $RootPublicFolderMailbox"
+         Write-Host "OrgPublicFolderProhibitPostQuota" = $OrganizationConfig.DefaultPublicFolderProhibitPostQuota.Split("(")[0]
+         Write-Host "OrgPublicFolderIssueWarningQuota" = $OrganizationConfig.DefaultPublicFolderIssueWarningQuota.Split("(")[0]
+     }
+     else {
+         $RemotePublicFolderMailboxes=$OrganizationConfig.RemotePublicFolderMailboxes
+         $LockedForMigration=$OrganizationConfig.RootPublicFolderMailbox.LockedForMigration
+         if($LockedForMigration -like "True")
+         {
+             Write-Host "Public folder migration in PROGRESS!" -BackgroundColor Gray 
+             Write-Host "PublicFolderMailboxesCount = $PublicFolderMailboxesCount"
+         }
+         else {
+             Write-Host "RemotePublicFolderMailboxes = $($RemotePublicFolderMailboxes -join ",")"
+         }
+         
+     }
+     Write-Host "MailEnabledPublicFoldersCount = $MailEnabledPublicFoldersCount" 
+     #endregion main public folders overview information
+     #region retrieve publicfolderservinghierarchyMBXs and check if rootPF MBX is serving hierarchy
+     $publicfolderservinghierarchyMBXs=$PublicFolderMailboxes|Where-Object{$_.IsExcludedFromServingHierarchy -like "false" -and $_.IsHierarchyReady -like "true"}
+     Write-Host "Public folder hierarchy serving mailboxes: " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
+     $publicfolderservinghierarchyMBXs|Format-Table -Wrap -AutoSize Name,Alias,Guid,ExchangeGuid
+     #endregion retrieve publicfolderservinghierarchyMBXs and check if rootPF MBX is serving hierarchy
+     #region add check if primary PF MBX doesn't contain content nor serve hierachy to regular MBXs
+     Write-Host "Primary public folder mailbox diagnosis:" -ForegroundColor Black -BackgroundColor Yellow
+     if ($publicfolderservinghierarchyMBXs|Where-Object {$_.ExchangeGuid -Like $RootPublicFolderMailbox}) 
+     {
+         Write-host "It's not recommended to use root public folder mailbox to serve hierarchy!" -ForegroundColor Red -NoNewline
+         $publicfolderservinghierarchyMBXs|Where-Object {$_.ExchangeGuid -Like $RootPublicFolderMailbox}|Format-Table -Wrap -AutoSize Name,Alias,Guid,ExchangeGuid
+     }
+     else {
+         Write-host "Root public folder mailbox is not used to serve hierachy" -ForegroundColor Green
+     }
+     if ([Int]($Publicfolders|Where-Object {$_.ContentMailboxGuid -Like $RootPublicFolderMailbox}).name.count -eq 1)
+     {
+         Write-host "RootPublicFolderMailbox is not hosting content of Public folders" -ForegroundColor Green
+     }
+     else {
+         Write-host "RootPublicFolderMailbox is hosting content of Public folders,it's recommended to stop creating public folders hosted on the primary public folder mailbox!" -ForegroundColor Red
+     }
+     #endregion add check if primary PF MBX doesn't contain content nor serve hierachy to regular MBXs
+     #region add health quota check on PF MBXs 
+     [Int]$unhealthyPFMBXcount=0
+     $unhealthyPFMBX=@()
+     #[Int]$percent=0
+     foreach($PublicFolderMailbox in $PublicFolderMailboxes)
+     {
+        # Write-Progress -Activity "Validating quota on PF MBXs" -Status "$(($percent/$PublicFolderMailboxes.count)*100)% Complete:" -PercentComplete (($percent/$PublicFolderMailboxes.count)*100)
+         $PublicFolderMailboxSendReceiveQuota= $PublicFolderMailbox.ProhibitSendReceiveQuota.Split("(")[1].split(" ")[0].Replace(",","")
+         try {
+             $PublicFolderMailboxMailboxStatistics= Get-MailboxStatistics $PublicFolderMailbox.Guid.Guid.ToString() -ErrorAction stop -WarningAction:SilentlyContinue
+             [int]$PFMBXSizeinB=[int]$PublicFolderMailboxMailboxStatistics.TotalItemSize.value.tostring().Split("(")[1].split(" ")[0].Replace(",","")+[int]$PublicFolderMailboxMailboxStatistics.TotalDeletedItemSize.value.tostring().Split("(")[1].split(" ")[0].Replace(",","")
+         }
+         catch {
+            ##write failue in the log
+         }
+         
+         ##Validate PFMBXsize has exceeded 85% PublicFolderMailboxSendReceiveQuota
+         if ((($PublicFolderMailboxSendReceiveQuota-$PFMBXSizeinB)/(1024*1024*1024)) -le 15) {
+             $unhealthyPFMBXcount++
+             $unhealthyPFMBX+=$PublicFolderMailbox
+         }
+         #$percent++
+     }
+     Write-Host
+     write-host "Recommendations:`n================" -ForegroundColor Cyan
+     if($unhealthyPFMBXcount -eq 0)
+     {
+         Write-host "All Public folder mailboxes are on quota healthy state" -ForegroundColor Green
+     }
+     else {
+         Write-host "Please diagnose below public folder mailboxes as their size have exceeded autosplit threshold: " -NoNewline -ForegroundColor Black -BackgroundColor Red
+         $unhealthyPFMBX |Format-Table -Wrap -AutoSize Name,Alias,Guid,ExchangeGuid
+     }
+     #endregion add health quota check on PF MBXs 
+     #region add health quota check on PFs approaching individual/organization prohibitpostquota,check if we have Giant PFs,that check to be ignored if PFs location is remote
+     if ($PublicFoldersLocation -eq "Local") {
+         [Int]$unhealthyPFcountapproachingIndQuota=0
+         [Int]$unhealthyPFcountapproachingOrgQuota=0
+         $unhealthyOrgPF=@()
+         $unhealthyIndPF=@()
+         $GiantPF=@()
+         $UnhealthygiantOrgPF=@()
+         $UnhealthygiantIndPF=@()
+         foreach($Publicfolder in $Publicfolders)
+         {
+         [Int64]$OrgPFProhibitPostQuotainB=$OrganizationConfig.DefaultPublicFolderProhibitPostQuota.Split("(")[1].split(" ")[0].Replace(",","")
+         [Int64]$DefaultPublicFolderIssueWarningQuotainB=$OrganizationConfig.DefaultPublicFolderIssueWarningQuota.Split("(")[1].split(" ")[0].Replace(",","")
+         $Publicfolderstats=Get-PublicFolderStatistics $($Publicfolder.EntryID)
+         [Int64]$PublicfolderTotalSize=[Int64]$Publicfolderstats.TotalItemSize.Split("(")[1].split(" ")[0].Replace(",","")+[Int64]$Publicfolderstats.TotalDeletedItemSize.Split("(")[1].split(" ")[0].Replace(",","")
+         ##Check health in regards to Organization quota
+             if ($Publicfolder.ProhibitPostQuota -eq "unlimited") {
+              if ($PublicfolderTotalSize -ge $OrgPFProhibitPostQuotainB -and $PublicfolderTotalSize -ge 21474836480) {
+                 $unhealthyPFcountapproachingOrgQuota++
+                 $UnhealthygiantOrgPF=$UnhealthygiantOrgPF+$publicfolder
+                 }
+                 elseif ($PublicfolderTotalSize -ge $OrgPFProhibitPostQuotainB -and $PublicfolderTotalSize -le 21474836480) {
+                 $unhealthyPFcountapproachingOrgQuota++
+                 $unhealthyOrgPF=$unhealthyOrgPF+$publicfolder
+                 }
+                 elseif ($PublicfolderTotalSize -le $OrgPFProhibitPostQuotainB -and $PublicfolderTotalSize -ge 21474836480) {
+                     $unhealthyPFcountapproachingOrgQuota++
+                     $GiantPF=$GiantPF+$publicfolder
+                 }
+                 #No action done as it's healthy PF
+             }
+         ##Check health in regards to PF individual quota
+             else {
+                 [Int64]$ProhibitPostQuota=$Publicfolder.ProhibitPostQuota.Split("(")[1].split(" ")[0].Replace(",","")
+                 if ($PublicfolderTotalSize -ge $ProhibitPostQuota -and $PublicfolderTotalSize -ge 21474836480) {
+                     $unhealthyPFcountapproachingIndQuota++
+                     $UnhealthygiantIndPF=$UnhealthygiantIndPF+$publicfolder
+                 }
+                  elseif($PublicfolderTotalSize -ge $ProhibitPostQuota -and $PublicfolderTotalSize -le 21474836480) {
+                     $unhealthyPFcountapproachingIndQuota++
+                     $unhealthyIndPF=$unhealthyIndPF+$publicfolder
+                  }
+                 elseif ($PublicfolderTotalSize -le $ProhibitPostQuota -and $PublicfolderTotalSize -ge 21474836480) {
+                     $unhealthyPFcountapproachingIndQuota++
+                     $GiantPF=$GiantPF+$publicfolder
+                 }
+                 #No action done as it's healthy PF
+             }
+         }
+         if ($unhealthyPFcountapproachingOrgQuota -ge 1)
+         {   
+             Write-host "Please diagnose below public folder(s) as their sizes are not compliant for the below reason: " -ForegroundColor Black -BackgroundColor Red
+             if($UnhealthygiantOrgPF.Count -ge 1)
+             {
+                 Write-host "Giant public folder(s) found exceeding OrganizationProhibitPostQuota:`n====================================================================="
+                 $UnhealthygiantOrgPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,EntryID
+             }
+             if($unhealthyOrgPF.Count -ge 1)
+             {
+                 Write-host "Public folder(s) found exceeding OrganizationProhibitPostQuota:`n==============================================================="
+                 $unhealthyOrgPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,EntryID
+             }
+             if($GiantPF.Count -ge 1)
+             {
+                 Write-host "Giant Public folder(s) found:`n============================="
+                 $GiantPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,EntryID
+             }
+         }
+         if ($unhealthyPFcountapproachingIndQuota -ge 1)
+         {
+             Write-host "Please diagnose below public folder(s) as their sizes are not compliant for the below reason: "  -ForegroundColor Black -BackgroundColor Red
+             if($UnhealthygiantIndPF.Count -ge 1)
+             {
+                 Write-host "Giant public folder(s) found exceeding individual ProhibitPostQuota:`n==================================================================================="
+                 $UnhealthygiantIndPF|Format-Table -Wrap -AutoSize Name,Identity,ProhibitPostQuota,EntryID
+             }
+             if($unhealthyIndPF.Count -ge 1)
+             {
+                 Write-host "Public folder(s) found exceeding their individual ProhibitPostQuota:`n===================================================================="
+                 $unhealthyIndPF|Format-Table -Wrap -AutoSize Name,Identity,ProhibitPostQuota,EntryID
+             }
+             if($GiantPF.Count -ge 1)
+             {
+                 Write-host "Giant Public folder(s) found:`n============================="
+                 $GiantPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,EntryID
+             }
+         }
+         else 
+         {
+             Write-Host "All Public folder(s) are on quota healthy state" -ForegroundColor Green
+         }
+ 
+     }
+     
+     #endregion add health quota check on PFs approaching individual/organization prohibitpostquota,check if we have Giant PFs
+     #condition for validation on root PFs have dumpsterentryIDs
+     ##add HRR MBXs in case exist
+     ##Think about adding Autosplit status will take so much time for huge enviroments
+     ##add MEPFs are synced using AD connect
+     ##add print for report to html
+  }
+  
+ Function ValidatePermission
+ {
+ Param(
+ [parameter(Mandatory=$true)]
+ [PSCustomObject]$Perms 
+         )  
+ [array]$workingpermissions=@("editor","owner","publishingeditor","deleteallitems")
+ if ($null -ne $Perms) {
+ foreach($perm in $Perms.AccessRights)
+     {
+         if($workingpermissions.Contains($($perm.ToLower())))
+         {
+         ##user has the permission skip by break the forloop
+         return "user has permission"
+         }
+     }
+     return "user has no permission"
+ }
+ else {
+     return "user has no permission"
+ }
+ }
+ 
+  Function ValidatePFDumpster{
+     Param(
+         [parameter(Mandatory=$true)]
+         [String]$Pfolder 
+         )
+ #Blockers in Red,add spaces in report name
+ #region public folder diagnosis        
+ try {
+     $Publicfolder=Get-PublicFolder $Pfolder -ErrorAction stop
+     $Publicfolderdumpster=Get-PublicFolder $Publicfolder.DumpsterEntryId -ErrorAction stop
+     #$Publicfolderdumpster="0000000096CE4B52BB898C4FA11E7E230A3C8EE7010077B56B4D3B88794B9817E41A07D18FF500000000001F0000"
+     $pfmbx=Get-mailbox -PublicFolder $Publicfolder.ContentMailboxGuid.Guid
+     $PfMBXstats=Get-mailboxStatistics $Publicfolder.ContentMailboxGuid.Guid -ErrorAction stop
+     $IPM_SUBTREE=Get-PublicFolder \ -ErrorAction stop
+     $NON_IPM_SUBTREE=Get-PublicFolder \NON_IPM_SUBTREE -ErrorAction stop
+     $DUMPSTER_ROOT=Get-PublicFolder \NON_IPM_SUBTREE\DUMPSTER_ROOT -ErrorAction stop
+     $CurrentProperty = "Retrieving: $($Publicfolder.identity) & its dumpster for diagnosing"
+     $CurrentDescription = "Success"
+     write-log -Function "Retrieve public folder & its dumpster statistics" -Step $CurrentProperty -Description $CurrentDescription
+     [string]$SectionTitle = "Introduction"
+     [string]$Description = "This report illustrates causes behind users with sufficient permissions cannot delete items under public folder using OWA\Outlook or cannot remove the entire public folder as a whole." + "<br>"+ "Checks run on Public folder: <b>$($Publicfolder.identity)</b>"
+     $blockersinhtml='<span style="color: red">BLOCKERS</span>'
+     [PSCustomObject]$StartHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString "Please ensure to mitigate $blockersinhtml in case found!"
+     $null = $TheObjectToConvertToHTML.Add($StartHTML)
+ }
+ catch {
+     $Errorencountered=$Global:error[0].Exception
+     $CurrentProperty = "Retrieving: $($Pfolder) & its dumpster for diagnosing"
+     $CurrentDescription = "Failure with error: "+$Errorencountered
+     write-log -Function "Retrieve public folder & its dumpster statistics" -Step $CurrentProperty -Description $CurrentDescription
+     Write-Host "Error encountered during executing the script!"-ForegroundColor Red
+     Write-Host $Errorencountered -ForegroundColor Red
+     Write-Host "`nOutput was exported in the following location: $ExportPath" -ForegroundColor Yellow 
+     Start-Sleep -Seconds 3
+     Read-Key
+     # Go back to the main menu
+     Start-O365TroubleshootersMenu
+     ##write log and exit function
+ }
+ #endregion public folder diagnosis
+ 
+ #region to validate permissions across the public folder
+ #Identify if item or folder
+ $ItemORFolder=Read-Host "Please specify if the issue is related to a user who is not able to delete an item inside a public folder or neither a user with owner permissions nor the admin are not able to delete the Public folder as awhole, Type (I) for Item or (F) for Folder"
+ if ($ItemORFolder.ToLower() -eq "i") {
+     #validate explict permission & default permission if item
+ $Affecteduser=Get-ValidEmailAddress("Please provide an affected user smtp!")
+ try {
+     $User=Get-Mailbox $Affecteduser -ErrorAction stop
+     $Explicitperms=Get-PublicFolderClientPermission $Publicfolder.EntryId -User $User.Guid.Guid.tostring() -ErrorAction SilentlyContinue
+     $Defaultperms=Get-PublicFolderClientPermission $Publicfolder.EntryId -User Default -ErrorAction SilentlyContinue
+     if($null -ne $Explicitperms)
+     {
+         $Explicitpermsresult=ValidatePermission($Explicitperms)
+     }
+     else {
+         $Explicitpermsresult="user has no permission"
+     }
+     if ($null -ne $Defaultperms){
+         $Defaultpermsresult=ValidatePermission($Defaultperms)
+     }
+     else {
+         $Defaultpermsresult -match "user has no permission"
+     }
+     if ($Explicitpermsresult -match "user has no permission" -and $Defaultpermsresult -match "user has no permission") 
+     {
+         #user has no permission to delete break the script
+         [string]$SectionTitle = "Validating User Permission"
+         [string]$Description = "Checking if user $($User.PrimarySmtpAddress) has sufficient permissions to delete"   
+         [PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring "Neither $($User.PrimarySmtpAddress) nor Default user have sufficient permissions to delete items inside $($publicfolder.identity)"
+         $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
+         #Identify the type of permission that has the trouble ,add the user to the report
+     }
+     else {
+         #user has permission to delete continue with the script
+         [string]$SectionTitle = "Validating User Permission"
+         [string]$Description = "Checking if user $($User.PrimarySmtpAddress) has sufficient permissions to delete"   
+         [PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDatastring "No issue found!"
+         $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
+     }
+     
+     
+ }
+ catch {
+     #log the error and quit
+     $Errorencountered=$Global:error[0].Exception
+     $CurrentProperty = "Validating if user has sufficient permissions to delete"
+     $CurrentDescription = "Failure with error: "+$Errorencountered
+     write-log -Function "Validate user permissions" -Step $CurrentProperty -Description $CurrentDescription
+     Write-Host "Error encountered during executing the script!"-ForegroundColor Red
+     Write-Host $Errorencountered -ForegroundColor Red
+     Write-Host "`nOutput was exported in the following location: $ExportPath" -ForegroundColor Yellow 
+     Start-Sleep -Seconds 3
+     Read-Key
+     # Go back to the main menu
+     Start-O365TroubleshootersMenu
+     ##write log and exit function
+ }
+ }
+ elseif ($ItemORFolder.ToLower() -eq "f") {
+ 
+     #continue with the script    
+ }
+ else {
+     Write-Host "You didn't provide an expected input!" -ForegroundColor Red
+     Write-Host "Relaunching the main menu again" -ForegroundColor Yellow 
+     Start-Sleep -Seconds 3
+     Read-Key
+     # Go back to the main menu
+     Start-O365TroubleshootersMenu
+ }
+ 
+ #endregion to validate permissions across the public folder
+ 
+ #region to validate content PF MBX across both PF & its dumpster
+ if($Publicfolder.ContentMailboxGuid.Guid -ne $Publicfolderdumpster.ContentMailboxGuid.Guid)
+ {   
+     #raise a support request for microsoft including get-publicfolder logs 
+     [string]$SectionTitle = "Validating content public folder mailbox"
+     [string]$Description = "Checking if public folder & its dumpster has the same content public folder mailbox"   
+     [PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring "Please raise a support request for microsoft including the HTML report & compressed logs folder"
+     $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
+     #add the report to the request + logs folder
+ 
+ }
+ else{
+     [string]$SectionTitle = "Validating content public folder mailbox"
+     [string]$Description = "Checking if public folder & its dumpster has the same content public folder mailbox"   
+     [PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDatastring "No issue found!"
+     $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
+ }
+ #endregion to validate content PF MBX across both PF & its dumpster
+ 
+ #region to validate EntryId &DumpsterEntryID values are mapped properly 
+ if($Publicfolder.EntryId -ne $Publicfolderdumpster.DumpsterEntryID -or $Publicfolder.DumpsterEntryID -ne $Publicfolderdumpster.EntryId)
+ {
+ #raise a support request for microsoft including get-publicfolder logs 
+ [string]$SectionTitle = "Validating public folder EntryId mapping"
+ [string]$Description = "Checking if public folder EntryId & DumpsterEntryID values are mapped properly"   
+ [PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring "Please raise a support request for microsoft including the HTML report & compressed logs folder"
+ $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
+ #add the report to the request +logs folder
+ }
+ else {
+ [string]$SectionTitle = "Validating public folder EntryId mapping"
+ [string]$Description = "Checking if public folder EntryId & DumpsterEntryID values are mapped properly"   
+ [PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDatastring "No issue found!"
+ $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
+ }
+ #endregion to validate EntryId &DumspterEnryID values are mapped properly
+ 
+ #region to validate public folder mailbox TotalDeletedItemSize value hasn’t reached its RecoverableItemsQuota value
+ [Int64]$pfmbxRecoverableItemsQuotainB=[Int64]$pfmbx.RecoverableItemsQuota.Split("(")[1].split(" ")[0].Replace(",","")
+ [Int64]$PfMBXstatsinB=[Int64]$PfMBXstats.TotalDeletedItemSize.Value.tostring().Split("(")[1].split(" ")[0].Replace(",","")        
+ if($PfMBXstatsinB -ge $pfmbxRecoverableItemsQuotainB  )
+ {
+ <#
+ To resolve a scenario where content public folder mailbox TotalDeletedItemSize value has reached RecoverableItemsQuota value, users could manually clean up the dumpster using:
+     Outlook RecoverDeletedItems
+     MFCMAPI please refer to following article to check steps related to get to public folder dumpster using MFCMAPI then select unrequired items to be purged permanently
+ #>
+ $article='<a href="https://docs.microsoft.com/en-us/archive/blogs/exovoice/public-folders-data-recovery-scenarios" target="_blank">article</a>'
+ $RecoverDeletedItems='<a href="https://docs.microsoft.com/en-us/exchange/troubleshoot/public-folders/cannot-delete-items-public-folder" target="_blank">RecoverDeletedItems</a>'
+ $FixTotalDeletedItemSize="To resolve a scenario where content public folder mailbox TotalDeletedItemSize value has reached RecoverableItemsQuota value, users could manually clean up the dumpster using:<br>
+ ->Outlook $RecoverDeletedItems<br>
+ ->MFCMAPI please refer to the following $article to check steps related to get to public folder dumpster using MFCMAPI then select unrequired items to be purged permanently"
+ [string]$SectionTitle = "Validating TotalDeletedItemSize for content public folder mailbox"
+ [string]$Description = "Checking if public folder mailbox TotalDeletedItemSize value hasn’t reached its RecoverableItemsQuota value"   
+ [PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring $FixTotalDeletedItemSize
+ $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
+ }
+ else {
+ [string]$SectionTitle = "Validating TotalDeletedItemSize for content public folder mailbox"
+ [string]$Description = "Checking if public folder mailbox TotalDeletedItemSize value hasn’t reached its RecoverableItemsQuota value"   
+ [PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDatastring "No issue found!"
+ $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
+ }
+ #endregion to validate public folder mailbox TotalDeletedItemSize value hasn’t reached its RecoverableItemsQuota value
+ 
+ #region to validate that root public folders “IPM_SUBTREE & NON_IPM_SUBTREE & DUMPSTER_ROOT” DumpsterEntryID values are populated 
+ if($null -eq $IPM_SUBTREE.DumpsterEntryId -or $null -eq $NON_IPM_SUBTREE.DumpsterEntryId -or $null -eq $DUMPSTER_ROOT.DumpsterEntryId)
+ {
+ #raise a support request for microsoft including get-publicfolder for root folder logs 
+ [string]$SectionTitle = "Validating root public folders"
+ [string]$Description = "Checking if root public folders have DumpsterEntryId value"   
+ [PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring "Please raise a support request for microsoft including the HTML report & compressed logs folder"
+ $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
+ #add the report to the request +logs folder
+ }
+ else {
+ [string]$SectionTitle = "Validating root public folders"
+ [string]$Description = "Checking if root public folders have DumpsterEntryId value"   
+ [PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDatastring "No issue found!"
+ $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
+ }
+ #endregion to validate that root public folders “IPM_SUBTREE & NON_IPM_SUBTREE & DUMPSTER_ROOT” DumpsterEntryID values are populated  
+ #region ResultReport
+ [string]$FilePath = $ExportPath + "\PublicFolderdumpsterTroubleshooter.html"
+ Export-ReportToHTML -FilePath $FilePath -PageTitle "Public Folder Troubleshooter" -ReportTitle "Public Folder Dumpster Troubleshooter" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
+ #Question to ask enduser for opening the HTMl report
+ $OpenHTMLfile=Read-Host "Do you wish to open HTML report file now?`nType Y(Yes) to open or N(No) to exit!"
+ if ($OpenHTMLfile -like "*y*")
+ {
+ Write-Host "Opening report...." -ForegroundColor Cyan
+ Start-Process $FilePath
+ }
+ #endregion ResultReport
+ #create zip file for logs folder
+ $tstamp= get-date -Format yyyyMMdd_HHmmss
+ if (!(Test-Path  "$ExportPath\logs_$tstamp"))
+ {
+     mkdir "$ExportPath\logs_$tstamp" -Force |out-null
+ }
+ $Publicfolder|Format-List|Out-File -FilePath "$ExportPath\logs_$tstamp\Publicfolder.txt" -NoClobber 
+ $Publicfolderdumpster|Format-List|Out-File -FilePath "$ExportPath\logs_$tstamp\Publicfolderdumpster.txt" -NoClobber
+ $pfmbx|Format-List|Out-File -FilePath "$ExportPath\logs_$tstamp\pfmbx.txt" -NoClobber
+ $PfMBXstats|Format-List|Out-File -FilePath "$ExportPath\logs_$tstamp\PfMBXstats.txt" -NoClobber 
+ $IPM_SUBTREE|Format-List|Out-File -FilePath "$ExportPath\logs_$tstamp\IPM_SUBTREE.txt" -NoClobber
+ $NON_IPM_SUBTREE|Format-List|Out-File -FilePath "$ExportPath\logs_$tstamp\NON_IPM_SUBTREE.txt" -NoClobber
+ $DUMPSTER_ROOT|Format-List|Out-File -FilePath "$ExportPath\logs_$tstamp\DUMPSTER_ROOT.txt" -NoClobber
+ Compress-Archive -Path "$ExportPath\logs_$tstamp" -DestinationPath $ExportPath\logs_$tstamp
+ #modify copyrights from 2020 to 2021
+ #add outputs are exported here 
+ #relanuching main menu again
+ Write-Host "`nOutput was exported in the following location: $ExportPath" -ForegroundColor Yellow 
+     Start-Sleep -Seconds 3
+     Read-Key
+     # Go back to the main menu
+     Start-O365TroubleshootersMenu
+     #write log and exit function
+  }
+ 
 
 
 ##Code for Menu
@@ -489,464 +950,4 @@ Start-O365TroubleshootersMenu
 
 
 
-#region public folder overview
-Function Start-PFDataCollection{
-    
-   ##add org config values & check ind post quota health 
-    #region main public folders overview information
-    write-host
-    write-host
-    Write-Host "Organization Publicfolders Overview`n-----------------------------------`n"  -ForegroundColor Cyan 
-    $HostedConnectionFilterPolicy=Get-HostedConnectionFilterPolicy 
-    $DirectoryBasedEdgeBlockModeStatus=$HostedConnectionFilterPolicy.DirectoryBasedEdgeBlockMode
-    if($DirectoryBasedEdgeBlockModeStatus -like "Default")
-    {
-        Write-Host "DirectoryBasedEdgeBlockModeStatus = Enabled"
-    }
-    else {
-        Write-Host "DirectoryBasedEdgeBlockModeStatus = Disabled"
-    }
-    $OrganizationConfig=Get-OrganizationConfig
-    $PublicFoldersLocation=$OrganizationConfig.PublicFoldersEnabled
-    $PublicFolderMailboxes=Get-Mailbox -PublicFolder -ResultSize unlimited
-    [Int]$PublicFolderMailboxesCount=($PublicFolderMailboxes).count
-    [Int]$MailEnabledPublicFoldersCount=(Get-MailPublicFolder -ResultSize unlimited).count
-    $RootPublicFolderMailbox=$OrganizationConfig.RootPublicFolderMailbox.HierarchyMailboxGuid.Guid.ToString()
-    Write-Host "PublicFoldersLocation = $PublicFoldersLocation"
-    if ($PublicFoldersLocation -eq "Local") {
-        $Publicfolders=Get-PublicFolder -Recurse -ResultSize unlimited
-        [Int]$PublicFoldersCount=($Publicfolders).count - 1
-        Write-Host "PublicFolderMailboxesCount = $PublicFolderMailboxesCount"
-        Write-Host "PublicFoldersCount = $PublicFoldersCount"
-        Write-Host "RootPublicFolderMailbox = $RootPublicFolderMailbox"
-        Write-Host "OrgPublicFolderProhibitPostQuota" = $OrganizationConfig.DefaultPublicFolderProhibitPostQuota.Split("(")[0]
-        Write-Host "OrgPublicFolderIssueWarningQuota" = $OrganizationConfig.DefaultPublicFolderIssueWarningQuota.Split("(")[0]
-    }
-    else {
-        $RemotePublicFolderMailboxes=$OrganizationConfig.RemotePublicFolderMailboxes
-        $LockedForMigration=$OrganizationConfig.RootPublicFolderMailbox.LockedForMigration
-        if($LockedForMigration -like "True")
-        {
-            Write-Host "Public folder migration in PROGRESS!" -BackgroundColor Gray 
-            Write-Host "PublicFolderMailboxesCount = $PublicFolderMailboxesCount"
-        }
-        else {
-            Write-Host "RemotePublicFolderMailboxes = $($RemotePublicFolderMailboxes -join ",")"
-        }
-        
-    }
-    Write-Host "MailEnabledPublicFoldersCount = $MailEnabledPublicFoldersCount" 
-    #endregion main public folders overview information
-    #region retrieve publicfolderservinghierarchyMBXs and check if rootPF MBX is serving hierarchy
-    $publicfolderservinghierarchyMBXs=$PublicFolderMailboxes|Where-Object{$_.IsExcludedFromServingHierarchy -like "false" -and $_.IsHierarchyReady -like "true"}
-    Write-Host "Public folder hierarchy serving mailboxes: " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
-    $publicfolderservinghierarchyMBXs|Format-Table -Wrap -AutoSize Name,Alias,Guid,ExchangeGuid
-    #endregion retrieve publicfolderservinghierarchyMBXs and check if rootPF MBX is serving hierarchy
-    #region add check if primary PF MBX doesn't contain content nor serve hierachy to regular MBXs
-    Write-Host "Primary public folder mailbox diagnosis:" -ForegroundColor Black -BackgroundColor Yellow
-    if ($publicfolderservinghierarchyMBXs|Where-Object {$_.ExchangeGuid -Like $RootPublicFolderMailbox}) 
-    {
-        Write-host "It's not recommended to use root public folder mailbox to serve hierarchy!" -ForegroundColor Red -NoNewline
-        $publicfolderservinghierarchyMBXs|Where-Object {$_.ExchangeGuid -Like $RootPublicFolderMailbox}|Format-Table -Wrap -AutoSize Name,Alias,Guid,ExchangeGuid
-    }
-    else {
-        Write-host "Root public folder mailbox is not used to serve hierachy" -ForegroundColor Green
-    }
-    if ([Int]($Publicfolders|Where-Object {$_.ContentMailboxGuid -Like $RootPublicFolderMailbox}).name.count -eq 1)
-    {
-        Write-host "RootPublicFolderMailbox is not hosting content of Public folders" -ForegroundColor Green
-    }
-    else {
-        Write-host "RootPublicFolderMailbox is hosting content of Public folders,it's recommended to stop creating public folders hosted on the primary public folder mailbox!" -ForegroundColor Red
-    }
-    #endregion add check if primary PF MBX doesn't contain content nor serve hierachy to regular MBXs
-    #region add health quota check on PF MBXs 
-    [Int]$unhealthyPFMBXcount=0
-    $unhealthyPFMBX=@()
-    #[Int]$percent=0
-    foreach($PublicFolderMailbox in $PublicFolderMailboxes)
-    {
-       # Write-Progress -Activity "Validating quota on PF MBXs" -Status "$(($percent/$PublicFolderMailboxes.count)*100)% Complete:" -PercentComplete (($percent/$PublicFolderMailboxes.count)*100)
-        $PublicFolderMailboxSendReceiveQuota= $PublicFolderMailbox.ProhibitSendReceiveQuota.Split("(")[1].split(" ")[0].Replace(",","")
-        try {
-            $PublicFolderMailboxMailboxStatistics= Get-MailboxStatistics $PublicFolderMailbox.Guid.Guid.ToString() -ErrorAction stop -WarningAction:SilentlyContinue
-            [int]$PFMBXSizeinB=[int]$PublicFolderMailboxMailboxStatistics.TotalItemSize.value.tostring().Split("(")[1].split(" ")[0].Replace(",","")+[int]$PublicFolderMailboxMailboxStatistics.TotalDeletedItemSize.value.tostring().Split("(")[1].split(" ")[0].Replace(",","")
-        }
-        catch {
-           ##write failue in the log
-        }
-        
-        ##Validate PFMBXsize has exceeded 85% PublicFolderMailboxSendReceiveQuota
-        if ((($PublicFolderMailboxSendReceiveQuota-$PFMBXSizeinB)/(1024*1024*1024)) -le 15) {
-            $unhealthyPFMBXcount++
-            $unhealthyPFMBX+=$PublicFolderMailbox
-        }
-        #$percent++
-    }
-    Write-Host
-    write-host "Recommendations:`n================" -ForegroundColor Cyan
-    if($unhealthyPFMBXcount -eq 0)
-    {
-        Write-host "All Public folder mailboxes are on quota healthy state" -ForegroundColor Green
-    }
-    else {
-        Write-host "Please diagnose below public folder mailboxes as their size have exceeded autosplit threshold: " -NoNewline -ForegroundColor Black -BackgroundColor Red
-        $unhealthyPFMBX |Format-Table -Wrap -AutoSize Name,Alias,Guid,ExchangeGuid
-    }
-    #endregion add health quota check on PF MBXs 
-    #region add health quota check on PFs approaching individual/organization prohibitpostquota,check if we have Giant PFs,that check to be ignored if PFs location is remote
-    if ($PublicFoldersLocation -eq "Local") {
-        [Int]$unhealthyPFcountapproachingIndQuota=0
-        [Int]$unhealthyPFcountapproachingOrgQuota=0
-        $unhealthyOrgPF=@()
-        $unhealthyIndPF=@()
-        $GiantPF=@()
-        $UnhealthygiantOrgPF=@()
-        $UnhealthygiantIndPF=@()
-        foreach($Publicfolder in $Publicfolders)
-        {
-        [Int64]$OrgPFProhibitPostQuotainB=$OrganizationConfig.DefaultPublicFolderProhibitPostQuota.Split("(")[1].split(" ")[0].Replace(",","")
-        [Int64]$DefaultPublicFolderIssueWarningQuotainB=$OrganizationConfig.DefaultPublicFolderIssueWarningQuota.Split("(")[1].split(" ")[0].Replace(",","")
-        $Publicfolderstats=Get-PublicFolderStatistics $($Publicfolder.EntryID)
-        [Int64]$PublicfolderTotalSize=[Int64]$Publicfolderstats.TotalItemSize.Split("(")[1].split(" ")[0].Replace(",","")+[Int64]$Publicfolderstats.TotalDeletedItemSize.Split("(")[1].split(" ")[0].Replace(",","")
-        ##Check health in regards to Organization quota
-            if ($Publicfolder.ProhibitPostQuota -eq "unlimited") {
-             if ($PublicfolderTotalSize -ge $OrgPFProhibitPostQuotainB -and $PublicfolderTotalSize -ge 21474836480) {
-                $unhealthyPFcountapproachingOrgQuota++
-                $UnhealthygiantOrgPF=$UnhealthygiantOrgPF+$publicfolder
-                }
-                elseif ($PublicfolderTotalSize -ge $OrgPFProhibitPostQuotainB -and $PublicfolderTotalSize -le 21474836480) {
-                $unhealthyPFcountapproachingOrgQuota++
-                $unhealthyOrgPF=$unhealthyOrgPF+$publicfolder
-                }
-                elseif ($PublicfolderTotalSize -le $OrgPFProhibitPostQuotainB -and $PublicfolderTotalSize -ge 21474836480) {
-                    $unhealthyPFcountapproachingOrgQuota++
-                    $GiantPF=$GiantPF+$publicfolder
-                }
-                #No action done as it's healthy PF
-            }
-        ##Check health in regards to PF individual quota
-            else {
-                [Int64]$ProhibitPostQuota=$Publicfolder.ProhibitPostQuota.Split("(")[1].split(" ")[0].Replace(",","")
-                if ($PublicfolderTotalSize -ge $ProhibitPostQuota -and $PublicfolderTotalSize -ge 21474836480) {
-                    $unhealthyPFcountapproachingIndQuota++
-                    $UnhealthygiantIndPF=$UnhealthygiantIndPF+$publicfolder
-                }
-                 elseif($PublicfolderTotalSize -ge $ProhibitPostQuota -and $PublicfolderTotalSize -le 21474836480) {
-                    $unhealthyPFcountapproachingIndQuota++
-                    $unhealthyIndPF=$unhealthyIndPF+$publicfolder
-                 }
-                elseif ($PublicfolderTotalSize -le $ProhibitPostQuota -and $PublicfolderTotalSize -ge 21474836480) {
-                    $unhealthyPFcountapproachingIndQuota++
-                    $GiantPF=$GiantPF+$publicfolder
-                }
-                #No action done as it's healthy PF
-            }
-        }
-        if ($unhealthyPFcountapproachingOrgQuota -ge 1)
-        {   
-            Write-host "Please diagnose below public folder(s) as their sizes are not compliant for the below reason: " -ForegroundColor Black -BackgroundColor Red
-            if($UnhealthygiantOrgPF.Count -ge 1)
-            {
-                Write-host "Giant public folder(s) found exceeding OrganizationProhibitPostQuota:`n====================================================================="
-                $UnhealthygiantOrgPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,EntryID
-            }
-            if($unhealthyOrgPF.Count -ge 1)
-            {
-                Write-host "Public folder(s) found exceeding OrganizationProhibitPostQuota:`n==============================================================="
-                $unhealthyOrgPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,EntryID
-            }
-            if($GiantPF.Count -ge 1)
-            {
-                Write-host "Giant Public folder(s) found:`n============================="
-                $GiantPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,EntryID
-            }
-        }
-        if ($unhealthyPFcountapproachingIndQuota -ge 1)
-        {
-            Write-host "Please diagnose below public folder(s) as their sizes are not compliant for the below reason: "  -ForegroundColor Black -BackgroundColor Red
-            if($UnhealthygiantIndPF.Count -ge 1)
-            {
-                Write-host "Giant public folder(s) found exceeding individual ProhibitPostQuota:`n==================================================================================="
-                $UnhealthygiantIndPF|Format-Table -Wrap -AutoSize Name,Identity,ProhibitPostQuota,EntryID
-            }
-            if($unhealthyIndPF.Count -ge 1)
-            {
-                Write-host "Public folder(s) found exceeding their individual ProhibitPostQuota:`n===================================================================="
-                $unhealthyIndPF|Format-Table -Wrap -AutoSize Name,Identity,ProhibitPostQuota,EntryID
-            }
-            if($GiantPF.Count -ge 1)
-            {
-                Write-host "Giant Public folder(s) found:`n============================="
-                $GiantPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,EntryID
-            }
-        }
-        else 
-        {
-            Write-Host "All Public folder(s) are on quota healthy state" -ForegroundColor Green
-        }
 
-    }
-    
-    #endregion add health quota check on PFs approaching individual/organization prohibitpostquota,check if we have Giant PFs
-    #condition for validation on root PFs have dumpsterentryIDs
-    ##add HRR MBXs in case exist
-    ##Think about adding Autosplit status will take so much time for huge enviroments
-    ##add MEPFs are synced using AD connect
-    ##add print for report to html
- }
- 
-Function ValidatePermission
-{
-Param(
-[parameter(Mandatory=$true)]
-[PSCustomObject]$Perms 
-        )  
-[array]$workingpermissions=@("editor","owner","publishingeditor","deleteallitems")
-if ($null -ne $Perms) {
-foreach($perm in $Perms.AccessRights)
-    {
-        if($workingpermissions.Contains($($perm.ToLower())))
-        {
-        ##user has the permission skip by break the forloop
-        return "user has permission"
-        }
-    }
-    return "user has no permission"
-}
-else {
-    return "user has no permission"
-}
-}
-
- Function ValidatePFDumpster{
-    Param(
-        [parameter(Mandatory=$true)]
-        [String]$Pfolder 
-        )
-#Blockers in Red,add spaces in report name
-#region public folder diagnosis        
-try {
-    $Publicfolder=Get-PublicFolder $Pfolder -ErrorAction stop
-    $Publicfolderdumpster=Get-PublicFolder $Publicfolder.DumpsterEntryId -ErrorAction stop
-    #$Publicfolderdumpster="0000000096CE4B52BB898C4FA11E7E230A3C8EE7010077B56B4D3B88794B9817E41A07D18FF500000000001F0000"
-    $pfmbx=Get-mailbox -PublicFolder $Publicfolder.ContentMailboxGuid.Guid
-    $PfMBXstats=Get-mailboxStatistics $Publicfolder.ContentMailboxGuid.Guid -ErrorAction stop
-    $IPM_SUBTREE=Get-PublicFolder \ -ErrorAction stop
-    $NON_IPM_SUBTREE=Get-PublicFolder \NON_IPM_SUBTREE -ErrorAction stop
-    $DUMPSTER_ROOT=Get-PublicFolder \NON_IPM_SUBTREE\DUMPSTER_ROOT -ErrorAction stop
-    $CurrentProperty = "Retrieving: $($Publicfolder.identity) & its dumpster for diagnosing"
-    $CurrentDescription = "Success"
-    write-log -Function "Retrieve public folder & its dumpster statistics" -Step $CurrentProperty -Description $CurrentDescription
-    [string]$SectionTitle = "Introduction"
-    [string]$Description = "This report illustrates causes behind users with sufficient permissions cannot delete items under public folder using OWA\Outlook or cannot remove the entire public folder as a whole." + "<br>"+ "Checks run on Public folder: <b>$($Publicfolder.identity)</b>"
-    $blockersinhtml='<span style="color: red">BLOCKERS</span>'
-    [PSCustomObject]$StartHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString "Please ensure to mitigate $blockersinhtml in case found!"
-    $null = $TheObjectToConvertToHTML.Add($StartHTML)
-}
-catch {
-    $Errorencountered=$Global:error[0].Exception
-    $CurrentProperty = "Retrieving: $($Pfolder) & its dumpster for diagnosing"
-    $CurrentDescription = "Failure with error: "+$Errorencountered
-    write-log -Function "Retrieve public folder & its dumpster statistics" -Step $CurrentProperty -Description $CurrentDescription
-    Write-Host "Error encountered during executing the script!"-ForegroundColor Red
-    Write-Host $Errorencountered -ForegroundColor Red
-    Write-Host "`nOutput was exported in the following location: $ExportPath" -ForegroundColor Yellow 
-    Start-Sleep -Seconds 3
-    Read-Key
-    # Go back to the main menu
-    Start-O365TroubleshootersMenu
-    ##write log and exit function
-}
-#endregion public folder diagnosis
-
-#region to validate permissions across the public folder
-#Identify if item or folder
-$ItemORFolder=Read-Host "Please specify if the issue is related to a user who is not able to delete an item inside a public folder or neither a user with owner permissions nor the admin are not able to delete the Public folder as awhole, Type (I) for Item or (F) for Folder"
-if ($ItemORFolder.ToLower() -eq "i") {
-    #validate explict permission & default permission if item
-$Affecteduser=Get-ValidEmailAddress("Please provide an affected user smtp!")
-try {
-    $User=Get-Mailbox $Affecteduser -ErrorAction stop
-    $Explicitperms=Get-PublicFolderClientPermission $Publicfolder.EntryId -User $User.Guid.Guid.tostring() -ErrorAction SilentlyContinue
-    $Defaultperms=Get-PublicFolderClientPermission $Publicfolder.EntryId -User Default -ErrorAction SilentlyContinue
-    if($null -ne $Explicitperms)
-    {
-        $Explicitpermsresult=ValidatePermission($Explicitperms)
-    }
-    else {
-        $Explicitpermsresult="user has no permission"
-    }
-    if ($null -ne $Defaultperms){
-        $Defaultpermsresult=ValidatePermission($Defaultperms)
-    }
-    else {
-        $Defaultpermsresult -match "user has no permission"
-    }
-    if ($Explicitpermsresult -match "user has no permission" -and $Defaultpermsresult -match "user has no permission") 
-    {
-        #user has no permission to delete break the script
-        [string]$SectionTitle = "Validating User Permission"
-        [string]$Description = "Checking if user $($User.PrimarySmtpAddress) has sufficient permissions to delete"   
-        [PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring "Neither $($User.PrimarySmtpAddress) nor Default user have sufficient permissions to delete items inside $($publicfolder.identity)"
-        $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
-        #Identify the type of permission that has the trouble ,add the user to the report
-    }
-    else {
-        #user has permission to delete continue with the script
-        [string]$SectionTitle = "Validating User Permission"
-        [string]$Description = "Checking if user $($User.PrimarySmtpAddress) has sufficient permissions to delete"   
-        [PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDatastring "No issue found!"
-        $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
-    }
-    
-    
-}
-catch {
-    #log the error and quit
-    $Errorencountered=$Global:error[0].Exception
-    $CurrentProperty = "Validating if user has sufficient permissions to delete"
-    $CurrentDescription = "Failure with error: "+$Errorencountered
-    write-log -Function "Validate user permissions" -Step $CurrentProperty -Description $CurrentDescription
-    Write-Host "Error encountered during executing the script!"-ForegroundColor Red
-    Write-Host $Errorencountered -ForegroundColor Red
-    Write-Host "`nOutput was exported in the following location: $ExportPath" -ForegroundColor Yellow 
-    Start-Sleep -Seconds 3
-    Read-Key
-    # Go back to the main menu
-    Start-O365TroubleshootersMenu
-    ##write log and exit function
-}
-}
-elseif ($ItemORFolder.ToLower() -eq "f") {
-
-    #continue with the script    
-}
-else {
-    Write-Host "You didn't provide an expected input!" -ForegroundColor Red
-    Write-Host "Relaunching the main menu again" -ForegroundColor Yellow 
-    Start-Sleep -Seconds 3
-    Read-Key
-    # Go back to the main menu
-    Start-O365TroubleshootersMenu
-}
-
-#endregion to validate permissions across the public folder
-
-#region to validate content PF MBX across both PF & its dumpster
-if($Publicfolder.ContentMailboxGuid.Guid -ne $Publicfolderdumpster.ContentMailboxGuid.Guid)
-{   
-    #raise a support request for microsoft including get-publicfolder logs 
-    [string]$SectionTitle = "Validating content public folder mailbox"
-    [string]$Description = "Checking if public folder & its dumpster has the same content public folder mailbox"   
-    [PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring "Please raise a support request for microsoft including the HTML report & compressed logs folder"
-    $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
-    #add the report to the request + logs folder
-
-}
-else{
-    [string]$SectionTitle = "Validating content public folder mailbox"
-    [string]$Description = "Checking if public folder & its dumpster has the same content public folder mailbox"   
-    [PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDatastring "No issue found!"
-    $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
-}
-#endregion to validate content PF MBX across both PF & its dumpster
-
-#region to validate EntryId &DumpsterEntryID values are mapped properly 
-if($Publicfolder.EntryId -ne $Publicfolderdumpster.DumpsterEntryID -or $Publicfolder.DumpsterEntryID -ne $Publicfolderdumpster.EntryId)
-{
-#raise a support request for microsoft including get-publicfolder logs 
-[string]$SectionTitle = "Validating public folder EntryId mapping"
-[string]$Description = "Checking if public folder EntryId & DumpsterEntryID values are mapped properly"   
-[PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring "Please raise a support request for microsoft including the HTML report & compressed logs folder"
-$null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
-#add the report to the request +logs folder
-}
-else {
-[string]$SectionTitle = "Validating public folder EntryId mapping"
-[string]$Description = "Checking if public folder EntryId & DumpsterEntryID values are mapped properly"   
-[PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDatastring "No issue found!"
-$null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
-}
-#endregion to validate EntryId &DumspterEnryID values are mapped properly
-
-#region to validate public folder mailbox TotalDeletedItemSize value hasn’t reached its RecoverableItemsQuota value
-[Int64]$pfmbxRecoverableItemsQuotainB=[Int64]$pfmbx.RecoverableItemsQuota.Split("(")[1].split(" ")[0].Replace(",","")
-[Int64]$PfMBXstatsinB=[Int64]$PfMBXstats.TotalDeletedItemSize.Value.tostring().Split("(")[1].split(" ")[0].Replace(",","")        
-if($PfMBXstatsinB -ge $pfmbxRecoverableItemsQuotainB  )
-{
-<#
-To resolve a scenario where content public folder mailbox TotalDeletedItemSize value has reached RecoverableItemsQuota value, users could manually clean up the dumpster using:
-	Outlook RecoverDeletedItems
-	MFCMAPI please refer to following article to check steps related to get to public folder dumpster using MFCMAPI then select unrequired items to be purged permanently
-#>
-$article='<a href="https://docs.microsoft.com/en-us/archive/blogs/exovoice/public-folders-data-recovery-scenarios" target="_blank">article</a>'
-$RecoverDeletedItems='<a href="https://docs.microsoft.com/en-us/exchange/troubleshoot/public-folders/cannot-delete-items-public-folder" target="_blank">RecoverDeletedItems</a>'
-$FixTotalDeletedItemSize="To resolve a scenario where content public folder mailbox TotalDeletedItemSize value has reached RecoverableItemsQuota value, users could manually clean up the dumpster using:<br>
-->Outlook $RecoverDeletedItems<br>
-->MFCMAPI please refer to the following $article to check steps related to get to public folder dumpster using MFCMAPI then select unrequired items to be purged permanently"
-[string]$SectionTitle = "Validating TotalDeletedItemSize for content public folder mailbox"
-[string]$Description = "Checking if public folder mailbox TotalDeletedItemSize value hasn’t reached its RecoverableItemsQuota value"   
-[PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring $FixTotalDeletedItemSize
-$null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
-}
-else {
-[string]$SectionTitle = "Validating TotalDeletedItemSize for content public folder mailbox"
-[string]$Description = "Checking if public folder mailbox TotalDeletedItemSize value hasn’t reached its RecoverableItemsQuota value"   
-[PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDatastring "No issue found!"
-$null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
-}
-#endregion to validate public folder mailbox TotalDeletedItemSize value hasn’t reached its RecoverableItemsQuota value
-
-#region to validate that root public folders “IPM_SUBTREE & NON_IPM_SUBTREE & DUMPSTER_ROOT” DumpsterEntryID values are populated 
-if($null -eq $IPM_SUBTREE.DumpsterEntryId -or $null -eq $NON_IPM_SUBTREE.DumpsterEntryId -or $null -eq $DUMPSTER_ROOT.DumpsterEntryId)
-{
-#raise a support request for microsoft including get-publicfolder for root folder logs 
-[string]$SectionTitle = "Validating root public folders"
-[string]$Description = "Checking if root public folders have DumpsterEntryId value"   
-[PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring "Please raise a support request for microsoft including the HTML report & compressed logs folder"
-$null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
-#add the report to the request +logs folder
-}
-else {
-[string]$SectionTitle = "Validating root public folders"
-[string]$Description = "Checking if root public folders have DumpsterEntryId value"   
-[PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDatastring "No issue found!"
-$null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
-}
-#endregion to validate that root public folders “IPM_SUBTREE & NON_IPM_SUBTREE & DUMPSTER_ROOT” DumpsterEntryID values are populated  
-#region ResultReport
-[string]$FilePath = $ExportPath + "\PublicFolderdumpsterTroubleshooter.html"
-Export-ReportToHTML -FilePath $FilePath -PageTitle "Public Folder Troubleshooter" -ReportTitle "Public Folder Dumpster Troubleshooter" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
-#Question to ask enduser for opening the HTMl report
-$OpenHTMLfile=Read-Host "Do you wish to open HTML report file now?`nType Y(Yes) to open or N(No) to exit!"
-if ($OpenHTMLfile -like "*y*")
-{
-Write-Host "Opening report...." -ForegroundColor Cyan
-Start-Process $FilePath
-}
-#endregion ResultReport
-#create zip file for logs folder
-$tstamp= get-date -Format yyyyMMdd_HHmmss
-if (!(Test-Path  "$ExportPath\logs_$tstamp"))
-{
-    mkdir "$ExportPath\logs_$tstamp" -Force |out-null
-}
-$Publicfolder|Format-List|Out-File -FilePath "$ExportPath\logs_$tstamp\Publicfolder.txt" -NoClobber 
-$Publicfolderdumpster|Format-List|Out-File -FilePath "$ExportPath\logs_$tstamp\Publicfolderdumpster.txt" -NoClobber
-$pfmbx|Format-List|Out-File -FilePath "$ExportPath\logs_$tstamp\pfmbx.txt" -NoClobber
-$PfMBXstats|Format-List|Out-File -FilePath "$ExportPath\logs_$tstamp\PfMBXstats.txt" -NoClobber 
-$IPM_SUBTREE|Format-List|Out-File -FilePath "$ExportPath\logs_$tstamp\IPM_SUBTREE.txt" -NoClobber
-$NON_IPM_SUBTREE|Format-List|Out-File -FilePath "$ExportPath\logs_$tstamp\NON_IPM_SUBTREE.txt" -NoClobber
-$DUMPSTER_ROOT|Format-List|Out-File -FilePath "$ExportPath\logs_$tstamp\DUMPSTER_ROOT.txt" -NoClobber
-Compress-Archive -Path "$ExportPath\logs_$tstamp" -DestinationPath $ExportPath\logs_$tstamp
-#modify copyrights from 2020 to 2021
-#add outputs are exported here 
-#relanuching main menu again
-Write-Host "`nOutput was exported in the following location: $ExportPath" -ForegroundColor Yellow 
-    Start-Sleep -Seconds 3
-    Read-Key
-    # Go back to the main menu
-    Start-O365TroubleshootersMenu
-    #write log and exit function
- }
