@@ -85,12 +85,10 @@ Function new-AADSyncDDGRules {
     }
     else {
         Write-Host "Rule `"$ruleName`" already exist. If you want to re-create it, you can delete it from AAD Connect and re-run the script to re-created with the latest version"
-        Read-Key
-
         $CurrentProperty = "New-AADSyncDDGRules"
         $CurrentDescription = "rule `"$ruleName`" was already created"
         write-log -Function "Start-SyncDDGasContactwithAADConnect" -Step $CurrentProperty -Description $CurrentDescription 
-        read-Key    
+        Read-Key    
     }
     #endregion Create the PROVISION rule
 
