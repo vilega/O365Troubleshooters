@@ -615,7 +615,7 @@ Write-Host "This dianostic have to be executed on AAD Connect server to have acc
 Read-Key
 
 Clear-Host
-$Workloads = "AdSync"
+$Workloads = "ADSync"
 Connect-O365PS $Workloads
 
 

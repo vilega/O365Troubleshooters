@@ -60,7 +60,7 @@ Function Request-Credential {
 Function Connect-O365PS { # Function to connecto to O365 services
 
     # Parameter request and validation
-    param ([ValidateSet("Msol","AzureAd","AzureAdPreview","Exo","ExoBasic","Exo2","Eop","Scc","AIPService","Spo","Sfb","Teams","AADSync")][Parameter(Mandatory=$true)] 
+    param ([ValidateSet("Msol","AzureAd","AzureAdPreview","Exo","ExoBasic","Exo2","Eop","Scc","AIPService","Spo","Sfb","Teams","ADSync")][Parameter(Mandatory=$true)] 
             $O365Service 
     )
     $Try = 0
@@ -252,10 +252,10 @@ Function Connect-O365PS { # Function to connecto to O365 services
 
     # TODO: SFB prerequisites & modern module check
 
-    If ( $O365Service -eq "AADSync") {
-        If ((Get-Module -ListAvailable -Name AADSync).count -eq 0) {
-            $CurrentProperty = "Checking AADSync Module"
-            $CurrentDescription = "This dianostic have to be executed on AAD Connect server to have access to AADSync PowerShell Module"
+    If ( $O365Service -eq "ADSync") {
+        If ((Get-Module -ListAvailable -Name ADSync).count -eq 0) {
+            $CurrentProperty = "Checking ADSync Module"
+            $CurrentDescription = "This dianostic have to be executed on AAD Connect server to have access to ADSync PowerShell Module"
             Write-Host "`n$CurrentDescription" -ForegroundColor Red
             write-log -Function "Connect-O365PS" -Step $CurrentProperty -Description $CurrentDescription
             Write-Host "The script was not executed from AAD Connect server." -ForegroundColor Red
@@ -939,11 +939,11 @@ Function Connect-O365PS { # Function to connecto to O365 services
         }
         &$Global:DisplayConnect
     }
-    "AADSync" {
+    "ADSync" {
 
         try {
 
-        Import-Module (Import-PSSession AADSync -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue
+        Import-Module (Import-PSSession ADSync -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue
         $CurrentDescription = "Success"
 
         }
