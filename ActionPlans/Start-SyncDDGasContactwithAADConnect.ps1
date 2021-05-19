@@ -84,6 +84,14 @@ Function new-AADSyncDDGRules {
             #region Create the PROVISION rule
             Add-ADSyncRule -SynchronizationRule $syncRule[0] | Out-Null
             Remove-Variable syncRule -Force
+
+            $CurrentProperty = "New-AADSyncDDGRules"
+            $CurrentDescription = "rule `"$ruleName`" has been created"
+            Write-Host $CurrentDescription -ForegroundColor Green
+            write-log -Function "Start-SyncDDGasContactwithAADConnect" -Step $CurrentProperty -Description $CurrentDescription 
+            Read-Key    
+
+
         }
     }
     else {
@@ -530,6 +538,11 @@ Function new-AADSyncDDGRules {
             # Add the rule in the AAD Connect engine
             Add-ADSyncRule -SynchronizationRule $syncRule[0] | Out-Null
             Remove-Variable syncRule -Force
+            $CurrentProperty = "New-AADSyncDDGRules"
+            $CurrentDescription = "rule `"$ruleName`" has been created"
+            Write-Host $CurrentDescription -ForegroundColor Green
+            write-log -Function "Start-SyncDDGasContactwithAADConnect" -Step $CurrentProperty -Description $CurrentDescription 
+            Read-Key    
         }
     }
     else {
