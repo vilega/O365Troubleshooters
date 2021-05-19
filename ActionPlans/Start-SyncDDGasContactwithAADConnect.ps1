@@ -1,10 +1,11 @@
 Function new-AADSyncDDGRules {
 
+    # select local AD connector
+    $selectConnector = Get-ADSyncConnector |Where-Object { $_.Name -notlike "*onmicrosoft*" } |Select-Object name, identifier |Out-GridView -Title "Please select the connector to your local Active Directory!" -OutputMode Single
+
     #region Create ADSync PROVISION rule
     $ruleName = 'Custom In from AD - Dynamic Distribtution Group - Provision'
-    if (!(Get-ADSyncRule | Where-Object Name -eq  $ruleName)) {
-
-    
+    if (!(Get-ADSyncRule | Where-Object{($_.Name -eq  $ruleName)-and ($_.Connector -eq $selectConnector.identifier.guid)})) {
 
         $slot = Get-ADSyncRuleFreeSlot -ruleName $ruleName 
         if ($slot.count -eq 0) {
@@ -23,7 +24,7 @@ Function new-AADSyncDDGRules {
                 -PrecedenceBefore '00000000-0000-0000-0000-000000000000' `
                 -SourceObjectType 'msExchDynamicDistributionList' `
                 -TargetObjectType 'person' `
-                -Connector '12ab56a5-9827-4480-b624-3e8af2fcce7d' `
+                -Connector $selectConnector.identifier.guid `
                 -LinkType 'Provision' `
                 -SoftDeleteExpiryInterval 0 `
                 -OutVariable syncRule | Out-Null
@@ -83,7 +84,6 @@ Function new-AADSyncDDGRules {
         }
     }
     else {
-        {
             Write-Host "Rule `"$ruleName`" already exist. If you want to re-create it, you can delete it from AAD Connect and re-run the script to re-created with the latest version"
             Read-Key
 
@@ -94,19 +94,19 @@ Function new-AADSyncDDGRules {
             Write-Host "The script will return to main menu"
             read-Key    
             Start-O365TroubleshootersMenu
-        }
     }
     #endregion Create the PROVISION rule
 
 
     #region Create ADSync JOIN rule (Has All Attribute Transformations)
     $ruleName = 'Custom In from AD - Dynamic Distribution Group - Join'
-    if (!(Get-ADSyncRule | Where-Object Name -eq  $ruleName)) {
+    if (!(Get-ADSyncRule | Where-Object{($_.Name -eq  $ruleName)-and ($_.Connector -eq $selectConnector.identifier.guid)})) {
 
         $slot = Get-ADSyncRuleFreeSlot -ruleName $ruleName 
         if ($slot.count -eq 0) {
             Write-Host "You select CANCEL so the rule `"$ruleName`" won't be created"
             #TODO: write this on the report
+            #TODO: write to the log file
         }
         else {
             New-ADSyncRule  `
@@ -118,7 +118,7 @@ Function new-AADSyncDDGRules {
                 -PrecedenceBefore '00000000-0000-0000-0000-000000000000' `
                 -SourceObjectType 'msExchDynamicDistributionList' `
                 -TargetObjectType 'person' `
-                -Connector '12ab56a5-9827-4480-b624-3e8af2fcce7d' `
+                -Connector $selectConnector.identifier.guid  `
                 -LinkType 'Join' `
                 -SoftDeleteExpiryInterval 0 `
                 -OutVariable syncRule  | Out-Null
@@ -502,7 +502,7 @@ Function new-AADSyncDDGRules {
                 -FlowType 'Expression' `
                 -ValueMergeType 'Update' `
                 -Expression 'Trim([telephoneNumber])' `
-                -OutVariable syncRule
+                -OutVariable syncRule  | Out-Null
 
 
             Add-ADSyncAttributeFlowMapping  `
@@ -511,7 +511,7 @@ Function new-AADSyncDDGRules {
                 -Destination 'unauthOrig' `
                 -FlowType 'Direct' `
                 -ValueMergeType 'Update' `
-                -OutVariable syncRule
+                -OutVariable syncRule  | Out-Null
 
 
             #endregion Create Attribute Flow Mappings
@@ -520,12 +520,12 @@ Function new-AADSyncDDGRules {
             New-Object  `
                 -TypeName 'Microsoft.IdentityManagement.PowerShell.ObjectModel.ScopeCondition' `
                 -ArgumentList 'msExchRecipientDisplayType', '3', 'EQUAL' `
-                -OutVariable condition0
+                -OutVariable condition0  | Out-Null
 
             Add-ADSyncScopeConditionGroup  `
                 -SynchronizationRule $syncRule[0] `
                 -ScopeConditions @($condition0[0]) `
-                -OutVariable syncRule
+                -OutVariable syncRule  | Out-Null
             #endregion Create Scope Condition to match all Dynamic Distribtuion object type
 
 
