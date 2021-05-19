@@ -842,11 +842,11 @@ $menuchoice=Read-Host $PFMenu
 $menuchoice = $menuchoice.ToLower()
 if ($menuchoice -eq 1)
 {
-    #Write-host "This diagnostic is going to be released over O365Troubleshooter upcoming release!"
+    Write-host "This diagnostic is going to be released over O365Troubleshooter upcoming release!"
     #Read-Key
     #Clear-Host
     #$menuchoice=Read-Host $PFMenu
-    Start-PFDataCollection
+    #Start-PFDataCollection
 }
 elseif ($menuchoice -eq 2)
 {
