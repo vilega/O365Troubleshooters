@@ -73,7 +73,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
 
     # Azure Module is mandatory
 
-    if (!($global:addTypeAzureAD))
+    if ((!($global:addTypeAzureAD) -and ("AzureAd" -in $O365Service )))
     {
         $minimumVersionAzureAD = '2.0.2.16'
         $CurrentProperty = "Checking AzureAD Module"
@@ -112,6 +112,7 @@ Function Connect-O365PS { # Function to connecto to O365 services
             $global:addTypeAzureAD = $true
         }
     }
+
 
     # Checking if required modules are installed
     If ( $O365Service -eq "MSOL") {
