@@ -1,0 +1,3 @@
+﻿Destination,FlowType,Expression,ValueMergeType,
+cloudFiltered,Expression,"IIF(IsPresent([isCriticalSystemObject]) || ( (InStr([displayName], ""(MSOL)"") > 0) && (CBool([msExchHideFromAddressLists]))) || (Left([mailNickname], 4) = ""CAS_"" && (InStr([mailNickname], ""}"") > 0)) || CBool(InStr(DNComponent(CRef([dn]),1),""\\0ACNF:"")>0), True, NULL)",Update,
+mailEnabled,Expression,"IIF(( (IsPresent([proxyAddresses]) = True) && (Contains([proxyAddresses], ""SMTP:"") > 0) && (InStr(Item([proxyAddresses], Contains([proxyAddresses], ""SMTP:"")), ""@"") > 0)) ||  (IsPresent([mail]) = True && (InStr([mail], ""@"") > 0)), True, False)",Update,
