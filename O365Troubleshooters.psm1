@@ -1210,6 +1210,24 @@ Function Test-PSVers {
 }
 
 function Start-Elevated {
+    
+    If (!([Net.ServicePointManager]::SecurityProtocol -eq [Net.SecurityProtocolType]::Tls12 ))
+    {
+        write-host "SecurityProtocol version should be TLS12 for PowerShellGet to be installed. If the value will different than TLS12, the script will exit" -ForegroundColor Red
+        $answer = Read-Host "Do you agree to set SecurityProtocol to Tls12? Type y for `"Yes`" and n for `"No`""
+        if ($answer.ToLower() -eq "y")
+        {
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 
+            Write-Host "SecurityProtocol has been set to TLS12!" -ForegroundColor Green
+        }
+        else
+        {
+            Write-Host "As you did't choose to set the value to TLS12, the script will exit!" -ForegroundColor Red
+            Read-Key
+            Exit
+        }
+    }
+
     Write-Host "Starting new PowerShell Window with the O365Troubleshooters Module loaded"
     Read-Key
     Start-Process powershell.exe -ArgumentList "-noexit -Command Install-Module O365Troubleshooters -force; Import-Module O365Troubleshooters -force; Start-O365Troubleshooters -elevatedExecution `$true" -Verb RunAs #-Wait
@@ -1802,6 +1820,22 @@ Function    Start-O365Troubleshooters {
         Start-Elevated
     }
     else {
+        If (!([Net.ServicePointManager]::SecurityProtocol -eq [Net.SecurityProtocolType]::Tls12))
+        {
+            write-host "SecurityProtocol version should be TLS12 for PowerShellGet to be installed. If the value will different than TLS12, the script will exit" -ForegroundColor Red
+            $answer = Read-Host "Do you agree to set SecurityProtocol to Tls12? Type y for `"Yes`" and n for `"No`""
+            if ($answer.ToLower() -eq "y")
+            {
+                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 
+                Write-Host "SecurityProtocol has been set to TLS12!" -ForegroundColor Green
+            }
+            else
+            {
+                Write-Host "As you did't choose to set the value to TLS12, the script will exit!" -ForegroundColor Red
+                Read-Key
+                Exit
+            }
+        }
         Set-GlobalVariables
         Start-O365TroubleshootersMenu
     }
