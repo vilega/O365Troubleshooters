@@ -1,3 +1,4 @@
+# Function to validate if required custom rules exists and to create them 
 Function new-AADSyncDDGRules {
 
     # select local AD connector
@@ -611,6 +612,7 @@ else {
 }
 }
 
+# Check if Admin previously created similar rules (not used now as a different check was implemented)
 Function Get-AADSyncDDGRulesExists {
 
     $adConnectors = (Get-ADSyncConnector | Where-Object { $_.Name -notlike "*onmicrosoft*" }).identifier.guid
@@ -627,6 +629,7 @@ Function Get-AADSyncDDGRulesExists {
     ($AdSyncDDG_Join).ScopeFilter.ScopeConditionList
 }
 
+# Show free slots for rules to administrator and allow him to chose the position where the rules will be created
 Function Get-ADSyncRuleFreeSlot {
     param ([string]$ruleName)
  
@@ -673,14 +676,15 @@ Function Get-ADSyncRuleFreeSlot {
 
 }
 
-
+# Inform about the prerequisites 
 Write-Host "This dianostic have to be executed on AAD Connect server to have access to AADSync PowerShell Module!" -ForegroundColor Yellow
 Read-Key
 
 Clear-Host
+
+# Import Module ADSync 
 $Workloads = "ADSync"
 Connect-O365PS -O365Service $Workloads -requireCredentials $false
-#Connect-O365PS ($Workloads, $false)
 
 
 $CurrentProperty = "Connecting to: $Workloads"
@@ -688,7 +692,7 @@ $CurrentDescription = "Success"
 write-log -Function "Connecting to workloads" -Step $CurrentProperty -Description $CurrentDescription 
     
 $ts = get-date -Format yyyyMMdd_HHmmss
-$ExportPath = "$global:WSPath\UnifiedAudit_$ts"
+$ExportPath = "$global:WSPath\SyncDDGasContactwithAADConnect_$ts"
 mkdir $ExportPath -Force | Out-Null
 
 
@@ -702,57 +706,53 @@ mkdir $ExportPath -Force | Out-Null
 [PSCustomObject]$InformatioHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring "Please check bellow for what was implemented!"
 $null = $TheCollectionToConvertToHTML.Add($InformatioHTML)
 
-
+# Write current step in the log
 $CurrentProperty = "new-AADSyncDDGRules"
 $CurrentDescription = "Start"
 write-log -Function "Start-SyncDDGasContactwithAADConnect" -Step $CurrentProperty -Description $CurrentDescription 
+
+# Call the function to create the AAD Connect rules
 new-AADSyncDDGRules
 
+# Write current step in the log
+$CurrentProperty = "new-AADSyncDDGRules"
+$CurrentDescription = "Finished"
+write-log -Function "Start-SyncDDGasContactwithAADConnect" -Step $CurrentProperty -Description $CurrentDescription 
+
+# Creating the Final report with all sections previously created
+[string]$FilePath = $ExportPath + "\AADConnectSyncDDGasContacts.html"
+Export-ReportToHTML -FilePath $FilePath -PageTitle "Creating AAD Connect rules to synchronize on-premises Dynamic Distribution Groups as Exchange Online Contacts" -ReportTitle "Implementing AAD Connect rules to synchronize on-premises Dynamic Distribution Groups as Exchange Online Contacts" -TheObjectToConvertToHTML $TheCollectionToConvertToHTML
+
+# Write current step in the log
 $CurrentProperty = "HTML report which contains information about creation of the AAD Connect rules can be found here: $ExportPath "
 $CurrentDescription = "The script will return to main menu!"
 write-log -Function "Start-SyncDDGasContactwithAADConnect" -Step $CurrentProperty -Description $CurrentDescription 
-#Write-Host $CurrentProperty
-#Write-Host $CurrentDescription
-read-Key    
-#Start-O365TroubleshootersMenu
-    
 
-#TODO: write all steps in logs
-#TODO: check what can be exported in HTML report 
-#TODO: track if any error while creating the rules
-#TODO: maybe would be better to check if the rules are implemented to show in Report
-
-
-#region ResultReport
-[string]$FilePath = $ExportPath + "\AADConnectSyncDDGasContacts.html"
-Export-ReportToHTML -FilePath $FilePath -PageTitle "Creating AAD Connect rules to synchronize on-premises Dynamic Distribution Groups as Exchange Online Contacts" -ReportTitle "Implementing AAD Connect rules to synchronize on-premises Dynamic Distribution Groups as Exchange Online Contacts" -TheObjectToConvertToHTML $TheCollectionToConvertToHTML
-#Question to ask enduser for opening the HTMl report
+# Ask enduser for opening the HTMl report
 Write-Host "`nReport was exported in the following location: $ExportPath" -ForegroundColor Cyan 
 $OpenHTMLfile=Read-Host "Do you wish to open HTML report file now?`nType Y(Yes) to open or N(No) to exit!"
 if ($OpenHTMLfile.ToLower() -eq "y")
 {
-    Write-Host "Opening report...." -ForegroundColor Cyan
+    # Open report with default browswer
+    Write-Host "Opening report with default browswer." -ForegroundColor Cyan
     Start-Process $FilePath
-    Write-Host "The script will return to main menu!" -ForegroundColor Yellow
+    
+    Write-Host "The script will return to main menu!" -ForegroundColor Cyan
     Read-Key
+    # Go back to the main menu
     Start-O365TroubleshootersMenu
 
 }
 elseif($OpenHTMLfile.ToLower() -eq "n")
 {
-    Write-Host "Quitting...."
-    Write-Host "Relaunching the main menu again" -ForegroundColor Yellow 
-    Start-Sleep -Seconds 3
     Write-Host "The script will return to main menu!" -ForegroundColor Cyan
     Read-Key
     # Go back to the main menu
-
     Start-O365TroubleshootersMenu
 }
 else {
-    Write-Host "You didn't provide an expected input!"
-    Write-Host "Relaunching the main menu again" -ForegroundColor Yellow 
-    Start-Sleep -Seconds 3
+    Write-Host "You didn't provide an expected input!" -ForegroundColor Yellow
+    Write-Host "The script will return to main menu!" -ForegroundColor Cyan
     Read-Key
     # Go back to the main menu
     Start-O365TroubleshootersMenu
