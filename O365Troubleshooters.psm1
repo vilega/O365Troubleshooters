@@ -292,7 +292,7 @@ Function Connect-O365PS {
                 # use only default modern authentication window (temporary disable manual managed tokens)
                 #Write-Host "Do your account require MFA to authenticate? (y/n): " -ForegroundColor Cyan -NoNewline
                 #$mfa = Read-Host 
-                $mha = "y"
+                $mfa = "y"
                 $mfa = $mfa.ToLower()
                 if ($mfa -eq "y") {
                     $global:MfaOption = 1
