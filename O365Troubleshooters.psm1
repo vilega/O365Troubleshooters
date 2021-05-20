@@ -1664,7 +1664,7 @@ function Export-ReportToHTML {
 		
 		<div class="ms-font-su ms-fontColor-themePrimary" style="font-size: 15px; margin-left: 10px; text-align: right;">
 			<ul>Creation Date: $((Get-date).ToUniversalTime()) UTC</ul>
-			<ul>&copy; 2020 O365Troubleshooters</ul>
+			<ul>&copy; 2021 O365Troubleshooters</ul>
 		</div>
 	</body>
 </html>
