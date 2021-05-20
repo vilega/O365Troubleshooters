@@ -12,7 +12,7 @@
 RootModule = '.\O365Troubleshooters.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.0.0.16'
+ModuleVersion = '2.0.0.17'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -114,6 +114,7 @@ FileList = @(
     'ActionPlans\Start-MailboxMigrationAnalyzer.ps1'
     'ActionPlans\Start-DlToO365GroupUpgradeChecks.ps1'
     'ActionPlans\Start-PublicFolderTroubleshooter.ps1'
+    'ActionPlans\Start-SyncDDGasContactwithAADConnect.ps1'
 )
 
 # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
@@ -122,7 +123,7 @@ PrivateData = @{
     PSData = @{
 
         # Tags applied to this module. These help with module discovery in online galleries.
-        Tags = @("O365","Office365","Exchange","EXO","ExchangeOnline","Compliance","Security","Identity","Audit","OME","AIP","OfficeMessageEncryption","Azure","Protection","AzureInformationProtection","UnifiedLabeling","Diagnostic","Migration","Move","Actionplan","Report","Tool","PublicFolder","PF")
+        Tags = @("O365","Office365","Exchange","EXO","ExchangeOnline","Compliance","Security","Identity","Audit","OME","AIP","OfficeMessageEncryption","Azure","Protection","AzureInformationProtection","UnifiedLabeling","Diagnostic","Migration","Move","Actionplan","Report","Tool","PublicFolder","PF","Dynamic","Groups","DG","AADConnect","ADSync","DynamicDistributionGroups","Distribution")
 
         # A URL to the license for this module.
         # LicenseUri = ''
@@ -135,6 +136,7 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = '
+        2.0.0.17 - Sync on-premises Dynamic Distribution Groups as EXO contacts, find why deleting a public folder item or the whole public folder is failing
         2.0.0.16 - Public Folder troubleshooter, fix some Exchange Online connectivity issues requiring old module
         2.0.0.15 - Improved HTML report, new action plan for DL to O365 Groups Upgrade Check, some improvments on Compromised Investigation,Get-ValidEmailAddress and Safe Links Decode URL
         2.0.0.14 - HTML Report and HTML Report object builder as generic functions, Analyze Mailbox move (Hybrid migration), fix minor bugs
