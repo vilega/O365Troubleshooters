@@ -253,35 +253,35 @@ Function Connect-O365PS {
         }
     }
 
-   
-    #$Global:proxy = Read-Host
-    if ($null -eq $Global:proxy) {
-        Write-Host "`nAre you able to access Internet from this location without a Proxy?" -ForegroundColor Cyan
-        $Global:proxy = get-choice "Yes", "No"
-        $Global:PSsettings = New-PSSessionOption -SkipRevocationCheck 
-        if ($Global:proxy -eq "n") {
-            $Global:PSsettings = New-PSSessionOption -ProxyAccessType IEConfig -SkipRevocationCheck 
+    if ($requireCredentials) {
+        #$Global:proxy = Read-Host
+        if ($null -eq $Global:proxy) {
+            Write-Host "`nAre you able to access Internet from this location without a Proxy?" -ForegroundColor Cyan
+            $Global:proxy = get-choice "Yes", "No"
+            $Global:PSsettings = New-PSSessionOption -SkipRevocationCheck 
+            if ($Global:proxy -eq "n") {
+                $Global:PSsettings = New-PSSessionOption -ProxyAccessType IEConfig -SkipRevocationCheck 
             
-            if ($PSVersionTable.PSVersion.Major -eq 7) {
-                (Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings').proxyServer
+                if ($PSVersionTable.PSVersion.Major -eq 7) {
+                    (Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings').proxyServer
 
-                #Write-Host "Please input proxy server address (e.g.: http://proxy): " -ForegroundColor Cyan -NoNewline
-                #$proxyServer = Read-Host
-                #Write-Host "Please input proxy server port: " -ForegroundColor Cyan -NoNewline
-                #$proxyPort = Read-Host
-                $proxyConnection = "http://" + (Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings').proxyServer
+                    #Write-Host "Please input proxy server address (e.g.: http://proxy): " -ForegroundColor Cyan -NoNewline
+                    #$proxyServer = Read-Host
+                    #Write-Host "Please input proxy server port: " -ForegroundColor Cyan -NoNewline
+                    #$proxyPort = Read-Host
+                    $proxyConnection = "http://" + (Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings').proxyServer
 
+                }
+
+                else {
+                    #It doesn't work in PowerShell7
+                    $proxyConnection = ([System.Net.WebProxy]::GetDefaultProxy()).Address.ToString()
+                }
+                Invoke-WebRequest -Proxy $proxyConnection  -ProxyUseDefaultCredentials https://provisioningapi.microsoftonline.com/provisioningwebservice.svc
             }
-
-            else {
-                #It doesn't work in PowerShell7
-                $proxyConnection = ([System.Net.WebProxy]::GetDefaultProxy()).Address.ToString()
-            }
-            Invoke-WebRequest -Proxy $proxyConnection  -ProxyUseDefaultCredentials https://provisioningapi.microsoftonline.com/provisioningwebservice.svc
-        }
     
+        }
     }
-
     #endregion Module Checks
 
     #region Connection scripts region

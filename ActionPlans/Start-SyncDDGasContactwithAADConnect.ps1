@@ -118,7 +118,7 @@ Function new-AADSyncDDGRules {
         
         [string]$SectionTitle = "`"$ruleName`" - creation"
         [string]$Description = "The rule `"$ruleName`" has not been succesfully created using selected connector: $($selectConnector.name) because already exists."
-        [PSCustomObject]$RuleHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Yellow" -Description $Description -DataType "String" -EffectiveDatastring ""
+        [PSCustomObject]$RuleHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring ""
         $null = $TheCollectionToConvertToHTML.Add($RuleHTML)
 
         Read-Key    
@@ -590,7 +590,7 @@ Function new-AADSyncDDGRules {
 
         [string]$SectionTitle = "`"$ruleName`" - creation"
         [string]$Description = "The rule `"$ruleName`" has not been succesfully created using selected connector: $($selectConnector.name) because already exists."
-        [PSCustomObject]$RuleHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Yellow" -Description $Description -DataType "String" -EffectiveDatastring ""
+        [PSCustomObject]$RuleHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring ""
         $null = $TheCollectionToConvertToHTML.Add($RuleHTML)
 
         Read-Key    
