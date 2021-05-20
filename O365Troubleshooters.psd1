@@ -12,7 +12,7 @@
 RootModule = '.\O365Troubleshooters.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.0.0.19'
+ModuleVersion = '2.0.0.20'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -136,6 +136,7 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = '
+        2.0.0.20 - Improved EXO and SCC connection
         2.0.0.19 - Minor fixes
         2.0.0.18 - Minor fixes to assure PowerShellGet will be installed and temporary switched to default modern auth window
         2.0.0.17 - Sync on-premises Dynamic Distribution Groups as EXO contacts, find why deleting a public folder item or the whole public folder is failing

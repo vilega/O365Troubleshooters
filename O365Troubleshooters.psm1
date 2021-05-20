@@ -226,7 +226,7 @@ Function Connect-O365PS {
     }
     #>
 
-    if (($O365Service -eq "Exo2") -or ($O365Service -eq "Exo")) {
+    if (($O365Service.tolower() -eq "exo2") -or ($O365Service.tolower() -eq "exo") -or ($O365Service.tolower() -eq "scc")) {
         if ((Get-Module -ListAvailable -Name ExchangeOnlineManagement).count -eq 0) {
             $CurrentProperty = "Checking ExchangeOnlineManagement v2 Module"
             $CurrentDescription = "ExchangeOnlineManagement module is not installed. We'll install it to support connectin to Exchange Online Module v2"
@@ -539,7 +539,7 @@ Function Connect-O365PS {
                         if (($null -eq $Global:EXOSession ) -or ($Global:EXOSession.State -eq "Closed") -or ($Global:EXOSession.State -eq "Broken")) {
                             
                             Connect-ExchangeOnline -UserPrincipalName $global:UserPrincipalName -PSSessionOption $PSsettings -ShowBanner:$false -ErrorVariable errordescr -ErrorAction Stop 
-                            $Global:EXOSession = Get-PSSession  | Where-Object { ($_.name -like "ExchangeOnlineInternalSession*") -and ($_.state -eq "Opened") }
+                            $Global:EXOSession = Get-PSSession  | Where-Object { ($_.name -like "ExchangeOnlineInternalSession*") -and ($_.ConnectionUri -like "*outlook.office365.com*")  -and ($_.state -eq "Opened") }
                             $CurrentError = $errordescr.exception 
                             Import-Module (Import-PSSession $EXOSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue
                             $null = Get-OrganizationConfig -ErrorAction SilentlyContinue -ErrorVariable errordescr
@@ -723,24 +723,26 @@ Function Connect-O365PS {
                     $try++
 
                     try {
-                        $null = Get-ccLabel -ErrorAction Stop
+                        $null = Get-OrganizationConfig -ErrorAction Stop
                     }
                     catch {
                         Write-Host "$CurrentProperty"
-                        if (!("Microsoft.Exchange.Management.ExoPowershellModule" -in (Get-Module).Name)) {
-                            Import-Module $((Get-ChildItem -Path $($env:LOCALAPPDATA + "\Apps\2.0\") -Filter Microsoft.Exchange.Management.ExoPowershellModule.dll -Recurse).FullName | `
-                                    Where-Object { $_ -notmatch "_none_" } | Select-Object -First 1) -Global -DisableNameChecking -Force -ErrorAction SilentlyContinue
+                        if (!("ExchangeOnlineManagement" -in (Get-Module).Name)) {
+                            Import-Module ExchangeOnlineManagement -Global -DisableNameChecking -Force -ErrorAction SilentlyContinue
                         }
-
+                        
+        
                         $errordescr = $null
-                        if (($null -eq $Global:IPPSession ) -or ($Global:IPPSession.State -eq "Closed") -or ($Global:IPPSession.State -eq "Broken")) {
-                            $Global:IPPSession = New-ExoPSSession -UserPrincipalName $global:UserPrincipalName -ConnectionUri 'https://ps.compliance.protection.outlook.com/PowerShell-LiveId' `
-                                -PSSessionOption $PSsettings -ErrorVariable errordescr -ErrorAction Stop
+                        if (($null -eq $Global:EXOSession ) -or ($Global:EXOSession.State -eq "Closed") -or ($Global:EXOSession.State -eq "Broken")) {
+                            
+                            Connect-IPPSSession -UserPrincipalName $global:UserPrincipalName -PSSessionOption $PSsettings -ShowBanner:$false -ErrorVariable errordescr -ErrorAction Stop 
+                            $Global:EXOSession = Get-PSSession  | Where-Object { ($_.name -like "ExchangeOnlineInternalSession*") -and ($_.ConnectionUri -like "*compliance.protection.outlook.com*") -and ($_.state -eq "Opened") }
                             $CurrentError = $errordescr.exception 
-                            Import-Module (Import-PSSession $IPPSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue -Prefix cc
-                            $null = Get-ccLabel -ErrorAction SilentlyContinue -ErrorVariable errordescr
+                            Import-Module (Import-PSSession $EXOSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue
+                            $null = Get-OrganizationConfig -ErrorAction SilentlyContinue -ErrorVariable errordescr
                             $CurrentError = $errordescr.exception.message + $Global:Error[0]
                         }
+
                     }
                     &$Global:CredentialValidation
                 } while (($Try -le 2) -and ($Global:Error)) 
