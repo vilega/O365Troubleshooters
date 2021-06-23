@@ -762,13 +762,13 @@ Function Start-PFDataCollection{
  ->Outlook $RecoverDeletedItems<br>
  ->MFCMAPI please refer to the following $article to check steps related to get to public folder dumpster using MFCMAPI then select unrequired items to be purged permanently"
  [string]$SectionTitle = "Validating TotalDeletedItemSize for content public folder mailbox"
- [string]$Description = "Checking if public folder mailbox TotalDeletedItemSize value hasn’t reached its RecoverableItemsQuota value"   
+ [string]$Description = "Checking if public folder mailbox TotalDeletedItemSize value has not reached its RecoverableItemsQuota value"   
  [PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring $FixTotalDeletedItemSize
  $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
  }
  else {
  [string]$SectionTitle = "Validating TotalDeletedItemSize for content public folder mailbox"
- [string]$Description = "Checking if public folder mailbox TotalDeletedItemSize value hasn’t reached its RecoverableItemsQuota value"   
+ [string]$Description = "Checking if public folder mailbox TotalDeletedItemSize value has not reached its RecoverableItemsQuota value"   
  [PSCustomObject]$ConditioncheckPFPermissionhtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDatastring "No issue found!"
  $null = $TheObjectToConvertToHTML.Add($ConditioncheckPFPermissionhtml)
  }
