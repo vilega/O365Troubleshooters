@@ -1,5 +1,5 @@
 <# 1st requirement install the module O365 TS
-Import-Module C:\Users\a-haemb\Documents\GitHub\O365Troubleshooters\O365Troubleshooters.psm1 -Force
+Import-Module C:\Users\haembab\Documents\GitHub\O365Troubleshooters\O365Troubleshooters.psm1 -Force
 # 2nd requirement Execute set global variables
 Set-GlobalVariables
 # 3rd requirement to start the menu
@@ -41,6 +41,15 @@ catch {
     $CurrentProperty = "Retrieving: $dgsmtp object from EXO"
     $CurrentDescription = "Failure"
     write-log -Function "Retrieve Distribution Group Object From EXO Directory" -Step $CurrentProperty -Description $CurrentDescription
+    $Errorencountered=$Global:error[0].Exception
+    Write-Host "Error encountered during executing the script!"-ForegroundColor Red
+    Write-Host $Errorencountered -ForegroundColor Red
+    Write-Host "`nOutput was exported in the following location: $ExportPath" -ForegroundColor Yellow 
+    Start-Sleep -Seconds 3
+    Read-Key
+    # Go back to the main menu
+    Start-O365TroubleshootersMenu
+    ##write log and exit function
 }
 #endregion Getting the DG SMTP
 #Array list for collecting all HTML object for creating the report
@@ -51,11 +60,13 @@ catch {
 [String]$article="https://docs.microsoft.com/en-us/microsoft-365/admin/manage/upgrade-distribution-lists?view=o365-worldwide"
 [string]$Description = "This report illustrates Distribution to O365 Group migration eligibility checks taken place over group SMTP: "+$dgsmtp+", Sections in RED are for migration BLOCKERS while Sections in GREEN are for migration ELIGIBILITIES"
 $Description=$Description+",for more informtion please check: $article"
-[PSCustomObject]$StartHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString "Please ensure to mitigate migration BLOCKERS in case found!"
+$blockersinhtml='<span style="color: red">BLOCKERS</span>'
+[PSCustomObject]$StartHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString "Please ensure to mitigate $blockersinhtml in case found!"
+#[PSCustomObject]$StartHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString "Please ensure to mitigate migration BLOCKERS in case found!"
 $null = $TheObjectToConvertToHTML.Add($StartHTML)
 #endregion Intro with group name
 
-#Add checking elgibilty for command/ask bhla for running command in whatif upgrade-distributiongroup
+#Add checking elgibilty for command/ask bhala for running command in whatif upgrade-distributiongroup
 
 #region add check migration is in progress
 #endregion 
@@ -101,14 +112,16 @@ $ConditionEAP=New-Object PSObject
 # Bypass that step if there's no EAP 
  if($null -ne $eap)
  {
- $matchingEap = @( $eap | where-object{$_.RecipientFilter -eq "RecipientTypeDetails -eq 'GroupMailbox'" -and $_.EnabledEmailAddressTemplates.ToString().Split("@")[1] -ne $dg.PrimarySmtpAddress.ToString().Split("@")[1]})
- if ($matchingEap.Count -ne 0) {
-     $count=1
-     foreach($matcheap in $matchingEap)
+ $ViolatedEap = @( $eap | where-object{$_.RecipientFilter -eq "RecipientTypeDetails -eq 'GroupMailbox'" -and $_.EnabledPrimarySMTPAddressTemplate.ToString().Split("@")[1] -ne $dg.PrimarySmtpAddress.ToString().Split("@")[1]})
+ if ($ViolatedEap.Count -ge 1) {
+     <#$count=1
+     foreach($violateeap in $ViolatedEap)
      {
-         $ConditionEAP|Add-Member -NotePropertyName "EmailAddressPolicy$count Name" -NotePropertyValue $matcheap
+         $ConditionEAP|Add-Member -NotePropertyName "EmailAddressPolicy$count Name" -NotePropertyValue $violateeap
          $count++
     }
+    #>
+    $ConditionEAP=$ViolatedEap||Select-Object Identity,Priority,@{label='PrimarySMTPAddressTemplate'expression={($_.EnabledPrimarySMTPAddressTemplate).split("@")[1]}} |Sort-Object priority
     [PSCustomObject]$ConditionEAPHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionEAP -TableType "Table"
     $null = $TheObjectToConvertToHTML.Add($ConditionEAPHTML)
     
