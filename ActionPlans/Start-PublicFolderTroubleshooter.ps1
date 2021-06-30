@@ -365,11 +365,11 @@ return $fix
 }
 
 #region public folder overview
-Function Start-PFDataCollection{
+Function Start-PFOverview{
     
     ##Start working to publish this diag
     ##add org config values & check ind post quota health 
-     #region main public folders overview information
+    #region main public folders overview information
      write-host
      write-host
      Write-Host "Organization Publicfolders Overview`n-----------------------------------`n"  -ForegroundColor Cyan 
@@ -390,13 +390,13 @@ Function Start-PFDataCollection{
      $RootPublicFolderMailbox=$OrganizationConfig.RootPublicFolderMailbox.HierarchyMailboxGuid.Guid.ToString()
      Write-Host "PublicFoldersLocation = $PublicFoldersLocation"
      if ($PublicFoldersLocation -eq "Local") {
-         $Publicfolders=Get-PublicFolder -Recurse -ResultSize unlimited
+         $Publicfolders=Get-PublicFolder -Recurse -ResultSize unlimited |Where-Object {$_.Name -notmatch "IPM_SUBTREE"}
          [Int]$PublicFoldersCount=($Publicfolders).count - 1
          Write-Host "PublicFolderMailboxesCount = $PublicFolderMailboxesCount"
          Write-Host "PublicFoldersCount = $PublicFoldersCount"
          Write-Host "RootPublicFolderMailbox = $RootPublicFolderMailbox"
-         Write-Host "OrgPublicFolderProhibitPostQuota" = $OrganizationConfig.DefaultPublicFolderProhibitPostQuota.Split("(")[0]
-         Write-Host "OrgPublicFolderIssueWarningQuota" = $OrganizationConfig.DefaultPublicFolderIssueWarningQuota.Split("(")[0]
+         Write-Host "OrganizationPublicFolderProhibitPostQuota" = $OrganizationConfig.DefaultPublicFolderProhibitPostQuota.Split("(")[0]
+         Write-Host "OrganizationPublicFolderIssueWarningQuota" = $OrganizationConfig.DefaultPublicFolderIssueWarningQuota.Split("(")[0]
      }
      else {
          $RemotePublicFolderMailboxes=$OrganizationConfig.RemotePublicFolderMailboxes
@@ -415,7 +415,7 @@ Function Start-PFDataCollection{
      #endregion main public folders overview information
      #region retrieve publicfolderservinghierarchyMBXs and check if rootPF MBX is serving hierarchy
      $publicfolderservinghierarchyMBXs=$PublicFolderMailboxes|Where-Object{$_.IsExcludedFromServingHierarchy -like "false" -and $_.IsHierarchyReady -like "true"}
-     Write-Host "Public folder hierarchy serving mailboxes: " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
+     Write-Host "Public folder mailboxes serving hierarchy: " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
      $publicfolderservinghierarchyMBXs|Format-Table -Wrap -AutoSize Name,Alias,Guid,ExchangeGuid
      #endregion retrieve publicfolderservinghierarchyMBXs and check if rootPF MBX is serving hierarchy
      #region add check if primary PF MBX doesn't contain content nor serve hierachy to regular MBXs
@@ -452,8 +452,8 @@ Function Start-PFDataCollection{
             ##write failue in the log
          }
          
-         ##Validate PFMBXsize has exceeded 85% PublicFolderMailboxSendReceiveQuota
-         if ((($PublicFolderMailboxSendReceiveQuota-$PFMBXSizeinB)/(1024*1024*1024)) -le 15) {
+         ##Validate PFMBXsize has exceeded 90% PublicFolderMailboxSendReceiveQuota
+         if (($PFMBXSizeinB/$PublicFolderMailboxSendReceiveQuota)*100 -ge 90) {
              $unhealthyPFMBXcount++
              $unhealthyPFMBX+=$PublicFolderMailbox
          }
@@ -482,7 +482,7 @@ Function Start-PFDataCollection{
          foreach($Publicfolder in $Publicfolders)
          {
          [Int64]$OrgPFProhibitPostQuotainB=$OrganizationConfig.DefaultPublicFolderProhibitPostQuota.Split("(")[1].split(" ")[0].Replace(",","")
-         [Int64]$DefaultPublicFolderIssueWarningQuotainB=$OrganizationConfig.DefaultPublicFolderIssueWarningQuota.Split("(")[1].split(" ")[0].Replace(",","")
+        # [Int64]$DefaultPublicFolderIssueWarningQuotainB=$OrganizationConfig.DefaultPublicFolderIssueWarningQuota.Split("(")[1].split(" ")[0].Replace(",","")
          $Publicfolderstats=Get-PublicFolderStatistics $($Publicfolder.EntryID)
          [Int64]$PublicfolderTotalSize=[Int64]$Publicfolderstats.TotalItemSize.Split("(")[1].split(" ")[0].Replace(",","")+[Int64]$Publicfolderstats.TotalDeletedItemSize.Split("(")[1].split(" ")[0].Replace(",","")
          ##Check health in regards to Organization quota
@@ -494,6 +494,7 @@ Function Start-PFDataCollection{
                  elseif ($PublicfolderTotalSize -ge $OrgPFProhibitPostQuotainB -and $PublicfolderTotalSize -le 21474836480) {
                  $unhealthyPFcountapproachingOrgQuota++
                  $unhealthyOrgPF=$unhealthyOrgPF+$publicfolder
+
                  }
                  elseif ($PublicfolderTotalSize -le $OrgPFProhibitPostQuotainB -and $PublicfolderTotalSize -ge 21474836480) {
                      $unhealthyPFcountapproachingOrgQuota++
@@ -565,6 +566,8 @@ Function Start-PFDataCollection{
      }
      
      #endregion add health quota check on PFs approaching individual/organization prohibitpostquota,check if we have Giant PFs
+     
+     
      #condition for validation on root PFs have dumpsterentryIDs
      ##add HRR MBXs in case exist
      ##Think about adding Autosplit status will take so much time for huge enviroments
