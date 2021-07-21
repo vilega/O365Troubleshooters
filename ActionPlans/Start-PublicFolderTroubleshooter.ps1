@@ -367,74 +367,155 @@ return $fix
 #region public folder overview
 Function Start-PFOverview{
     
-    ##Start working to publish this diag
-    ##add org config values & check ind post quota health 
+
+    #TODOcondition DBEB disabled and PFs are external/local under recommendations part for receing emails externally,configure multiple connectionfilterpolicies and check across default and custom
+    
     #region main public folders overview information
      write-host
      write-host
      Write-Host "Organization Publicfolders Overview`n-----------------------------------`n"  -ForegroundColor Cyan 
-     $HostedConnectionFilterPolicy=Get-HostedConnectionFilterPolicy 
-     $DirectoryBasedEdgeBlockModeStatus=$HostedConnectionFilterPolicy.DirectoryBasedEdgeBlockMode
-     if($DirectoryBasedEdgeBlockModeStatus -like "Default")
-     {
+     [string]$SectionTitle = "Introduction"
+     [string]$Description = "This report illustrates an overview over the public folder enviroment!"
+     $issuesinhtml='<span style="color: red">issues</span>'
+     [PSCustomObject]$StartHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString "Please ensure to mitigate $issuesinhtml under Recommendations in case found!"
+     $null = $TheObjectToConvertToHTML.Add($StartHTML)
+     try {
+        $HostedConnectionFilterPolicy=Get-HostedConnectionFilterPolicy -ErrorAction stop |where-object {$_.IsDefault -eq "True"}
+        $CurrentProperty = "Retrieving public folders info"
+        $CurrentDescription = "Success"
+        write-log -Function "Retrieve public folders info" -Step $CurrentProperty -Description $CurrentDescription    
+        $DirectoryBasedEdgeBlockModeStatus=$HostedConnectionFilterPolicy.DirectoryBasedEdgeBlockMode
+        [string]$SectionTitle = "Organization Publicfolders Overview"
+        [string]$Description = "Collecting all your organization public folders basic information"
+        [System.Collections.ArrayList]$PFInfo= @()
+        if($DirectoryBasedEdgeBlockModeStatus -like "Default")
+        {
          Write-Host "DirectoryBasedEdgeBlockModeStatus = Enabled"
+         $MEPFAction="Any mail sent to Mail Enabled Public Folders (MEPF) will be dropped at the service network perimeter because DBEB is enabled, so to bypass that either set the smtp address DomainType to InternalRelay or file a support case for microsoft to disable DBEB on the whole tenant(Recommended)!"
+         $PFInfo.add("DirectoryBasedEdgeBlockModeStatus = Enabled")|out-null
+        }
+        else {
+            Write-Host "DirectoryBasedEdgeBlockModeStatus = Disabled"
+            $PFInfo.add("DirectoryBasedEdgeBlockModeStatus = Disabled")|out-null
+           }
+        $OrganizationConfig=Get-OrganizationConfig -ErrorAction stop
+        $PublicFoldersLocation=$OrganizationConfig.PublicFoldersEnabled
+        $PublicFolderMailboxes=Get-Mailbox -PublicFolder -ResultSize unlimited -ErrorAction stop
+        [Int]$PublicFolderMailboxesCount=($PublicFolderMailboxes).count
+        [Int]$MailEnabledPublicFoldersCount=(Get-MailPublicFolder -ResultSize unlimited).count
+        $RootPublicFolderMailbox=$OrganizationConfig.RootPublicFolderMailbox.HierarchyMailboxGuid.Guid.ToString()
+        Write-Host "PublicFoldersLocation = $PublicFoldersLocation"
+        $PFInfo.add("PublicFoldersLocation = $PublicFoldersLocation")|out-null
+        if ($PublicFoldersLocation -eq "Local") {
+            $Publicfolders=Get-PublicFolder -Recurse -ResultSize unlimited |Where-Object {$_.Name -notmatch "IPM_SUBTREE"} -ErrorAction stop
+            [Int]$PublicFoldersCount=($Publicfolders).count - 1
+            Write-Host "PublicFolderMailboxesCount = $PublicFolderMailboxesCount"
+            Write-Host "PublicFoldersCount = $PublicFoldersCount"
+            Write-Host "RootPublicFolderMailbox = $RootPublicFolderMailbox"
+            Write-Host "OrganizationPublicFolderProhibitPostQuota" = $OrganizationConfig.DefaultPublicFolderProhibitPostQuota.Split("(")[0]
+            Write-Host "OrganizationPublicFolderIssueWarningQuota" = $OrganizationConfig.DefaultPublicFolderIssueWarningQuota.Split("(")[0]
+            Write-Host "MailEnabledPublicFoldersCount = $MailEnabledPublicFoldersCount"
+            $PFInfo.add("PublicFolderMailboxesCount = $PublicFolderMailboxesCount")|out-null
+            $PFInfo.add("PublicFoldersCount = $PublicFoldersCount")|out-null
+            $PFInfo.add("RootPublicFolderMailbox = $RootPublicFolderMailbox")|out-null
+            $OrganizationPublicFolderProhibitPostQuota = $OrganizationConfig.DefaultPublicFolderProhibitPostQuota.Split("(")[0]
+            $PFInfo.add("OrganizationPublicFolderProhibitPostQuota = $OrganizationPublicFolderProhibitPostQuota")|out-null
+            $OrganizationPublicFolderIssueWarningQuota=$OrganizationConfig.DefaultPublicFolderIssueWarningQuota.Split("(")[0]
+            $PFInfo.add("OrganizationPublicFolderIssueWarningQuota = $OrganizationPublicFolderIssueWarningQuota")|out-null
+            $PFInfo.add("MailEnabledPublicFoldersCount = $MailEnabledPublicFoldersCount")|out-null
+        }
+        else {
+            $RemotePublicFolderMailboxes=$OrganizationConfig.RemotePublicFolderMailboxes
+            $LockedForMigration=$OrganizationConfig.RootPublicFolderMailbox.LockedForMigration
+            if($LockedForMigration -like "True")
+            {
+                Write-Host "Public folder migration in PROGRESS!" -BackgroundColor Gray 
+                Write-Host "PublicFolderMailboxesCount = $PublicFolderMailboxesCount"
+                $PFInfo.add("Public folder migration in PROGRESS!")|out-null
+                $PFInfo.add("PublicFolderMailboxesCount = $PublicFolderMailboxesCount")|out-null
+            }
+            else {
+                Write-Host "RemotePublicFolderMailboxes = $($RemotePublicFolderMailboxes -join ",")"
+                $PFInfo.add("PublicFolderMailboxesCount = $RemotePublicFolderMailboxes")|out-null
+            }
+            
+        }
+
      }
-     else {
-         Write-Host "DirectoryBasedEdgeBlockModeStatus = Disabled"
+     catch {
+        $CurrentProperty = "Retrieving public folders info"
+        $CurrentDescription = "Failure"
+        write-log -Function "Retrieve public folders info" -Step $CurrentProperty -Description $CurrentDescription
      }
-     $OrganizationConfig=Get-OrganizationConfig
-     $PublicFoldersLocation=$OrganizationConfig.PublicFoldersEnabled
-     $PublicFolderMailboxes=Get-Mailbox -PublicFolder -ResultSize unlimited
-     [Int]$PublicFolderMailboxesCount=($PublicFolderMailboxes).count
-     [Int]$MailEnabledPublicFoldersCount=(Get-MailPublicFolder -ResultSize unlimited).count
-     $RootPublicFolderMailbox=$OrganizationConfig.RootPublicFolderMailbox.HierarchyMailboxGuid.Guid.ToString()
-     Write-Host "PublicFoldersLocation = $PublicFoldersLocation"
-     if ($PublicFoldersLocation -eq "Local") {
-         $Publicfolders=Get-PublicFolder -Recurse -ResultSize unlimited |Where-Object {$_.Name -notmatch "IPM_SUBTREE"}
-         [Int]$PublicFoldersCount=($Publicfolders).count - 1
-         Write-Host "PublicFolderMailboxesCount = $PublicFolderMailboxesCount"
-         Write-Host "PublicFoldersCount = $PublicFoldersCount"
-         Write-Host "RootPublicFolderMailbox = $RootPublicFolderMailbox"
-         Write-Host "OrganizationPublicFolderProhibitPostQuota" = $OrganizationConfig.DefaultPublicFolderProhibitPostQuota.Split("(")[0]
-         Write-Host "OrganizationPublicFolderIssueWarningQuota" = $OrganizationConfig.DefaultPublicFolderIssueWarningQuota.Split("(")[0]
-     }
-     else {
-         $RemotePublicFolderMailboxes=$OrganizationConfig.RemotePublicFolderMailboxes
-         $LockedForMigration=$OrganizationConfig.RootPublicFolderMailbox.LockedForMigration
-         if($LockedForMigration -like "True")
-         {
-             Write-Host "Public folder migration in PROGRESS!" -BackgroundColor Gray 
-             Write-Host "PublicFolderMailboxesCount = $PublicFolderMailboxesCount"
-         }
-         else {
-             Write-Host "RemotePublicFolderMailboxes = $($RemotePublicFolderMailboxes -join ",")"
-         }
-         
-     }
-     Write-Host "MailEnabledPublicFoldersCount = $MailEnabledPublicFoldersCount" 
+     [PSCustomObject]$PFInfoHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "CustomObject"  -TableType "Table" -EffectiveDataArrayList $PFInfo
+     $null = $TheObjectToConvertToHTML.Add($PFInfoHTML)
      #endregion main public folders overview information
      #region retrieve publicfolderservinghierarchyMBXs and check if rootPF MBX is serving hierarchy
      $publicfolderservinghierarchyMBXs=$PublicFolderMailboxes|Where-Object{$_.IsExcludedFromServingHierarchy -like "false" -and $_.IsHierarchyReady -like "true"}
      Write-Host "Public folder mailboxes serving hierarchy: " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
      $publicfolderservinghierarchyMBXs|Format-Table -Wrap -AutoSize Name,Alias,Guid,ExchangeGuid
+     [string]$SectionTitle = "Public folder mailboxes serving hierarchy"
+     [string]$Description = "This section illustrates information about public folder mailboxes serving hierarchy to end-users" 
+     $PFServMBXs=@()
+     $PFServMBXs=$publicfolderservinghierarchyMBXs|Select-Object Name,Alias,Guid,ExchangeGuid
+     [PSCustomObject]$PFServMBXsHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $PFServMBXs -TableType "Table"
+     $null = $TheObjectToConvertToHTML.Add($PFServMBXsHTML)
      #endregion retrieve publicfolderservinghierarchyMBXs and check if rootPF MBX is serving hierarchy
      #region add check if primary PF MBX doesn't contain content nor serve hierachy to regular MBXs
      Write-Host "Primary public folder mailbox diagnosis:" -ForegroundColor Black -BackgroundColor Yellow
+     [string]$SectionTitle = "Primary public folder mailbox diagnosis"
+     [string]$Description = "This section illustrates a health check on the rooth public folder mailbox" 
+     [string]$healthcheck1=""
+     [string]$healthcheck2=""
+     [System.Collections.ArrayList]$healthchecks=@()
      if ($publicfolderservinghierarchyMBXs|Where-Object {$_.ExchangeGuid -Like $RootPublicFolderMailbox}) 
      {
          Write-host "It's not recommended to use root public folder mailbox to serve hierarchy!" -ForegroundColor Red -NoNewline
          $publicfolderservinghierarchyMBXs|Where-Object {$_.ExchangeGuid -Like $RootPublicFolderMailbox}|Format-Table -Wrap -AutoSize Name,Alias,Guid,ExchangeGuid
+         $healthcheck1="fail"
      }
      else {
          Write-host "Root public folder mailbox is not used to serve hierachy" -ForegroundColor Green
+         $healthcheck1="success"
      }
-     if ([Int]($Publicfolders|Where-Object {$_.ContentMailboxGuid -Like $RootPublicFolderMailbox}).name.count -eq 1)
+     if ([Int]($Publicfolders|Where-Object {$_.ContentMailboxGuid -Like $RootPublicFolderMailbox}).name.count -eq 0)
      {
          Write-host "RootPublicFolderMailbox is not hosting content of Public folders" -ForegroundColor Green
+         $healthcheck2="success"
      }
      else {
          Write-host "RootPublicFolderMailbox is hosting content of Public folders,it's recommended to stop creating public folders hosted on the primary public folder mailbox!" -ForegroundColor Red
+         $healthcheck2="fail"
      }
+if($healthcheck1 -match "fail" -and $healthcheck2 -match "fail")
+{    
+    
+    $healthchecks.add('<span style="color: red">Root public folder mailbox is not used to serve hierachy</span>')
+    $healthchecks.add('<span style="color: red">RootPublicFolderMailbox is not hosting content of Public folders</span>')
+    [PSCustomObject]$RootPFMBXHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $PFServMBXs -TableType "List"
+    $null = $TheObjectToConvertToHTML.Add($RootPFMBXHTML)
+
+}
+elseif($healthcheck1 -match "success" -and $healthcheck2 -match "fail"){
+    $healthchecks.add("Root public folder mailbox is not used to serve hierachy")
+    $healthchecks.add("RootPublicFolderMailbox is hosting content of Public folders,it's recommended to stop creating public folders hosted on the primary public folder mailbox!")
+    [PSCustomObject]$RootPFMBXHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $PFServMBXs -TableType "List"
+    $null = $TheObjectToConvertToHTML.Add($RootPFMBXHTML)
+}
+elseif($healthcheck1 -match "fail" -and $healthcheck2 -match "success"){
+    $healthchecks.add("It's not recommended to use root public folder mailbox to serve hierarchy!")
+    $healthchecks.add("RootPublicFolderMailbox is not hosting content of Public folders")
+    [PSCustomObject]$RootPFMBXHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $PFServMBXs -TableType "List"
+    $null = $TheObjectToConvertToHTML.Add($RootPFMBXHTML)
+}
+else {
+    $healthchecks.add("Root public folder mailbox is not used to serve hierachy")
+    $healthchecks.add("RootPublicFolderMailbox is not hosting content of Public folders")
+    [PSCustomObject]$RootPFMBXHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $PFServMBXs -TableType "Table"
+    $null = $TheObjectToConvertToHTML.Add($RootPFMBXHTML)
+}
+
+
      #endregion add check if primary PF MBX doesn't contain content nor serve hierachy to regular MBXs
      #region add health quota check on PF MBXs 
      [Int]$unhealthyPFMBXcount=0
@@ -461,6 +542,7 @@ Function Start-PFOverview{
      }
      Write-Host
      write-host "Recommendations:`n================" -ForegroundColor Cyan
+     Write-Host $MEPFAction -ForegroundColor Red
      if($unhealthyPFMBXcount -eq 0)
      {
          Write-host "All Public folder mailboxes are on quota healthy state" -ForegroundColor Green
@@ -566,13 +648,30 @@ Function Start-PFOverview{
      }
      
      #endregion add health quota check on PFs approaching individual/organization prohibitpostquota,check if we have Giant PFs
+     #region ResultReport
+        [string]$FilePath = $ExportPath + "\PublicFolderOverview.html"
+        Export-ReportToHTML -FilePath $FilePath -PageTitle "Public Folders Overview" -ReportTitle "Public Folders Overview" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
+    #Question to ask enduser for opening the HTMl report
+    $OpenHTMLfile=Read-Host "Do you wish to open HTML report file now?`nType Y(Yes) to open or N(No) to exit!"
+    if ($OpenHTMLfile -like "*y*")
+    {
+        Write-Host "Opening report...." -ForegroundColor Cyan
+        Start-Process $FilePath
+    }
+    #endregion ResultReport
+   
+# End of the Diag
+Write-Host "`nOutput was exported in the following location: $ExportPath" -ForegroundColor Yellow 
+Start-Sleep -Seconds 3
+Read-Key
+# Go back to the main menu
+Start-O365TroubleshootersMenu
      
-     
-     #condition for validation on root PFs have dumpsterentryIDs
-     ##add HRR MBXs in case exist
-     ##Think about adding Autosplit status will take so much time for huge enviroments
-     ##add MEPFs are synced using AD connect
-     ##add print for report to html
+     #TODOcondition for validation on root PFs have dumpsterentryIDs
+     #TODO specify HRR MBXs in case exist
+     #TODO Think about adding Autosplit status will take so much time for huge enviroments
+     #TODO add MEPFs are synced using AD connect
+     #TODO add print for report to html
   }
   
  Function ValidatePermission
@@ -603,7 +702,7 @@ Function Start-PFOverview{
          [parameter(Mandatory=$true)]
          [String]$Pfolder 
          )
- #Blockers in Red,add spaces in report name
+ 
  #region public folder diagnosis        
  try {
      $Publicfolder=Get-PublicFolder $Pfolder -ErrorAction stop
@@ -819,8 +918,7 @@ Function Start-PFOverview{
  $NON_IPM_SUBTREE|Format-List|Out-File -FilePath "$ExportPath\logs_$tstamp\NON_IPM_SUBTREE.txt" -NoClobber
  $DUMPSTER_ROOT|Format-List|Out-File -FilePath "$ExportPath\logs_$tstamp\DUMPSTER_ROOT.txt" -NoClobber
  Compress-Archive -Path "$ExportPath\logs_$tstamp" -DestinationPath $ExportPath\logs_$tstamp
- #modify copyrights from 2020 to 2021
- #add outputs are exported here 
+
  #relanuching main menu again
  Write-Host "`nOutput was exported in the following location: $ExportPath" -ForegroundColor Yellow 
      Start-Sleep -Seconds 3

@@ -66,10 +66,6 @@ $blockersinhtml='<span style="color: red">BLOCKERS</span>'
 $null = $TheObjectToConvertToHTML.Add($StartHTML)
 #endregion Intro with group name
 
-#Add checking elgibilty for command/ask bhala for running command in whatif upgrade-distributiongroup
-
-#region add check migration is in progress
-#endregion 
 
 #Region Check if Distribution Group can't be upgraded because Member*Restriction is set to "Closed"
 $ConditionMemberRestriction=New-Object PSObject
@@ -112,7 +108,8 @@ $ConditionEAP=New-Object PSObject
 # Bypass that step if there's no EAP 
  if($null -ne $eap)
  {
- $ViolatedEap = @( $eap | where-object{$_.RecipientFilter -eq "RecipientTypeDetails -eq 'GroupMailbox'" -and $_.EnabledPrimarySMTPAddressTemplate.ToString().Split("@")[1] -ne $dg.PrimarySmtpAddress.ToString().Split("@")[1]})
+     #added case sensitive operator to catch any difference even in letters of smtp address
+ $ViolatedEap = @( $eap | where-object{$_.RecipientFilter -eq "RecipientTypeDetails -eq 'GroupMailbox'" -and $_.EnabledPrimarySMTPAddressTemplate.ToString().Split("@")[1] -cne $dg.PrimarySmtpAddress.ToString().Split("@")[1]})
  if ($ViolatedEap.Count -ge 1) {
      <#$count=1
      foreach($violateeap in $ViolatedEap)
@@ -188,14 +185,16 @@ catch {
     $CurrentDescription = "Failure"
     write-log -Function "Retrieve All DGs" -Step $CurrentProperty -Description $CurrentDescription
 }  
+##TODO: modify write-log fuction helps solve the new line in my forloops demonstrate to Victor by commenting write-host over write-log function
+#I've commented write-log functions under try to remove enter spaces when quering members inside each DL
 $parentdgcount=1
 foreach($parentdg in $alldgs)
 {
     try {
         $Pmembers = Get-DistributionGroupMember $($parentdg.Guid.ToString()) -ErrorAction Stop
-        $CurrentProperty = "Retrieving: $parentdg members"
-        $CurrentDescription = "Success"
-        write-log -Function "Retrieve Distribution Group membership" -Step $CurrentProperty -Description $CurrentDescription
+        #$CurrentProperty = "Retrieving: $parentdg members"
+        #$CurrentDescription = "Success"
+        #write-log -Function "Retrieve Distribution Group membership" -Step $CurrentProperty -Description $CurrentDescription
     }
     catch {
         $CurrentProperty = "Retrieving: $parentdg members"
@@ -272,6 +271,8 @@ else {
 $ConditionDGowners=New-Object PSObject
 $owners=$dg.ManagedBy
 if ($owners.Count -gt 100) {
+    #add check to enter below region in case there are owners to check their mailboxes status
+    $checkifownerhasmailbox="Continuechecking"
     $ConditionDGowners|Add-Member -NotePropertyName "Owners Count" -NotePropertyValue "Owners are greater than 100"
     [PSCustomObject]$ConditionDGownersHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionDGowners -TableType "Table"
     $null = $TheObjectToConvertToHTML.Add($ConditionDGownersHTML)
@@ -282,11 +283,53 @@ if ($owners.Count -eq 0) {
     $null = $TheObjectToConvertToHTML.Add($ConditionDGownersHTML)
 }
 else {
+    #add check to enter below region in case there are owners to check their mailboxes status
+    $checkifownerhasmailbox="Continuechecking"
     $DGownersfound="Distrubtion group Owners found and are less than 100"
     [PSCustomObject]$ConditionDGownersHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDataString $DGownersfound
     $null = $TheObjectToConvertToHTML.Add($ConditionDGownersHTML)
 }
 #endregion Check if Distribution Group can't be upgraded because Distribution list which has more than 100 owners or it has no owner
+
+#new condition to check if owner has mailbox or not
+#region Check if Distribution Group can't be upgraded because anyone of the owners doesn't have a mailbox
+if ($checkifownerhasmailbox -match "Continuechecking")
+{
+    [string]$SectionTitle = "Validating Distribution Group Owners Mailbox Status"
+    [string]$Description = "Checking if Distribution Group can't be upgraded because it has one or more owners without mailboxes"
+    $ConditionDGownerswithoutMBX=@()
+    foreach($owner in $owners)
+    {
+        try {
+            $owner=Get-User $owner -ErrorAction stop
+            if ($owner.RecipientType -eq "User") 
+                { 
+                    $ConditionDGownerswithoutMBX=$ConditionDGownerswithoutMBX+$owner
+                }
+        }
+        catch {
+            $CurrentProperty = "Validating: $owner mailbox status"
+            $CurrentDescription = "Failure"
+            write-log -Function "Validate owner mailbox status" -Step $CurrentProperty -Description $CurrentDescription
+        }
+    }
+    if($ConditionDGownerswithoutMBX.Count -ge 1)
+    {
+        $ConditionDGownerswithoutMBX=$ConditionDGownerswithoutMBX|Select-Object Name,GUID,RecipientTypeDetails,PrimarySmtpAddress
+        [PSCustomObject]$ConditionDGownerswithoutMBXHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionDGownerswithoutMBX -TableType "Table"
+        $null = $TheObjectToConvertToHTML.Add($ConditionDGownerswithoutMBXHTML)
+    }
+    else {
+        $ownershaveMBXs="Distrubtion group Owner(s) having mailbox(es)"
+        [PSCustomObject]$ConditionDGownerswithoutMBXHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDataString $ownershaveMBXs
+        $null = $TheObjectToConvertToHTML.Add($ConditionDGownerswithoutMBXHTML)
+    }
+
+}
+else {
+    #There are no owners found
+}
+#endregion Check if Distribution Group can't be upgraded because anyone of the owners doesn't have a mailbox
 
 #region Check if Distribution Group can't be upgraded because the distribution list is part of Sender Restriction in another DL
 [string]$SectionTitle = "Validating Distribution Group Sender Restriction"
@@ -420,19 +463,6 @@ catch {
 
 #endregion Check for duplicate Alias,PrimarySmtpAddress,Name,DisplayName on EXO objects
 
-
-##Repro is done for all except EAP condition
-
-<#region finalizescript--Pending
-if($DGConditionsmet -gt 0){
-    "DG Upgrade Failed"|Out-file -FilePath $ExportPath\result.txt
-
-}
-else{
-    "DG Upgrade Succeeded"|Out-file -FilePath $ExportPath\result.txt
-    
-}
-#>
 
 #region ResultReport
 [string]$FilePath = $ExportPath + "\DistributionGroupUpgradeCheck.html"
