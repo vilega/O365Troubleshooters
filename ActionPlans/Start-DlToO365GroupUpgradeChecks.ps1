@@ -56,11 +56,14 @@ catch {
 [System.Collections.ArrayList]$TheObjectToConvertToHTML = @()
 
 #region Intro with group name 
-[string]$SectionTitle = "Introduction"
-[String]$article="https://docs.microsoft.com/en-us/microsoft-365/admin/manage/upgrade-distribution-lists?view=o365-worldwide"
-[string]$Description = "This report illustrates Distribution to O365 Group migration eligibility checks taken place over group SMTP: "+$dgsmtp+", Sections in RED are for migration BLOCKERS while Sections in GREEN are for migration ELIGIBILITIES"
-$Description=$Description+",for more informtion please check: $article"
 $blockersinhtml='<span style="color: red">BLOCKERS</span>'
+$Eligibilitiesinhtml='<span style="color: green">ELIGIBILITIES</span>'
+$Greeninhtml='<span style="color: green">GREEN</span>'
+$Redinhtml='<span style="color: red">RED</span>'
+[string]$SectionTitle = "Introduction"
+[String]$article='<a href="https://docs.microsoft.com/en-us/microsoft-365/admin/manage/upgrade-distribution-lists?view=o365-worldwide" target="_blank">Upgrade distribution lists to Microsoft 365 Groups in Outlook</a>'
+[string]$Description = "This report illustrates Distribution to O365 Group migration eligibility checks taken place over group SMTP: "+"<b>$dgsmtp</b>"+", Sections in$Redinhtml are for migration$blockersinhtml while Sections in$Greeninhtml are for migration$Eligibilitiesinhtml"
+$Description=$Description+",for more informtion please check: $article"
 [PSCustomObject]$StartHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString "Please ensure to mitigate $blockersinhtml in case found!"
 #[PSCustomObject]$StartHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString "Please ensure to mitigate migration BLOCKERS in case found!"
 $null = $TheObjectToConvertToHTML.Add($StartHTML)
@@ -90,7 +93,7 @@ $ConditionIsDirSynced|Add-Member -NotePropertyName "IsDirSynced" -NotePropertyVa
 [string]$SectionTitle = "Validating Distribution Group IsDirSynced Property"
 [string]$Description = "Checking if Distribution Group can't be upgraded because IsDirSynced value is true"    
 if ($dg.IsDirSynced -eq $true) {
-    [PSCustomObject]$ConditionIsDirSyncedHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionIsDirSynced -TableType "List"
+    [PSCustomObject]$ConditionIsDirSyncedHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionIsDirSynced -TableType "Table"
     $null = $TheObjectToConvertToHTML.Add($ConditionIsDirSyncedHTML)
 
 } 
@@ -185,8 +188,8 @@ catch {
     $CurrentDescription = "Failure"
     write-log -Function "Retrieve All DGs" -Step $CurrentProperty -Description $CurrentDescription
 }  
-##TODO: modify write-log fuction helps solve the new line in my forloops demonstrate to Victor by commenting write-host over write-log function
-#I've commented write-log functions under try to remove enter spaces when quering members inside each DL
+
+#I've commented write-log functions under try to remove enter spaces cursors when quering members inside each DL
 $parentdgcount=1
 foreach($parentdg in $alldgs)
 {
@@ -296,7 +299,7 @@ else {
 if ($checkifownerhasmailbox -match "Continuechecking")
 {
     [string]$SectionTitle = "Validating Distribution Group Owners Mailbox Status"
-    [string]$Description = "Checking if Distribution Group can't be upgraded because it has one or more owners without mailboxes"
+    [string]$Description = "Checking if Distribution Group can't be upgraded because one or more DL owners doesn't have a mailbox in Exchange Online"
     $ConditionDGownerswithoutMBX=@()
     foreach($owner in $owners)
     {
@@ -315,12 +318,12 @@ if ($checkifownerhasmailbox -match "Continuechecking")
     }
     if($ConditionDGownerswithoutMBX.Count -ge 1)
     {
-        $ConditionDGownerswithoutMBX=$ConditionDGownerswithoutMBX|Select-Object Name,GUID,RecipientTypeDetails,PrimarySmtpAddress
+        $ConditionDGownerswithoutMBX=$ConditionDGownerswithoutMBX|Select-Object Name,GUID,RecipientTypeDetails,UserPrincipalName
         [PSCustomObject]$ConditionDGownerswithoutMBXHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionDGownerswithoutMBX -TableType "Table"
         $null = $TheObjectToConvertToHTML.Add($ConditionDGownerswithoutMBXHTML)
     }
     else {
-        $ownershaveMBXs="Distrubtion group Owner(s) having mailbox(es)"
+        $ownershaveMBXs="Distrubtion group Owner(s) has mailbox(es) in Exchange Online"
         [PSCustomObject]$ConditionDGownerswithoutMBXHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDataString $ownershaveMBXs
         $null = $TheObjectToConvertToHTML.Add($ConditionDGownerswithoutMBXHTML)
     }
