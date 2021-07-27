@@ -1079,7 +1079,7 @@ function Write-Log {
         write-log -Function "Function Missing-Mailbox" -Step "Get_CASMailbox" -Description $error[0]
     #>  
     param ($function, $step, $Description)
-    Write-Host
+    #Write-Host
 
     $tserror = Get-Date -Format yyyyMMdd_hhmmss
     $currentRecord = "$tserror,$function,$step,$Description"
