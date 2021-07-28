@@ -106,12 +106,13 @@ else {
 #region Check if Distribution Group can't be upgraded because EmailAddressPolicyViolated
 $eap = Get-EmailAddressPolicy -ErrorAction stop
 [string]$SectionTitle = "Validating Distribution Group matching EmailAddressPolicy"
-[string]$Description = "Checking if Distribution Group can't be upgraded because Admin has applied Group Email Address Policy for the groups on the organization"
+[string]$Description = "Checking if Distribution Group can't be upgraded because Admin has applied Group Email Address Policy for the groups on the organization e.g. DL PrimarySmtpAddress @Contoso.com while the EAP EnabledPrimarySMTPAddressTemplate is @contoso.com OR DL PrimarySmtpAddress @contoso.com however there's an EAP with EnabledPrimarySMTPAddressTemplate set to @fabrikam.com"
 $ConditionEAP=New-Object PSObject    
 # Bypass that step if there's no EAP 
  if($null -ne $eap)
  {
      #added case sensitive operator to catch any difference even in letters of smtp address
+     #add case sensitive condition with information in case found a violation
  $ViolatedEap = @( $eap | where-object{$_.RecipientFilter -eq "RecipientTypeDetails -eq 'GroupMailbox'" -and $_.EnabledPrimarySMTPAddressTemplate.ToString().Split("@")[1] -cne $dg.PrimarySmtpAddress.ToString().Split("@")[1]})
  if ($ViolatedEap.Count -ge 1) {
      <#$count=1
@@ -119,6 +120,14 @@ $ConditionEAP=New-Object PSObject
      {
          $ConditionEAP|Add-Member -NotePropertyName "EmailAddressPolicy$count Name" -NotePropertyValue $violateeap
          $count++
+    }
+    #>
+    #check if it's case sensitive or not
+     <#
+    $GetnotcasesensintiveiolatedEap = @( $eap | where-object{$_.RecipientFilter -eq "RecipientTypeDetails -eq 'GroupMailbox'" -and $_.EnabledPrimarySMTPAddressTemplate.ToString().Split("@")[1] -ne $dg.PrimarySmtpAddress.ToString().Split("@")[1]})
+    if($ViolatedEap|ForEach-Object{$_.EnabledPrimarySMTPAddressTemplate.split("@")[1] -ne $GetnotcasesensintiveiolatedEap.EnabledPrimarySMTPAddressTemplate.split("@")[1]})
+    {
+        #Case sensitive EAP found
     }
     #>
     $ConditionEAP=$ViolatedEap|Select-Object Identity,Priority,@{label='PrimarySMTPAddressTemplate';expression={($_.EnabledPrimarySMTPAddressTemplate).split("@")[1]}} |Sort-Object priority
@@ -280,7 +289,7 @@ if ($owners.Count -gt 100) {
     [PSCustomObject]$ConditionDGownersHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionDGowners -TableType "Table"
     $null = $TheObjectToConvertToHTML.Add($ConditionDGownersHTML)
 } 
-if ($owners.Count -eq 0) {
+elseif ($owners.Count -eq 0) {
     $ConditionDGowners|Add-Member -NotePropertyName "Owners Count" -NotePropertyValue "No owners found"
     [PSCustomObject]$ConditionDGownersHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionDGowners -TableType "Table"
     $null = $TheObjectToConvertToHTML.Add($ConditionDGownersHTML)
