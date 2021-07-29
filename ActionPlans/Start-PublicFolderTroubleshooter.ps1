@@ -994,7 +994,9 @@ $menuchoice = $menuchoice.ToLower()
 if ($menuchoice -eq 1)
 {
     #HTML report in next release
-    Write-host "This diagnostic is going to be generating HTML report output over O365Troubleshooter upcoming release!" -ForegroundColor Yellow
+    Write-Warning "This diagnostic is going to be generating HTML report output over O365Troubleshooter upcoming release!"
+    Write-Warning "This diagnostic is tested on small public folder enviroments (1k) so please expect some delay if you have medium to huge public folder enviroments!" 
+    ##TODO allow some time warning for huge enviroments of PFs
     Read-Key
     #Clear-Host
     Start-PFOverview
