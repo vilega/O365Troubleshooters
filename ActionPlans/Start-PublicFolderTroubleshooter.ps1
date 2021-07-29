@@ -391,8 +391,7 @@ Function Start-PFOverview{
         if($DirectoryBasedEdgeBlockModeStatus -like "Default")
         {
          Write-Host "DirectoryBasedEdgeBlockModeStatus = Enabled"
-         $MEPFAction="Any mail sent to Mail Enabled Public Folders (MEPF) will be dropped at the service network perimeter because DBEB is enabled in the default connection filter policy, 
-         so to bypass that please ensure that MEPFs smtp aliases domains are not existing below (the smtp alias DomainType is set to InternalRelay) or file a support case for microsoft to disable DBEB on the whole tenant(Recommended)!"
+         $MEPFAction="Any mail sent to Mail Enabled Public Folders (MEPF) will be dropped at the service network perimeter because DBEB is enabled in the default connection filter policy, so to bypass that please ensure that MEPFs smtp aliases domains are not existing on the table below (MEPF smtp alias DomainType should be set to InternalRelay) or file a support case for microsoft to disable DBEB on the whole tenant(Recommended)!"
          $PFInfo|Add-Member -NotePropertyName "Directory Based Edge Block Mode Status" -NotePropertyValue "Enabled"
         }
         else {
@@ -413,7 +412,7 @@ Function Start-PFOverview{
             $publicfolderservinghierarchyMBXs=$PublicFolderMailboxes|Where-Object{$_.IsExcludedFromServingHierarchy -like "false" -and $_.IsHierarchyReady -like "true"}
             [Int]$PublicFoldersCount=($Publicfolders).count - 1
             Write-Host "PublicFolderMailboxesCount = $PublicFolderMailboxesCount"
-            Write-Host "PublicFolderServingHierarchyMailboxesCount = $($publicfolderservinghierarchyMBXs.name.count)"
+            Write-Host "PublicFolderHierarchyServingMailboxesCount = $($publicfolderservinghierarchyMBXs.name.count)"
             Write-Host "PublicFoldersCount = $PublicFoldersCount"
             Write-Host "RootPublicFolderMailbox = $RootPublicFolderMailbox"
             Write-Host "OrganizationPublicFolderProhibitPostQuota" = $OrganizationConfig.DefaultPublicFolderProhibitPostQuota.Split("(")[0]
@@ -507,7 +506,7 @@ Function Start-PFOverview{
         #List the endusers count served by root PF MBX
         Write-Host $UserswithrootPFMBXcount" user(s) found served by primary public folder mailbox, It's not recommended to use root public folder mailbox to serve hierarchy!"
         #List the PFs count hosted on root PF MBX
-        Write-host "RootPublicFolderMailbox is hosting content of $PFsonrootPFMBXcount Public folder(s),it's recommended to stop creating public folders hosted on the primary public folder mailbox!"
+        Write-host "RootPublicFolderMailbox is hosting content of $PFsonrootPFMBXcount Public folder(s), it's recommended to stop creating public folders hosted on the primary public folder mailbox!"
         $healthchecks|Add-Member -NotePropertyName "Root PublicFolder Mailbox is not used to serve hierachy" -NotePropertyValue "False"
         $healthchecks|Add-Member -NotePropertyName "Root PublicFolder Mailbox is not hosting content of Public folders" -NotePropertyValue "False"
         [PSCustomObject]$RootPFMBXHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $healthchecks -TableType "List"
@@ -517,7 +516,7 @@ Function Start-PFOverview{
     elseif($healthcheck1 -match "success" -and $healthcheck2 -match "fail"){
         Write-Host "Primary public folder mailbox diagnosis:" -ForegroundColor Black -BackgroundColor Red
         #List the PFs count hosted on root PF MBX
-        Write-host "RootPublicFolderMailbox is hosting content of $PFsonrootPFMBXcount Public folder(s),it's recommended to stop creating public folders hosted on the primary public folder mailbox!"
+        Write-host "RootPublicFolderMailbox is hosting content of $PFsonrootPFMBXcount Public folder(s), it's recommended to stop creating public folders hosted on the primary public folder mailbox!"
         $healthchecks|Add-Member -NotePropertyName "Root PublicFolder Mailbox is not used to serve hierachy" -NotePropertyValue "True"
         $healthchecks|Add-Member -NotePropertyName "Root PublicFolder Mailbox is not hosting content of Public folders" -NotePropertyValue "False"
         [PSCustomObject]$RootPFMBXHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $healthchecks -TableType "List"
@@ -590,8 +589,7 @@ Function Start-PFOverview{
         write-host "Mail-enabled Public Folders Health Check:" -ForegroundColor Black -BackgroundColor Red
         Write-Host $MEPFAction
         $Authaccepteddomains|Format-Table Name,DomainName,DomainType
-        [PSCustomObject]$MEPFcheckHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDataString "Any mail sent to Mail Enabled Public Folders (MEPF) will be dropped at the service network perimeter because DBEB is enabled in the default connection filter policy, 
-        so to bypass that please ensure that MEPFs smtp aliases domains are not existing below (the smtp alias DomainType is set to InternalRelay) or file a support case for microsoft to disable DBEB on the whole tenant(Recommended)!"       
+        [PSCustomObject]$MEPFcheckHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDataString $MEPFAction
      }
      else {
         [PSCustomObject]$MEPFcheckHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDataString "DBEB is disabled across the tenant which will allow MEPFs to receive external mails normally"
@@ -655,17 +653,17 @@ Function Start-PFOverview{
              if($UnhealthygiantOrgPF.Count -ge 1)
              {
                  Write-host "Giant public folder(s) found exceeding OrganizationProhibitPostQuota:`n====================================================================="
-                 $UnhealthygiantOrgPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,EntryID
+                 $UnhealthygiantOrgPF|Format-Table -Wrap -AutoSize Name,Identity,EntryID
              }
              if($unhealthyOrgPF.Count -ge 1)
              {
                  Write-host "Public folder(s) found exceeding OrganizationProhibitPostQuota:`n==============================================================="
-                 $unhealthyOrgPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,EntryID
+                 $unhealthyOrgPF|Format-Table -Wrap -AutoSize Name,Identity,EntryID
              }
              if($GiantPF.Count -ge 1)
              {
                  Write-host "Giant Public folder(s) found:`n============================="
-                 $GiantPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,EntryID
+                 $GiantPF|Format-Table -Wrap -AutoSize Name,Identity,EntryID
              }
          }
          if ($unhealthyPFcountapproachingIndQuota -ge 1)
@@ -685,7 +683,7 @@ Function Start-PFOverview{
              if($GiantPF.Count -ge 1)
              {
                  Write-host "Giant Public folder(s) found:`n============================="
-                 $GiantPF|Format-Table -Wrap -AutoSize Name,Identity,FolderSize,EntryID
+                 $GiantPF|Format-Table -Wrap -AutoSize Name,Identity,EntryID
              }
          }
          else 
@@ -996,9 +994,8 @@ $menuchoice = $menuchoice.ToLower()
 if ($menuchoice -eq 1)
 {
     #HTML report in next release
-    Write-Warning "This diagnostic is going to be generating HTML report output over O365Troubleshooter upcoming release!"
+    Write-Warning "This diagnostic is going to be generating HTML report output over the next O365Troubleshooter upcoming release!"
     Write-Warning "This diagnostic is tested on small public folder enviroments (1k) so please expect some delay if you have medium to huge public folder enviroments!" 
-    ##TODO allow some time warning for huge enviroments of PFs
     Read-Key
     #Clear-Host
     Start-PFOverview
