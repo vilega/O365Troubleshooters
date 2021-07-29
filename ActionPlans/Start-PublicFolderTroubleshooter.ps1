@@ -410,8 +410,10 @@ Function Start-PFOverview{
         $PFInfo|Add-Member -NotePropertyName "Public Folders Location" -NotePropertyValue $PublicFoldersLocation
         if ($PublicFoldersLocation -eq "Local") {
             $Publicfolders=Get-PublicFolder -Recurse -ResultSize unlimited |Where-Object {$_.Name -notmatch "IPM_SUBTREE"} -ErrorAction stop
+            $publicfolderservinghierarchyMBXs=$PublicFolderMailboxes|Where-Object{$_.IsExcludedFromServingHierarchy -like "false" -and $_.IsHierarchyReady -like "true"}
             [Int]$PublicFoldersCount=($Publicfolders).count - 1
             Write-Host "PublicFolderMailboxesCount = $PublicFolderMailboxesCount"
+            Write-Host "PublicFolderServingHierarchyMailboxesCount = $($publicfolderservinghierarchyMBXs.name.count)"
             Write-Host "PublicFoldersCount = $PublicFoldersCount"
             Write-Host "RootPublicFolderMailbox = $RootPublicFolderMailbox"
             Write-Host "OrganizationPublicFolderProhibitPostQuota" = $OrganizationConfig.DefaultPublicFolderProhibitPostQuota.Split("(")[0]
@@ -454,7 +456,7 @@ Function Start-PFOverview{
      $null = $TheObjectToConvertToHTML.Add($PFInfoHTML)
      #endregion main public folders overview information
      #region retrieve publicfolderservinghierarchyMBXs and check if rootPF MBX is serving hierarchy
-     $publicfolderservinghierarchyMBXs=$PublicFolderMailboxes|Where-Object{$_.IsExcludedFromServingHierarchy -like "false" -and $_.IsHierarchyReady -like "true"}
+     #$publicfolderservinghierarchyMBXs=$PublicFolderMailboxes|Where-Object{$_.IsExcludedFromServingHierarchy -like "false" -and $_.IsHierarchyReady -like "true"}
      Write-Host "Public folder mailboxes serving hierarchy: " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
      $publicfolderservinghierarchyMBXs|Format-Table -Wrap -AutoSize  Name,Alias,Guid,ExchangeGuid
      [string]$SectionTitle = "Public folder mailboxes serving hierarchy"
