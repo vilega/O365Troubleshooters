@@ -457,7 +457,7 @@ Function Start-PFOverview{
      #region retrieve publicfolderservinghierarchyMBXs and check if rootPF MBX is serving hierarchy
      #$publicfolderservinghierarchyMBXs=$PublicFolderMailboxes|Where-Object{$_.IsExcludedFromServingHierarchy -like "false" -and $_.IsHierarchyReady -like "true"}
      Write-Host "Public folder mailboxes serving hierarchy: " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
-     $publicfolderservinghierarchyMBXs|Format-Table -Wrap -AutoSize  Name,Alias,Guid,ExchangeGuid
+     $publicfolderservinghierarchyMBXs|Format-Table -Wrap -AutoSize  Name,Guid,ExchangeGuid
      [string]$SectionTitle = "Public folder mailboxes serving hierarchy"
      [string]$Description = "This section illustrates information about public folder mailboxes serving PF hierarchy to end-users" 
      $PFServMBXs=@()
