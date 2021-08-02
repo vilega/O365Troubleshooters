@@ -106,7 +106,7 @@ else {
 #region Check if Distribution Group can't be upgraded because EmailAddressPolicyViolated
 $eap = Get-EmailAddressPolicy -ErrorAction stop
 [string]$SectionTitle = "Validating Distribution Group matching EmailAddressPolicy"
-[string]$Description = "Checking if Distribution Group can't be upgraded because Admin has applied Group Email Address Policy for the groups on the organization e.g. DL PrimarySmtpAddress @Contoso.com while the EAP EnabledPrimarySMTPAddressTemplate is @contoso.com OR DL PrimarySmtpAddress @contoso.com however there's an EAP with EnabledPrimarySMTPAddressTemplate set to @fabrikam.com"
+[string]$Description = "Checking if Distribution Group can't be upgraded because Admin has applied Group Email Address Policy for the groups on the organization e.g. DL PrimarySmtpAddress @"+"<b>C</b>"+"ontoso.com while the EAP EnabledPrimarySMTPAddressTemplate is @"+"<b>c</b>"+"ontoso.com (case-sensitive condition should match) OR DL PrimarySmtpAddress @contoso.com however there's an EAP with EnabledPrimarySMTPAddressTemplate set to @fabrikam.com"
 $ConditionEAP=New-Object PSObject    
 # Bypass that step if there's no EAP 
  if($null -ne $eap)
