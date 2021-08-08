@@ -314,8 +314,11 @@ if ($checkifownerhasmailbox -match "Continuechecking")
     {
         try {
             $owner=Get-Recipient $owner -ErrorAction stop
-            if ($owner.RecipientTypeDetails -ne "UserMailbox" -and $owner.RecipientTypeDetails -ne "MailUser") 
+            if ($owner.RecipientTypeDetails -eq "UserMailbox" -or $owner.RecipientTypeDetails -eq "MailUser") 
                 { 
+                   #Do Nothing
+                }
+                else{
                     $ConditionDGownernonsupported=$ConditionDGownernonsupported+$owner
                 }
         }
