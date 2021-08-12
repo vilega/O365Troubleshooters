@@ -12,7 +12,7 @@
 RootModule = '.\O365Troubleshooters.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.0.0.20'
+ModuleVersion = '2.0.0.22'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -136,6 +136,8 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = '
+        2.0.0.22 - Improved DltoGroupschecker diagnostic
+        2.0.0.21 - Fix minor issue on logging; Improved existing Dl To O365Group Upgrade Checks; Added console and logic for PF Dumpster investigation
         2.0.0.20 - Improved EXO and SCC connection
         2.0.0.19 - Minor fixes
         2.0.0.18 - Minor fixes to assure PowerShellGet will be installed and temporary switched to default modern auth window

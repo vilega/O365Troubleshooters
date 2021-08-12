@@ -303,45 +303,50 @@ else {
 }
 #endregion Check if Distribution Group can't be upgraded because Distribution list which has more than 100 owners or it has no owner
 
-#new condition to check if owner has mailbox or not
-#region Check if Distribution Group can't be upgraded because anyone of the owners doesn't have a mailbox
+#region Check if Distribution Group can't be upgraded because the distribution list owner(s) is non-supported with RecipientTypeDetails other than UserMailbox, MailUser
 if ($checkifownerhasmailbox -match "Continuechecking")
 {
-    [string]$SectionTitle = "Validating Distribution Group Owners Mailbox Status"
-    [string]$Description = "Checking if Distribution Group can't be upgraded because one or more DL owners doesn't have a mailbox in Exchange Online"
-    $ConditionDGownerswithoutMBX=@()
+    [string]$SectionTitle = "Validating Distribution Group Owners RecipientTypeDetails"
+    [string]$Description = "Checking if Distribution Group can't be upgraded because DL owner(s) is non-supported with RecipientTypeDetails other than UserMailbox, MailUser"
+    $ConditionDGownernonsupported=@()
+    $ConditionDGownernonsupportedforusers=@()
     foreach($owner in $owners)
     {
         try {
-            $owner=Get-User $owner -ErrorAction stop
-            if ($owner.RecipientType -eq "User") 
+            $owner=Get-Recipient $owner -ErrorAction stop
+            if (!($owner.RecipientTypeDetails -eq "UserMailbox" -or $owner.RecipientTypeDetails -eq "MailUser")) 
                 { 
-                    $ConditionDGownerswithoutMBX=$ConditionDGownerswithoutMBX+$owner
+                    $ConditionDGownernonsupported=$ConditionDGownernonsupported+$owner
                 }
-        }
+            }
         catch {
-            $CurrentProperty = "Validating: $owner mailbox status"
+            $CurrentProperty = "Validating: $owner RecipientTypeDetails"
             $CurrentDescription = "Failure"
-            write-log -Function "Validate owner mailbox status" -Step $CurrentProperty -Description $CurrentDescription
+            write-log -Function "Validate owner RecipientTypeDetails" -Step $CurrentProperty -Description $CurrentDescription
+            #check if the owner RecipientTypeDetails is User
+            $owner=Get-User $owner -ErrorAction stop
+            $ConditionDGownernonsupportedforusers=$ConditionDGownernonsupportedforusers+$owner
         }
     }
-    if($ConditionDGownerswithoutMBX.Count -ge 1)
+
+    if($ConditionDGownernonsupported.Count -ge 1 -or $ConditionDGownernonsupportedforusers.Count -ge 1)
     {
-        $ConditionDGownerswithoutMBX=$ConditionDGownerswithoutMBX|Select-Object Name,GUID,RecipientTypeDetails,UserPrincipalName
-        [PSCustomObject]$ConditionDGownerswithoutMBXHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionDGownerswithoutMBX -TableType "Table"
-        $null = $TheObjectToConvertToHTML.Add($ConditionDGownerswithoutMBXHTML)
+        $ConditionDGownernonsupported=$ConditionDGownernonsupported+$ConditionDGownernonsupportedforusers
+        $ConditionDGownernonsupported=$ConditionDGownernonsupported|Select-Object Name,GUID,RecipientTypeDetails
+        [PSCustomObject]$ConditionDGownernonsupportedHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionDGownernonsupported -TableType "Table"
+        $null = $TheObjectToConvertToHTML.Add($ConditionDGownernonsupportedHTML)
     }
     else {
-        $ownershaveMBXs="Distrubtion group Owner(s) has mailbox(es) in Exchange Online"
-        [PSCustomObject]$ConditionDGownerswithoutMBXHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDataString $ownershaveMBXs
-        $null = $TheObjectToConvertToHTML.Add($ConditionDGownerswithoutMBXHTML)
+        $ownershaveMBXs="Distrubtion group Owner(s) RecipientTypeDetails is supported"
+        [PSCustomObject]$ConditionDGownernonsupportedHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDataString $ownershaveMBXs
+        $null = $TheObjectToConvertToHTML.Add($ConditionDGownernonsupportedHTML)
     }
 
 }
 else {
     #There are no owners found
 }
-#endregion Check if Distribution Group can't be upgraded because anyone of the owners doesn't have a mailbox
+#endregion Check if Distribution Group can't be upgraded because the distribution list owner(s) is non-supported with RecipientTypeDetails other than UserMailbox, MailUser
 
 #region Check if Distribution Group can't be upgraded because the distribution list is part of Sender Restriction in another DL
 [string]$SectionTitle = "Validating Distribution Group Sender Restriction"
