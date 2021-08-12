@@ -314,14 +314,11 @@ if ($checkifownerhasmailbox -match "Continuechecking")
     {
         try {
             $owner=Get-Recipient $owner -ErrorAction stop
-            if ($owner.RecipientTypeDetails -eq "UserMailbox" -or $owner.RecipientTypeDetails -eq "MailUser") 
+            if (!($owner.RecipientTypeDetails -eq "UserMailbox" -or $owner.RecipientTypeDetails -eq "MailUser")) 
                 { 
-                   #Do Nothing
-                }
-                else{
                     $ConditionDGownernonsupported=$ConditionDGownernonsupported+$owner
                 }
-        }
+            }
         catch {
             $CurrentProperty = "Validating: $owner RecipientTypeDetails"
             $CurrentDescription = "Failure"
@@ -331,23 +328,12 @@ if ($checkifownerhasmailbox -match "Continuechecking")
             $ConditionDGownernonsupportedforusers=$ConditionDGownernonsupportedforusers+$owner
         }
     }
-    if($ConditionDGownernonsupported.Count -ge 1 -and $ConditionDGownernonsupportedforusers.Count -ge 1)
+
+    if($ConditionDGownernonsupported.Count -ge 1 -or $ConditionDGownernonsupportedforusers.Count -ge 1)
     {
-       # $ConditionDGownernonsupported=$ConditionDGownernonsupported|Select-Object Name,GUID,RecipientTypeDetails
-       # $ConditionDGownernonsupportedforusers=$ConditionDGownernonsupportedforusers|Select-Object Name,GUID,RecipientTypeDetails
         $ConditionDGownernonsupported=$ConditionDGownernonsupported+$ConditionDGownernonsupportedforusers
         $ConditionDGownernonsupported=$ConditionDGownernonsupported|Select-Object Name,GUID,RecipientTypeDetails
         [PSCustomObject]$ConditionDGownernonsupportedHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionDGownernonsupported -TableType "Table"
-        $null = $TheObjectToConvertToHTML.Add($ConditionDGownernonsupportedHTML)
-    }
-    elseif ($ConditionDGownernonsupported.Count -ge 1 -and $ConditionDGownernonsupportedforusers.Count -lt 1) {
-        $ConditionDGownernonsupported=$ConditionDGownernonsupported|Select-Object Name,GUID,RecipientTypeDetails,PrimarySmtpAddress
-        [PSCustomObject]$ConditionDGownernonsupportedHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionDGownernonsupported -TableType "Table"
-        $null = $TheObjectToConvertToHTML.Add($ConditionDGownernonsupportedHTML)
-    }
-    elseif ($ConditionDGownernonsupported.Count -lt 1 -and $ConditionDGownernonsupportedforusers.Count -ge 1) {
-        $ConditionDGownernonsupportedforusers=$ConditionDGownernonsupportedforusers|Select-Object Name,GUID,RecipientTypeDetails,UserPrincipalName
-        [PSCustomObject]$ConditionDGownernonsupportedHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionDGownernonsupportedforusers -TableType "Table"
         $null = $TheObjectToConvertToHTML.Add($ConditionDGownernonsupportedHTML)
     }
     else {
