@@ -695,7 +695,7 @@ Function Start-PFOverview{
      }
      
      #endregion add health quota check on PFs approaching individual/organization prohibitpostquota,check if we have Giant PFs
-    <#
+    
      #region ResultReport
         [string]$FilePath = $ExportPath + "\PublicFolderOverview.html"
         Export-ReportToHTML -FilePath $FilePath -PageTitle "Public Folders Overview" -ReportTitle "Public Folders Overview" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
@@ -707,7 +707,7 @@ Function Start-PFOverview{
         Start-Process $FilePath
     }
     #endregion ResultReport
-    #>
+    
    
 # End of the Diag
 #Write-Host "`nOutput was exported in the following location: $ExportPath" -ForegroundColor Yellow 
