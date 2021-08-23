@@ -203,6 +203,7 @@ $parentdgcount=1
 foreach($parentdg in $alldgs)
 {
     try {
+        write-host ""
         $Pmembers = Get-DistributionGroupMember $($parentdg.Guid.ToString()) -ErrorAction Stop
         #$CurrentProperty = "Retrieving: $parentdg members"
         #$CurrentDescription = "Success"
