@@ -2,8 +2,9 @@ Clear-Host
 $encodedURL  = Read-Host("Please provide the ATP SafeLinks URL that you want to decode to original URL")
 Add-Type -AssemblyName System.Web
 
+
 try
-{   
+{   # Decode URL using UrlDecode from System.Web.HttpUtility
     $decodedURL = [System.Web.HttpUtility]::UrlDecode($encodedURL)
     #$decodedURL = (($decodedURL -Split "url=")[1] -split "&data=;")[0]
     if($decodedURL -match ".safelinks.protection.outlook.com\/\?url=.+&data=")
