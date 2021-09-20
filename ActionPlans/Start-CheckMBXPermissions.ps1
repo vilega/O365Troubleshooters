@@ -19,9 +19,8 @@ $ExportPath = "$global:WSPath\MailboxDiagnosticLogs_$ts"
 mkdir $ExportPath -Force |out-null
 
 
-$mbx = Read-Host "SMTP: "
-Write-Host $mbx.Name
-
+$mbx = Read-Host "SMTP "
+write-host (Get-Mailbox $mbx).Name
 
 
 
