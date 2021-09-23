@@ -6,6 +6,7 @@ Start-O365TroubleshootersMenu
 #>
 
 
+<#
 function Get-AllNoneUserDefaultMailboxFolderPermissions {
 
     #Extracting the Name attribute for the mailbox
@@ -28,8 +29,7 @@ function Get-AllNoneUserDefaultMailboxFolderPermissions {
     
         $foldername = $folder.Identity.ToString().Replace([char]63743, "/").Replace($alias, $SMTP + ":")
     
-        try
-        {
+        try {
     
             $MBrights = Get-MailboxFolderPermission -Identity "$foldername" -ErrorAction Stop | ? { ($_.User.tostring() -eq "Default") -and !($_.AccessRights.contains("None")) }
     
@@ -50,8 +50,7 @@ function Get-AllNoneUserDefaultMailboxFolderPermissions {
     
     return ($rights + $MBRightsRoot)
     
-}
-
+}#>
 
 
 function Get-AllDefaultUserMailboxFolderPermissions {
@@ -76,8 +75,7 @@ function Get-AllDefaultUserMailboxFolderPermissions {
     
         $foldername = $folder.Identity.ToString().Replace([char]63743, "/").Replace($alias, $SMTP + ":")
     
-        try
-        {
+        try {
     
             $MBrights = Get-MailboxFolderPermission -Identity "$foldername" -ErrorAction Stop
     
@@ -131,12 +129,11 @@ Write-Host "EquipmentMailbox" -ForegroundColor Magenta
 Write-Host "======================" -ForegroundColor Gray
 
 $Type = Read-Host -Prompt "Please type the RecipientTypeDetails for which you wish to get the information, available values are shown above"
-$options ="SharedMailbox","UserMailbox","RoomMailbox","EquipmentMailbox","Specific SMTP Address"
+$options = "SharedMailbox", "UserMailbox", "RoomMailbox", "EquipmentMailbox", "Specific SMTP Address"
 $Type = $options | out-gridview -Title "Please select...." -outputmode single
-if ($Type -eq "Specific SMTP Address")
-{
-   $address = Read-Host "Please type the full SMTP Address" 
-   $UPN = Get-Mailbox -Identity $address | select UserPrincipalName
+if ($Type -eq "Specific SMTP Address") {
+    $address = Read-Host "Please type the full SMTP Address" 
+    $UPN = Get-Mailbox -Identity $address | select UserPrincipalName
 
 }
 
@@ -156,18 +153,6 @@ foreach ($MBX in $UPN) {
 
 
 }
-
-
-#foreach ($MBX in $UPN) {
-
-
-    #Export a CSV file for each mailbox, that contains the default folders where the Default user has AccessRights set to other than None, their associated permissions and the Primary SMTP address of the mailbox in question.
-    
-    
-    #Get-AllNoneUserDefaultMailboxFolderPermissions  | Export-Csv -Path "$(($MBX.ToString()))_NoneDefaultMailboxFolderPermissions.csv" -NoTypeInformation -Encoding UTF8 -UseCulture
- 
-    
-#}
 
 
 Read-Key
