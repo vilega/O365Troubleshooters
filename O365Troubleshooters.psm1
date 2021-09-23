@@ -1839,8 +1839,17 @@ Function    Start-O365Troubleshooters {
                 Exit
             }
         }
-        Set-GlobalVariables
-        Start-O365TroubleshootersMenu
+        try {
+            Set-GlobalVariables
+            Start-O365TroubleshootersMenu
+        }
+        catch {
+            Write-Host "Script Encountered an un-handled exception! This will exported in Folder: $([Environment]::GetFolderPath("Desktop"))\PowerShellOutputs\"
+            $_ | Export-Clixml -Depth 100 -Path "$([Environment]::GetFolderPath("Desktop"))\PowerShellOutputs\PowerShellOutputs_UnhandledError_$(Get-Date -Format yyyyMMdd_HHmmss).xml"
+            Start-Sleep -Seconds 5
+            Exit
+        }
+
     }
 }
 
