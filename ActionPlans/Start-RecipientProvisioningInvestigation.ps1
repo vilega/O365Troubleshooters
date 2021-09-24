@@ -70,6 +70,13 @@ Get-Recipient $EXOADUserbyUPN.ExternalDirectoryObjectId | export-CliXml -Depth 3
 
 # Prepare-ObjectForHTMLReport
 
+[string]$SectionTitle = "Searching for duplicate objects having the same value on their properties"
+[string]$Description = "Searching for duplicate objects having the same value on their properties"
+
+[PSCustomObject]$Intro = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -TableType "Table"
+
+$null = $TheObjectToConvertToHTML.Add($Intro)
+
 # Check if UPN value is already in use on different object as other property
 
 ## Check in AzureAD
@@ -110,7 +117,7 @@ $allAADUsers= Get-AzureADUser -All:$true | select DisplayName,mail,ProxyAddresse
 	[string]$SectionTitle = "Searching for AzureADUsers"
 	[string]$Description = "Check for multiple conflicting objects"
 	#select object id unique, count
-	[PSCustomObject]$SearchingInAzureAdUsers = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "ArrayList" -EffectiveDataArrayList $MyADUsersCheckObject -TableType "Table"
+	[PSCustomObject]$SearchingInAzureAdUsers = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $MyADUsersCheckObject -TableType "Table"
 
 	$null = $TheObjectToConvertToHTML.Add($SearchingInAzureAdUsers)
 	
@@ -155,7 +162,7 @@ $allAADGroups= Get-AzureADGroup -All:$true | select DisplayName,mail,ProxyAddres
 	[string]$Description = "Check for multiple conflicting objects"
 	#select object id unique, count
 	[PSCustomObject]$SearchingInAzureADGroups = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description `
-	-DataType "ArrayList" -EffectiveDataArrayList $MyADGroupsCheckObject -TableType "Table"
+	-DataType "CustomObject" -EffectiveDataArrayList $MyADGroupsCheckObject -TableType "Table"
 
 	$null = $TheObjectToConvertToHTML.Add($SearchingInAzureADGroups)
 
@@ -196,7 +203,7 @@ $allAADContacts= Get-AzureADContact -All:$true | select DisplayName,mail,ProxyAd
 	[string]$Description = "Check for multiple conflicting objects"
 	
 	[PSCustomObject]$SearchingInAzureADContacts = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description `
-	-DataType "ArrayList" -EffectiveDataArrayList $MyADContactsCheckObject -TableType "Table"
+	-DataType "CustomObject" -EffectiveDataArrayList $MyADContactsCheckObject -TableType "Table"
 
 	$null = $TheObjectToConvertToHTML.Add($SearchingInAzureADContacts)
 
@@ -238,7 +245,7 @@ $allMSOLUsers= Get-MsolUser -All | select DisplayName,SignInName,ProxyAddresses,
 	[string]$Description = "Check for multiple conflicting objects"
 	
 	[PSCustomObject]$SearchingInMSOLUsers = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description `
-	-DataType "ArrayList" -EffectiveDataArrayList $MyMSOLUsersCheckObject -TableType "Table"
+	-DataType "CustomObject" -EffectiveDataArrayList $MyMSOLUsersCheckObject -TableType "Table"
 
 	$null = $TheObjectToConvertToHTML.Add($SearchingInMSOLUsers)
 
@@ -279,7 +286,7 @@ $allMSOLDeletedUsers= Get-MsolUser -All -ReturnDeletedUsers | select DisplayName
 	[string]$Description = "Check for multiple conflicting objects"
 	
 	[PSCustomObject]$SearchingInMSOLDeletedUsers = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description `
-	-DataType "ArrayList" -EffectiveDataArrayList $MyMSOLDeletedUsersCheckObject -TableType "Table"
+	-DataType "CustomObject" -EffectiveDataArrayList $MyMSOLDeletedUsersCheckObject -TableType "Table"
 
 	$null = $TheObjectToConvertToHTML.Add($SearchingInMSOLDeletedUsers)
 
@@ -322,7 +329,7 @@ $allMSOLGroups= Get-MSOLGroup -All:$true | select DisplayName,EmailAddress,Proxy
 	[string]$Description = "Check for multiple conflicting objects"
 	
 	[PSCustomObject]$SearchingInMSOLGroups = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description `
-	-DataType "ArrayList" -EffectiveDataArrayList $MyMSOLGroupsCheckObject -TableType "Table"
+	-DataType "CustomObject" -EffectiveDataArrayList $MyMSOLGroupsCheckObject -TableType "Table"
 
 	$null = $TheObjectToConvertToHTML.Add($SearchingInMSOLGroups)
 
@@ -363,7 +370,7 @@ $allMSOLContacts= Get-MSOLContact -All:$true | select DisplayName,EmailAddress,P
 	[string]$Description = "Check for multiple conflicting objects"
 	
 	[PSCustomObject]$SearchingInMSOLContacts = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description `
-	-DataType "ArrayList" -EffectiveDataArrayList $MyMSOLContactsCheckObject -TableType "Table"
+	-DataType "CustomObject" -EffectiveDataArrayList $MyMSOLContactsCheckObject -TableType "Table"
 
 	$null = $TheObjectToConvertToHTML.Add($SearchingInMSOLContacts)
 
@@ -407,7 +414,7 @@ if(!$FoundExistence){
 [string]$Description = "Check for multiple conflicting objects"
 
 [PSCustomObject]$SearchingInRecipients = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description `
--DataType "ArrayList" -EffectiveDataArrayList $MyRecipientsCheckObject -TableType "Table"
+-DataType "CustomObject" -EffectiveDataArrayList $MyRecipientsCheckObject -TableType "Table"
 
 $null = $TheObjectToConvertToHTML.Add($SearchingInRecipients)
 
@@ -449,7 +456,7 @@ if(!$FoundExistence){
 [string]$Description = "Check for multiple conflicting objects"
 
 [PSCustomObject]$SearchingInMailContacts = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description `
--DataType "ArrayList" -EffectiveDataArrayList $MyMailContactsCheckObject -TableType "Table"
+-DataType "CustomObject" -EffectiveDataArrayList $MyMailContactsCheckObject -TableType "Table"
 
 $null = $TheObjectToConvertToHTML.Add($SearchingInMailContacts)
 
@@ -491,7 +498,7 @@ if(!$FoundExistence){
 [string]$Description = "Check for multiple conflicting objects"
 
 [PSCustomObject]$SearchingInMailUsers = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description `
--DataType "ArrayList" -EffectiveDataArrayList $MyMailUsersCheckObject -TableType "Table"
+-DataType "CustomObject" -EffectiveDataArrayList $MyMailUsersCheckObject -TableType "Table"
 
 $null = $TheObjectToConvertToHTML.Add($SearchingInMailUsers)
 
@@ -533,7 +540,7 @@ if(!$FoundExistence){
 [string]$Description = "Check for multiple conflicting objects"
 
 [PSCustomObject]$SearchingInSDMailUsers = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description `
--DataType "ArrayList" -EffectiveDataArrayList $MySDMailUsersCheckObject -TableType "Table"
+-DataType "CustomObject" -EffectiveDataArrayList $MySDMailUsersCheckObject -TableType "Table"
 
 $null = $TheObjectToConvertToHTML.Add($SearchingInSDMailUsers)
 
@@ -576,7 +583,7 @@ if(!$FoundExistence){
 [string]$Description = "Check for multiple conflicting objects"
 
 [PSCustomObject]$SearchingInMailboxes = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description `
--DataType "ArrayList" -EffectiveDataArrayList $MyMailboxesCheckObject -TableType "Table"
+-DataType "CustomObject" -EffectiveDataArrayList $MyMailboxesCheckObject -TableType "Table"
 
 $null = $TheObjectToConvertToHTML.Add($SearchingInMailboxes)
 
@@ -618,7 +625,7 @@ if(!$FoundExistence){
 [string]$Description = "Check for multiple conflicting objects"
 
 [PSCustomObject]$SearchingInSDMailboxes = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description `
--DataType "ArrayList" -EffectiveDataArrayList $MySDMailboxesCheckObject -TableType "Table"
+-DataType "CustomObject" -EffectiveDataArrayList $MySDMailboxesCheckObject -TableType "Table"
 
 $null = $TheObjectToConvertToHTML.Add($SearchingInSDMailboxes)
 
@@ -660,7 +667,7 @@ if(!$FoundExistence){
 [string]$Description = "Check for multiple conflicting objects"
 
 [PSCustomObject]$SearchingIninMailboxes = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description `
--DataType "ArrayList" -EffectiveDataArrayList $MyinMailboxesCheckObject -TableType "Table"
+-DataType "CustomObject" -EffectiveDataArrayList $MyinMailboxesCheckObject -TableType "Table"
 
 $null = $TheObjectToConvertToHTML.Add($SearchingIninMailboxes)
 
@@ -702,7 +709,7 @@ if(!$FoundExistence){
 [string]$Description = "Check for multiple conflicting objects"
 
 [PSCustomObject]$SearchingInPFMailboxes = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description `
--DataType "ArrayList" -EffectiveDataArrayList $MyPFMailboxesCheckObject -TableType "Table"
+-DataType "CustomObject" -EffectiveDataArrayList $MyPFMailboxesCheckObject -TableType "Table"
 
 $null = $TheObjectToConvertToHTML.Add($SearchingInPFMailboxes)
 
@@ -744,7 +751,7 @@ if(!$FoundExistence){
 [string]$Description = "Check for multiple conflicting objects"
 
 [PSCustomObject]$SearchingInSDPFMailboxes = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description `
--DataType "ArrayList" -EffectiveDataArrayList $MySDPFMailboxesCheckObject -TableType "Table"
+-DataType "CustomObject" -EffectiveDataArrayList $MySDPFMailboxesCheckObject -TableType "Table"
 
 $null = $TheObjectToConvertToHTML.Add($SearchingInSDPFMailboxes)
 
@@ -786,7 +793,7 @@ if(!$FoundExistence){
 [string]$Description = "Check for multiple conflicting objects"
 
 [PSCustomObject]$SearchingIninPFMailboxes = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description `
--DataType "ArrayList" -EffectiveDataArrayList $MyinPFMailboxesCheckObject -TableType "Table"
+-DataType "CustomObject" -EffectiveDataArrayList $MyinPFMailboxesCheckObject -TableType "Table"
 
 $null = $TheObjectToConvertToHTML.Add($SearchingIninPFMailboxes)
 
@@ -829,7 +836,7 @@ if(!$FoundExistence){
 [string]$Description = "Check for multiple conflicting objects"
 
 [PSCustomObject]$SearchingInGRMailboxes = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description `
--DataType "ArrayList" -EffectiveDataArrayList $MyGRMailboxesCheckObject -TableType "Table"
+-DataType "CustomObject" -EffectiveDataArrayList $MyGRMailboxesCheckObject -TableType "Table"
 
 $null = $TheObjectToConvertToHTML.Add($SearchingInGRMailboxes)
 
@@ -871,7 +878,7 @@ if(!$FoundExistence){
 [string]$Description = "Check for multiple conflicting objects"
 
 [PSCustomObject]$SearchingInSDGRMailboxes = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description `
--DataType "ArrayList" -EffectiveDataArrayList $MySDGRMailboxesCheckObject -TableType "Table"
+-DataType "CustomObject" -EffectiveDataArrayList $MySDGRMailboxesCheckObject -TableType "Table"
 
 $null = $TheObjectToConvertToHTML.Add($SearchingInSDGRMailboxes)
 
@@ -913,7 +920,7 @@ if(!$FoundExistence){
 [string]$Description = "Check for multiple conflicting objects"
 
 [PSCustomObject]$SearchingIninGRMailboxes = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description `
--DataType "ArrayList" -EffectiveDataArrayList $MyinGRMailboxesCheckObject -TableType "Table"
+-DataType "CustomObject" -EffectiveDataArrayList $MyinGRMailboxesCheckObject -TableType "Table"
 
 $null = $TheObjectToConvertToHTML.Add($SearchingIninGRMailboxes)
 
@@ -956,7 +963,7 @@ if(!$FoundExistence){
 [string]$Description = "Check for multiple conflicting objects"
 
 [PSCustomObject]$SearchingInMailEnabledPF = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description `
--DataType "ArrayList" -EffectiveDataArrayList $MyMailEnabledPFCheckObject -TableType "Table"
+-DataType "CustomObject" -EffectiveDataArrayList $MyMailEnabledPFCheckObject -TableType "Table"
 
 $null = $TheObjectToConvertToHTML.Add($SearchingInMailEnabledPF)
 
