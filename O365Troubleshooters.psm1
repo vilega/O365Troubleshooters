@@ -1839,8 +1839,28 @@ Function    Start-O365Troubleshooters {
                 Exit
             }
         }
-        Set-GlobalVariables
-        Start-O365TroubleshootersMenu
+        try {
+            Set-GlobalVariables
+            Start-O365TroubleshootersMenu
+        }
+        catch {
+            # As we don't know at which step the unhundled exception occures, we test for output path first
+            $errorGenericPath = "$([Environment]::GetFolderPath("Desktop"))\PowerShellOutputs\"
+            if (!(Test-Path $errorGenericPath ))
+            {
+                Write-Host "We are creating the following folder $errorGenericPath "
+                New-Item -Path $errorGenericPath -ItemType Directory -Confirm:$False | Out-Null
+            }
+
+            # Export the unhundled exception and log this event in log file, too
+            Write-Host "Script Encountered an un-handled exception! This will exported in Folder: $([Environment]::GetFolderPath("Desktop"))\PowerShellOutputs\"
+            $_ | Export-Clixml -Depth 100 -Path "$([Environment]::GetFolderPath("Desktop"))\PowerShellOutputs\PowerShellOutputs_UnhandledError_$(Get-Date -Format yyyyMMdd_HHmmss).xml"
+            #TODO: should implement additional test here for Write-Log folder path
+            Write-Log -function "ERROR" -step "Unhandled" -Description "ERROR: $($PSItem.Exception.Message)"
+            Start-Sleep -Seconds 5
+            Exit
+        }
+
     }
 }
 
