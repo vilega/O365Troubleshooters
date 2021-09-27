@@ -16,141 +16,184 @@
     #>
     Clear-Host
 
-    # Variable to know if any URL needs to be decoded
-    [bool]$decode = $true 
-    
-    # Create the Export Folder
-    $ts = get-date -Format yyyyMMdd_HHmmss
-    
-    try {
-        $ExportPath = "$global:WSPath\DecodeSafeLinksUrl_$ts"
-        mkdir $ExportPath -Force | out-null
-        Write-Log -function "Start-AP_DecodeSafeLinksURL" -step  "Create ExportPath" -Description "Success"
-    }
-    catch {
-        Write-Log -function "Start-AP_DecodeSafeLinksURL" -step  "Create ExportPath" -Description "Couldn't create folder $global:WSPath\DecodeSafeLinksUrl_$ts. Error: $($_.Exception.Message)"
-        Write-Host "Couldn't create folder $global:WSPath\DecodeSafeLinksUrl_$ts"
-        Read-Key
-        Start-O365TroubleshootersMenu
-    }
-    
-    
-    
-    #Import assembly System.Web which contains HttpUtility.UrlDecode method
-    try {
-        Add-Type -AssemblyName System.Web
-    }
-    catch {
-        Write-Log -function "Start-AP_DecodeSafeLinksURL" -step  "Referrence assembly System.Web" -Description "Error: $($_.Exception.Message)"
-        Write-Host "Couldn't load assembly System.Web. The script will return to the main menu"
-        Read-Key
-        Start-O365TroubleshootersMenu
-    }
-    
-    
-    # creating a list to store original URLs
-    $ListOfOriginalAndDecodedUrls = New-Object -TypeName "System.Collections.ArrayList"
-    
-    While ($decode) {
-        # Read from console the encoded URL
-        $encodedURL = Read-Host("Please provide the Microsoft Defender for Office 365 Safe Links URL that you want to decode to original URL")
-      
-        
-        
-    
-        try {   
-            # Decode URL using UrlDecode from System.Web.HttpUtility
-            $decodedURL = [System.Web.HttpUtility]::UrlDecode($encodedURL)
-        
-        
-            #$decodedURL = (($decodedURL -Split "url=")[1] -split "&data=;")[0]
-        
-            # check if decoded URL is of SafeLinks format
-            if ($decodedURL -match ".safelinks.protection.outlook.com\/.*\?url=.+&data=") {
-                $decodedURL = (($decodedURL -Split "/?url=")[1] -Split "&data=")[0]
-            }
-            elseif ($decodedURL -match ".safelinks.protection.outlook.com\/.*\?url=.+&amp;data=") {
-                $decodedURL = (($decodedURL -Split "/?url=")[1] -Split "&amp;data=")[0]
-            }
-            else { throw  New-Object System.ArgumentException "$encodedURL is not in the correct Safe Links format", "encodedURL" }
-        }
-        
-        catch [System.ArgumentException] {
-            Write-Log -function "Start-AP_DecodeSafeLinksURL" -step  "Decoding URL" -Description "Couldn't decode and parse URL: $encodedURL"
-            Write-Host "Couldn't decode and parse URL: $encodedURL"
-            $decodedURL = $null
-            Read-Key
-        }
-        catch {
-            Write-Log -function "Start-AP_DecodeSafeLinksURL" -step  "Decoding URL" -Description "Unhandled error! Input URL: $encodedURL, Exception message: $PSItem.Exception.Message"
-            Write-Host "Unhandled error! Input URL: $encodedURL, Exception message: $PSItem.Exception.Message"
-            $decodedURL = $null
-            Read-Key
-        }
-        Write-Host "The decoded URL is:" -ForegroundColor Green
-        Write-Host $decodedURL
-        Write-Log -function "Start-AP_DecodeSafeLinksURL" -step  "Decoding URL" -Description "Decoded and Parse URL is: $decodedURL"
-        Read-Key
-        $urlHashTabel = @{
-            encodedURL = $encodedURL
-            decodedURL = $decodedURL 
-        }
-    
-        #Cast HashTabel into PSCustomObject and add it to the List collection
-        $null = $ListOfOriginalAndDecodedUrls.Add([PSCustomObject]$urlHashTabel)
-        
-        # Ask if any new URL needs to be decoded
-        Clear-Host
-        Write-Host "Do you need a new URL to be decoded?"
-        $answer = Get-Choice "Yes", "No"
-        if ($answer -eq 'y') {
-            $decode = $true 
-        }
-        elseif ($answer -eq 'n') {
-            $decode = $false 
-        }
-    
-    }
-    
-    
-    #region CreateHtmlReport
-    
-    #Create the collection of sections of HTML
-    $TheObjectToConvertToHTML = New-Object -TypeName "System.Collections.ArrayList"
-    for ($i = 0; $i -lt $ListOfOriginalAndDecodedUrls.Count; $i++) {
-        if ($null -eq $ListOfOriginalAndDecodedUrls[$i].decodedURL) {
-            [string]$SectionTitle = "Decode Safe Links URL - $($i+1)"
-            [string]$Description = "$encodedURL is not in the correct Safe Links format"
-            [PSCustomObject]$ListOfOriginalAndDecodedUrlsHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDataString " "
-            $null = $TheObjectToConvertToHTML.Add($ListOfOriginalAndDecodedUrlsHtml)
-        }
-        else {
-            [string]$SectionTitle = "Decode Safe Links URL - $($i+1)"
-            [string]$Description = "The encoded Microsoft Defender for Office 365 Safe Links URL is decoded to show the original URL"
-            [PSCustomObject]$ListOfOriginalAndDecodedUrlsHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList  $ListOfOriginalAndDecodedUrls[$i] -TableType "List"
-            $null = $TheObjectToConvertToHTML.Add($ListOfOriginalAndDecodedUrlsHtml)
-        }
-    
-    }
-    
-    #Build HTML report out of the previous HTML sections
-    [string]$FilePath = $ExportPath + "\DecodeSafeLinksUrl.html"
-    Export-ReportToHTML -FilePath $FilePath -PageTitle "Microsoft Defender for Office 365 Safe Links Decoder" -ReportTitle "Microsoft Defender for Office 365 Safe Links Decoder" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
-    
-    #Ask end-user for opening the HTMl report
-    $OpenHTMLfile = Read-Host "Do you wish to open HTML report file now?`nType Y(Yes) to open or N(No) to exit!"
-    if ($OpenHTMLfile.ToLower() -like "*y*") {
-        Write-Host "Opening report...." -ForegroundColor Cyan
-        Start-Process $FilePath
-    }
-    #endregion ResultReport
-       
-    # Print location where the data was exported
-    Write-Host "`nOutput was exported in the following location: $ExportPath" -ForegroundColor Yellow 
-    Read-Key
-    
-    
-    # Create CSV 
-    $ListOfOriginalAndDecodedUrls | Export-Csv -Path "$ExportPath\DecodeSafeLinksUrl.csv" -NoTypeInformation
-    
-    Start-O365TroubleshootersMenu
+
+### Scenario A.1. - Single mailbox scenario - Items are accessible to user (items are not under 'Recoverable Items' folder)
+
+# select the search from existing
+
+$allSearches = Get-ComplianceSearch 
+[string]$SelectedSearch = ($allSearches | select name |Out-GridView -PassThru -Title "Select one search").Name
+
+$ComplianceSearch = Get-ComplianceSearch -Identity $SelectedSearch
+
+$ComplianceSearch
+
+$items = $ComplianceSearch.Items
+
+$searchname = $ComplianceSearch.Name
+
+Write-Host "Found $items items for compliance Search $searchname"
+
+# Identifying 'Recoverable Items', 'Deletions', 'Purges' and 'Versions' folders 
+
+Write-Host "Identifying 'Recoverable Items', 'Deletions', 'Purges' and 'Versions' folders"
+
+[string]$mbx = $compliancesearch.exchangelocation
+$folderQueries = @()
+   $folderStatistics = Get-MailboxFolderStatistics $mbx | where-object {($_.FolderPath -eq "/Recoverable Items") -or ($_.FolderPath -eq "/Deletions") -or ($_.FolderPath -eq "/Purges") -or ($_.FolderPath -eq "/Versions")}
+   foreach ($folderStatistic in $folderStatistics)
+   {
+       $folderId = $folderStatistic.FolderId;
+       $folderPath = $folderStatistic.FolderPath;
+       $encoding= [System.Text.Encoding]::GetEncoding("us-ascii")
+       $nibbler= $encoding.GetBytes("0123456789ABCDEF");
+       $folderIdBytes = [Convert]::FromBase64String($folderId);
+       $indexIdBytes = New-Object byte[] 48;
+       $indexIdIdx=0;
+       $folderIdBytes | select -skip 23 -First 24 | %{$indexIdBytes[$indexIdIdx++]=$nibbler[$_ -shr 4];$indexIdBytes[$indexIdIdx++]=$nibbler[$_ -band 0xF]}
+       $folderQuery = "folderid:$($encoding.GetString($indexIdBytes))";
+       $folderStat = New-Object PSObject
+       Add-Member -InputObject $folderStat -MemberType NoteProperty -Name FolderPath -Value $folderPath
+       Add-Member -InputObject $folderStat -MemberType NoteProperty -Name FolderQuery -Value $folderQuery
+       $folderQueries += $folderStat
+   }
+   
+   $RecoverableItemsFolder = $folderQueries.folderquery[0]
+   $DeletionsFolder = $folderQueries.folderquery[1]
+   $PurgesFolder = $folderQueries.folderquery[2]
+   $VersionsFolder = $folderQueries.folderquery[3]
+
+# Adjusting the search scope to exclude 'Recoverable Items', 'Deletions', 'Purges' and 'Versions' folders 
+
+Write-Host "Adjusting the search scope to exclude 'Recoverable Items', 'Deletions', 'Purges' and 'Versions' folders"
+
+[string]$OldContentMatchQuery = $ComplianceSearch.ContentMatchQuery
+[string]$NewContentMatchQuery = [string]$OldContentMatchQuery + "(NOT (($RecoverableItemsFolder) OR ($DeletionsFolder) OR ($PurgesFolder) OR ($VersionsFolder)))"
+
+Set-ComplianceSearch $searchname -ContentMatchQuery $NewContentMatchQuery
+
+ $Iterations = [math]::Ceiling($items / 10)
+
+foreach ($Iteration in @(1..$Iterations)) {
+
+Write-Host "Refreshing the Compliance Search"
+
+Get-ComplianceSearch $searchname | Start-ComplianceSearch
+
+Do {
+
+    Start-Sleep -Seconds 2
+    $search = Get-ComplianceSearch $searchname
+    Write-Host "Current Search status: $($search.Status) and search job progress: $($search.JobProgress)"
+
+} While (($search.Status -ne 'Completed') -and ($search.JobProgress -ne '100'))
+
+Write-Progress -Activity "Purging items" -Status "$items items left" -PercentComplete ($Iteration / $Iterations * 100)
+
+Write-Host "iteration no. [$Iteration / $Iterations]"
+
+New-ComplianceSearchAction -SearchName $searchname -Purge -PurgeType HardDelete -Confirm:$false | Out-Null
+
+Do {
+
+    Start-Sleep -Seconds 2
+
+    $PurgeAction = Get-ComplianceSearchAction -Identity "$searchname`_Purge"
+
+    Write-Host " > current iteration's Purge Action status: $($PurgeAction.Status)"
+
+} While ($PurgeAction.Status -ne 'Completed')
+Remove-ComplianceSearchAction ($PurgeAction).name -Confirm:$False | Out-Null
+}
+
+
+
+### Scenario A.2. - Single mailbox scenario - Purge items from 'Recoverable Items' folder and subfolders
+
+
+# select the search from existing
+
+$allSearches = Get-ComplianceSearch 
+[string]$SelectedSearch = ($allSearches | select name |Out-GridView -PassThru -Title "Select one search").Name
+
+$ComplianceSearch = Get-ComplianceSearch -Identity $SelectedSearch
+
+$ComplianceSearch
+
+$items = $ComplianceSearch.Items
+
+$searchname = $ComplianceSearch.Name
+
+Write-Host "Found $items items for compliance Search $searchname"
+
+# Identifying 'Recoverable Items', 'Deletions', 'Purges' and 'Versions' folders 
+
+Write-Host "Identifying 'Recoverable Items', 'Deletions', 'Purges' and 'Versions' folders"
+
+[string]$mbx = $compliancesearch.exchangelocation
+$folderQueries = @()
+   $folderStatistics = Get-MailboxFolderStatistics $mbx | where-object {($_.FolderPath -eq "/Recoverable Items") -or ($_.FolderPath -eq "/Deletions") -or ($_.FolderPath -eq "/Purges") -or ($_.FolderPath -eq "/Versions")}
+   foreach ($folderStatistic in $folderStatistics)
+   {
+       $folderId = $folderStatistic.FolderId;
+       $folderPath = $folderStatistic.FolderPath;
+       $encoding= [System.Text.Encoding]::GetEncoding("us-ascii")
+       $nibbler= $encoding.GetBytes("0123456789ABCDEF");
+       $folderIdBytes = [Convert]::FromBase64String($folderId);
+       $indexIdBytes = New-Object byte[] 48;
+       $indexIdIdx=0;
+       $folderIdBytes | select -skip 23 -First 24 | %{$indexIdBytes[$indexIdIdx++]=$nibbler[$_ -shr 4];$indexIdBytes[$indexIdIdx++]=$nibbler[$_ -band 0xF]}
+       $folderQuery = "folderid:$($encoding.GetString($indexIdBytes))";
+       $folderStat = New-Object PSObject
+       Add-Member -InputObject $folderStat -MemberType NoteProperty -Name FolderPath -Value $folderPath
+       Add-Member -InputObject $folderStat -MemberType NoteProperty -Name FolderQuery -Value $folderQuery
+       $folderQueries += $folderStat
+   }
+   
+   $RecoverableItemsFolder = $folderQueries.folderquery[0]
+   $DeletionsFolder = $folderQueries.folderquery[1]
+   $PurgesFolder = $folderQueries.folderquery[2]
+   $VersionsFolder = $folderQueries.folderquery[3]
+
+# Adjusting the search scope to exclude 'Recoverable Items', 'Deletions', 'Purges' and 'Versions' folders 
+
+Write-Host "Adjusting the search scope to target only the 'Recoverable Items', 'Deletions', 'Purges' and 'Versions' folders"
+
+[string]$OldContentMatchQuery = $ComplianceSearch.ContentMatchQuery
+[string]$NewContentMatchQuery = [string]$OldContentMatchQuery + "(($RecoverableItemsFolder) OR ($DeletionsFolder) OR ($PurgesFolder) OR ($VersionsFolder))"
+
+Set-ComplianceSearch $searchname -ContentMatchQuery $NewContentMatchQuery
+
+ $Iterations = [math]::Ceiling($items / 10)
+
+foreach ($Iteration in @(1..$Iterations)) {
+
+Write-Host "Refreshing the Compliance Search"
+
+Get-ComplianceSearch $searchname | Start-ComplianceSearch
+
+Do {
+
+    Start-Sleep -Seconds 2
+    $search = Get-ComplianceSearch $searchname
+    Write-Host "Current Search status: $($search.Status) and search job progress: $($search.JobProgress)"
+
+} While (($search.Status -ne 'Completed') -and ($search.JobProgress -ne '100'))
+
+Write-Progress -Activity "Purging items" -Status "$items items left" -PercentComplete ($Iteration / $Iterations * 100)
+
+Write-Host "iteration no. [$Iteration / $Iterations]"
+
+New-ComplianceSearchAction -SearchName $searchname -Purge -PurgeType HardDelete -Confirm:$false | Out-Null
+
+Do {
+
+    Start-Sleep -Seconds 2
+
+    $PurgeAction = Get-ComplianceSearchAction -Identity "$searchname`_Purge"
+
+    Write-Host " > current iteration's Purge Action status: $($PurgeAction.Status)"
+
+} While ($PurgeAction.Status -ne 'Completed')
+Remove-ComplianceSearchAction ($PurgeAction).name -Confirm:$False | Out-Null
+}
