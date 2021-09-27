@@ -22,6 +22,7 @@ Clear-Host
 # Create the Export Folder
 $ts = get-date -Format yyyyMMdd_HHmmss
 
+# Create export folder
 try {
     $ExportPath = "$global:WSPath\DecodeSafeLinksUrl_$ts"
     mkdir $ExportPath -Force | out-null
@@ -66,6 +67,7 @@ While ($decode) {
         #$decodedURL = (($decodedURL -Split "url=")[1] -split "&data=;")[0]
     
         # check if decoded URL is of SafeLinks format
+        # throw System.ArgumentException if the format is not supported
         if ($decodedURL -match ".safelinks.protection.outlook.com\/.*\?url=.+&data=") {
             $decodedURL = (($decodedURL -Split "/?url=")[1] -Split "&data=")[0]
         }
@@ -82,11 +84,13 @@ While ($decode) {
         Read-Key
     }
     catch {
-        Write-Log -function "Start-AP_DecodeSafeLinksURL" -step  "Decoding URL" -Description "Unhandled error! Input URL: $encodedURL, Exception message: $PSItem.Exception.Message"
+        Write-Log -function "Start-AP_DecodeSafeLinksURL" -step  "Decoding URL" -Description "Unhandled error! Input URL: $encodedURL, Exception message: $($PSItem.Exception.Message)"
         Write-Host "Unhandled error! Input URL: $encodedURL, Exception message: $PSItem.Exception.Message"
         $decodedURL = $null
         Read-Key
     }
+
+    # Log at the console and logging file the decoded URL
     Write-Host "The decoded URL is:" -ForegroundColor Green
     Write-Host $decodedURL
     Write-Log -function "Start-AP_DecodeSafeLinksURL" -step  "Decoding URL" -Description "Decoded and Parse URL is: $decodedURL"
@@ -115,28 +119,37 @@ While ($decode) {
 
 #region CreateHtmlReport
 
-#Create the collection of sections of HTML
-$TheObjectToConvertToHTML = New-Object -TypeName "System.Collections.ArrayList"
-for ($i = 0; $i -lt $ListOfOriginalAndDecodedUrls.Count; $i++) {
-    if ($null -eq $ListOfOriginalAndDecodedUrls[$i].decodedURL) {
-        [string]$SectionTitle = "Decode Safe Links URL - $($i+1)"
-        [string]$Description = "$encodedURL is not in the correct Safe Links format"
-        [PSCustomObject]$ListOfOriginalAndDecodedUrlsHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDataString " "
-        $null = $TheObjectToConvertToHTML.Add($ListOfOriginalAndDecodedUrlsHtml)
-    }
-    else {
-        [string]$SectionTitle = "Decode Safe Links URL - $($i+1)"
-        [string]$Description = "The encoded Microsoft Defender for Office 365 Safe Links URL is decoded to show the original URL"
-        [PSCustomObject]$ListOfOriginalAndDecodedUrlsHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList  $ListOfOriginalAndDecodedUrls[$i] -TableType "List"
-        $null = $TheObjectToConvertToHTML.Add($ListOfOriginalAndDecodedUrlsHtml)
+try {
+    
+
+    #Create the collection of sections of HTML
+    $TheObjectToConvertToHTML = New-Object -TypeName "System.Collections.ArrayList"
+    for ($i = 0; $i -lt $ListOfOriginalAndDecodedUrls.Count; $i++) {
+        if ($null -eq $ListOfOriginalAndDecodedUrls[$i].decodedURL) {
+            [string]$SectionTitle = "Decode Safe Links URL - $($i+1)"
+            [string]$Description = "$encodedURL is not in the correct Safe Links format"
+            [PSCustomObject]$ListOfOriginalAndDecodedUrlsHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDataString " "
+            $null = $TheObjectToConvertToHTML.Add($ListOfOriginalAndDecodedUrlsHtml)
+        }
+        else {
+            [string]$SectionTitle = "Decode Safe Links URL - $($i+1)"
+            [string]$Description = "The encoded Microsoft Defender for Office 365 Safe Links URL is decoded to show the original URL"
+            [PSCustomObject]$ListOfOriginalAndDecodedUrlsHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList  $ListOfOriginalAndDecodedUrls[$i] -TableType "List"
+            $null = $TheObjectToConvertToHTML.Add($ListOfOriginalAndDecodedUrlsHtml)
+        }
+
     }
 
+    #Build HTML report out of the previous HTML sections
+    [string]$FilePath = $ExportPath + "\DecodeSafeLinksUrl.html"
+    Export-ReportToHTML -FilePath $FilePath -PageTitle "Microsoft Defender for Office 365 Safe Links Decoder" -ReportTitle "Microsoft Defender for Office 365 Safe Links Decoder" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
+
+    Write-Log -function "Start-AP_DecodeSafeLinksURL" -step  "Generate HTML Report" -Description "Success"
 }
-
-#Build HTML report out of the previous HTML sections
-[string]$FilePath = $ExportPath + "\DecodeSafeLinksUrl.html"
-Export-ReportToHTML -FilePath $FilePath -PageTitle "Microsoft Defender for Office 365 Safe Links Decoder" -ReportTitle "Microsoft Defender for Office 365 Safe Links Decoder" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
-
+catch {
+    Write-Log -function "Start-AP_DecodeSafeLinksURL" -step  "Generate HTML Report" -Description "Error: $($PSItem.Exception.Message)"
+    
+}
 #Ask end-user for opening the HTMl report
 $OpenHTMLfile = Read-Host "Do you wish to open HTML report file now?`nType Y(Yes) to open or N(No) to exit!"
 if ($OpenHTMLfile.ToLower() -like "*y*") {
@@ -151,6 +164,14 @@ Read-Key
 
 
 # Create CSV 
-$ListOfOriginalAndDecodedUrls | Export-Csv -Path "$ExportPath\DecodeSafeLinksUrl.csv" -NoTypeInformation
+try {
+    $ListOfOriginalAndDecodedUrls | Export-Csv -Path "$ExportPath\DecodeSafeLinksUrl.csv" -NoTypeInformation
+    Write-Log -function "Start-AP_DecodeSafeLinksURL" -step  "Generate CSV Report" -Description "Success"
+}
+catch {
+    Write-Log -function "Start-AP_DecodeSafeLinksURL" -step  "Generate CSV Report" -Description "Error: $($PSItem.Exception.Message)"
+}
 
+# return to main menu
+Write-Log -function "Start-AP_DecodeSafeLinksURL" -step  "Load Start-O365Troubleshooters Menu" -Description "Success"
 Start-O365TroubleshootersMenu
