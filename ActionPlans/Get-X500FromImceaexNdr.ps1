@@ -1,3 +1,20 @@
+<#
+        .SYNOPSIS
+        Transform the value recieved from IMCEAEX NDR into an X500 that can be added as additional alias 
+
+        .DESCRIPTION
+        Provide Microsoft Defender for Office 365 Safe Links and export in a HTML format the original URL
+        Can be executed on multiple encoded URL and in the end all decoded URLs can be seen the the HTML output
+
+        .EXAMPLE
+        Provide the re-written URL:
+        https://nam06.safelinks.protection.outlook.com/?url=http://www.contoso.com/&data=04|01|user1@contoso.com|83ffsdfa384443fadq342743b|72f988fasdfa4d011db47|1|0|6376688415|Unknown|TWFpbGZMDAiLCJQIjoiV2luMzIiLCJBTiI6Ik1haWwfadsfaCI6Mn0=|1000&sdata=qOwctqh5fadfaai/tglS4avTxToy67X4M8fadsfasaA=&reserved=0
+        
+        .LINK
+        Online documentation: https://answers.microsoft.com/
+
+    #>
+
 Clear-Host
     
 $CurrentProperty = "Collecting IMCEAEX"
@@ -8,6 +25,7 @@ $ts= get-date -Format yyyyMMdd_HHmmss
 $ExportPath = "$global:WSPath\X500_$ts"
 mkdir $ExportPath -Force |out-null
 
+#TODO: ask for another IMCEAEX
 $CurrentProperty = "Collecting IMCEAEX"
 $CurrentDescription = ""
 write-log -Function "X500FromImceaexNdr" -Step $CurrentProperty -Description $CurrentDescription 
@@ -47,6 +65,9 @@ catch
     Read-Key   
     Start-O365TroubleshootersMenu
 }
+
+
+#TODO: export to HTML
 $ts= get-date -Format yyyyMMdd_HHmmss
 $x500 |Out-File $ExportPath\x500_$ts.txt
 
