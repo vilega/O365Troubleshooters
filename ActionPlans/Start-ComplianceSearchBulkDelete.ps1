@@ -17,14 +17,14 @@
     Clear-Host
 
 
-### Scenario A.1. - Single mailbox scenario - Items are accessible to user (items are not under 'Recoverable Items' folder)
+### Scenario A.1. - Single mailbox scenario - Delete search items that are accessible to user
 
     # Select the search from existing searches
 
 $allSearches = Get-ComplianceSearch
 Write-Host -ForegroundColor Yellow "Please select the search for which you wish to delete the found items:"
  
-[string]$SelectedSearch = ($allSearches | select name |Out-GridView -OutputMode single -Title "Select one search").Name
+[string]$SelectedSearch = ($allSearches | Select-Object name |Out-GridView -OutputMode single -Title "Select one search").Name
 
 $ComplianceSearch = Get-ComplianceSearch -Identity $SelectedSearch
 
@@ -58,7 +58,7 @@ $folderQueries = @()
        $folderIdBytes = [Convert]::FromBase64String($folderId);
        $indexIdBytes = New-Object byte[] 48;
        $indexIdIdx=0;
-       $folderIdBytes | select -skip 23 -First 24 | %{$indexIdBytes[$indexIdIdx++]=$nibbler[$_ -shr 4];$indexIdBytes[$indexIdIdx++]=$nibbler[$_ -band 0xF]}
+       $folderIdBytes | Select-Object -skip 23 -First 24 | %{$indexIdBytes[$indexIdIdx++]=$nibbler[$_ -shr 4];$indexIdBytes[$indexIdIdx++]=$nibbler[$_ -band 0xF]}
        $folderQuery = "folderid:$($encoding.GetString($indexIdBytes))";
        $folderStat = New-Object PSObject
        Add-Member -InputObject $folderStat -MemberType NoteProperty -Name FolderPath -Value $folderPath
@@ -121,6 +121,8 @@ DO {
         Remove-ComplianceSearchAction ($PurgeAction).name -Confirm:$False | Out-Null
 
 } While ($iteration -ne $Iterations)
+
+Remove-ComplianceSearchAction ($PurgeAction).name -Confirm:$False | Out-Null
 
 Write-Host -ForegroundColor Yellow "Finished deleting $initialitems items found by Compliance Search $searchname!"
 
