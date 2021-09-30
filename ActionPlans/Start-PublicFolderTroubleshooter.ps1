@@ -747,21 +747,93 @@ Function PreviewLocalPFsdata
 
 Function PreviewRemotePFsdata
 {
-        $RemotePublicFolderMailboxes=$OrganizationConfig.RemotePublicFolderMailboxes
-        $LockedForMigration=$OrganizationConfig.RootPublicFolderMailbox.LockedForMigration
+    Param(
+        [parameter(Mandatory=$true)]
+        [PSObject]$OrganizationConfig 
+        )
+         #region main public folders overview information
+         write-host
+         Write-Host "Organization Publicfolders Overview`n-----------------------------------"  -ForegroundColor Cyan 
+         [string]$SectionTitle = "Introduction"
+         [string]$Description = "This report illustrates an overview over the public folder enviroment in EXO, sharing brief useful information about its structure (eg.PF MBXs count) in addition to sharing some health check reports (eg. PF MBX size check) on that!"
+         $issuesinhtml='<span style="color: red">issues</span>'
+         $Redinhtml='<span style="color: red">red</span>'
+         [PSCustomObject]$StartHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString "Please ensure to mitigate $issuesinhtml reported in $Redinhtml sections in case found!"
+         $null = $TheObjectToConvertToHTML.Add($StartHTML)
+        try {
+            $HostedConnectionFilterPolicy=Get-HostedConnectionFilterPolicy -ErrorAction stop |where-object {$_.IsDefault -eq "True"}
+            $CurrentProperty = "Retrieving public folders info"
+            $CurrentDescription = "Success"
+            write-log -Function "Retrieve public folders info" -Step $CurrentProperty -Description $CurrentDescription    
+            $DirectoryBasedEdgeBlockModeStatus=$HostedConnectionFilterPolicy.DirectoryBasedEdgeBlockMode
+            [string]$SectionTitle = "Organization Publicfolders Overview"
+            [string]$Description = "Collecting all your organization public folders basic information"
+            $PFInfo= New-Object PSObject
+            if($DirectoryBasedEdgeBlockModeStatus -like "Default")
+            {
+             Write-Host "DirectoryBasedEdgeBlockModeStatus = Enabled"
+             $MEPFAction="Any mail sent to Mail Enabled Public Folders (MEPF) will be dropped at the service network perimeter because DBEB is enabled in the default connection filter policy, so to bypass that please ensure that MEPFs smtp aliases domains are not existing on the table below (MEPF smtp alias DomainType should be set to InternalRelay) or file a support case for microsoft to disable DBEB on the whole tenant(Recommended)!"
+             $PFInfo|Add-Member -NotePropertyName "Directory Based Edge Block Mode Status" -NotePropertyValue "Enabled"
+            }
+            else {
+                Write-Host "DirectoryBasedEdgeBlockModeStatus = Disabled"
+                $PFInfo|Add-Member -NotePropertyName "Directory Based Edge Block Mode Status" -NotePropertyValue "Disabled"
+               }
+            $Authaccepteddomains=Get-AcceptedDomain -ErrorAction stop |Where-Object{$_.domaintype -eq "Authoritative"}
+            $PublicFolderMailboxes=Get-Mailbox -PublicFolder -ResultSize unlimited -ErrorAction stop
+            [Int]$PublicFolderMailboxesCount=($PublicFolderMailboxes).count
+            [Int]$MailEnabledPublicFoldersCount=(Get-MailPublicFolder -ResultSize unlimited).count
+            $RootPublicFolderMailbox=$OrganizationConfig.RootPublicFolderMailbox.HierarchyMailboxGuid.Guid.ToString()
+            $RemotePublicFolderMailboxes=$OrganizationConfig.RemotePublicFolderMailboxes
+            $LockedForMigration=$OrganizationConfig.RootPublicFolderMailbox.LockedForMigration
+            Write-Host "PublicFoldersLocation = $PublicFoldersLocation"
+            Write-Host "MailEnabledPublicFoldersCount = $MailEnabledPublicFoldersCount"
+            Write-Host "RemotePublicFolderMailboxes = $($RemotePublicFolderMailboxes -join ",")"
+            $PFInfo|Add-Member -NotePropertyName "Public Folders Location" -NotePropertyValue $PublicFoldersLocation
+            $PFInfo|Add-Member -NotePropertyName "MailEnabled PublicFolders Count" -NotePropertyValue $MailEnabledPublicFoldersCount
+            $PFInfo|Add-Member -NotePropertyName "Remote PublicFolder Mailboxes" -NotePropertyValue $RemotePublicFolderMailboxes
+         }
+         catch {
+            $CurrentProperty = "Retrieving public folders info"
+            $CurrentDescription = "Failure"
+            write-log -Function "Retrieve public folders info" -Step $CurrentProperty -Description $CurrentDescription
+         }
         if($LockedForMigration -like "True")
         {
+            ##TODO rearrange & add new stuff
             Write-Host "Public folder migration in PROGRESS!" -BackgroundColor Gray 
             Write-Host "PublicFolderMailboxesCount = $PublicFolderMailboxesCount"
+            Write-Host "RootPublicFolderMailbox = $RootPublicFolderMailbox"
             $PFInfo|Add-Member -NotePropertyName "Public folder migration in PROGRESS!"
-            $PFInfo|Add-Member -NotePropertyName "PublicFolder Mailboxes Count" -NotePropertyValue $MailEnabledPublicFoldersCount
+            $PFInfo|Add-Member -NotePropertyName "PublicFolder Mailboxes Count" -NotePropertyValue $PublicFolderMailboxesCount
+            $PFInfo|Add-Member -NotePropertyName "Root PublicFolder Mailbox" -NotePropertyValue $RootPublicFolderMailbox
+            #Migration progress ,data synced,large items,baditems,DCS,jobs status,look for duplicate jobs,show errors in case found
+
         }
-        else {
-            Write-Host "RemotePublicFolderMailboxes = $($RemotePublicFolderMailboxes -join ",")"
-            $PFInfo|Add-Member -NotePropertyName "PublicFolder Mailboxes Count" -NotePropertyValue $RemotePublicFolderMailboxes
-        }
-        
-    
+        write-host
+        [PSCustomObject]$PFInfoHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "CustomObject"  -TableType "List" -EffectiveDataArrayList $PFInfo
+        $null = $TheObjectToConvertToHTML.Add($PFInfoHTML)
+         #endregion main public folders overview information
+         #region MEPF DBEB Check
+         [string]$SectionTitle = "Mail-enabled Public Folders Health Check"
+         [string]$Description = "This section checks if DBEB will affect MEPFs for receiving external mails" 
+         [System.Collections.ArrayList]$MEPFdata = @()
+         if($null -ne $MEPFAction)
+         {  
+            Write-Host
+            write-host "Mail-enabled Public Folders Health Check:" -ForegroundColor Black -BackgroundColor Red
+            Write-Host $MEPFAction
+            $MEPFActioninhtml='<font size="3px">Any mail sent to Mail Enabled Public Folders (MEPF) will be dropped at the service network perimeter because DBEB is enabled in the default connection filter policy, so to bypass that please ensure that MEPFs smtp aliases domains are not existing on the table below (MEPF smtp alias DomainType should be set to InternalRelay) or file a support case for microsoft to disable DBEB on the whole tenant(Recommended)!</font>'
+            $Description=$Description+"<br>"+$MEPFActioninhtml
+            $Authaccepteddomains|Format-Table Name,DomainName,DomainType
+            $MEPFdata=$Authaccepteddomains|Select-Object Name,DomainName,DomainType
+            [PSCustomObject]$MEPFcheckHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $MEPFdata  -TableType "Table"
+         }
+         else {
+            [PSCustomObject]$MEPFcheckHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDataString "DBEB is disabled across the tenant which will allow MEPFs to receive external mails normally"
+         }
+         $null = $TheObjectToConvertToHTML.Add($MEPFcheckHTML)
+         #endregion MEPF Health Check
 }
 
 
@@ -795,7 +867,7 @@ Function Start-PFOverview{
      }
      else {
         #Code for remote PFs
-        PreviewRemotePFsdata
+        PreviewRemotePFsdata($OrganizationConfig)
      }
      #region ResultReport
         [string]$FilePath = $ExportPath + "\PublicFolderOverview.html"
