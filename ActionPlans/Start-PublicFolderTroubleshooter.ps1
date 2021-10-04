@@ -788,10 +788,10 @@ Function PreviewRemotePFsdata
             $LockedForMigration=$OrganizationConfig.RootPublicFolderMailbox.LockedForMigration
             Write-Host "PublicFoldersLocation = $PublicFoldersLocation"
             Write-Host "MailEnabledPublicFoldersCount = $MailEnabledPublicFoldersCount"
-            Write-Host "RemotePublicFolderMailboxes = $($RemotePublicFolderMailboxes -join ",")"
+            Write-Host "RemotePublicFolderMailboxes = $($RemotePublicFolderMailboxes -join ", ")"
             $PFInfo|Add-Member -NotePropertyName "Public Folders Location" -NotePropertyValue $PublicFoldersLocation
             $PFInfo|Add-Member -NotePropertyName "MailEnabled PublicFolders Count" -NotePropertyValue $MailEnabledPublicFoldersCount
-            $PFInfo|Add-Member -NotePropertyName "Remote PublicFolder Mailboxes" -NotePropertyValue $RemotePublicFolderMailboxes
+            $PFInfo|Add-Member -NotePropertyName "Remote PublicFolder Mailboxes" -NotePropertyValue $($RemotePublicFolderMailboxes -join ", ")
          }
          catch {
             $CurrentProperty = "Retrieving public folders info"
@@ -800,19 +800,89 @@ Function PreviewRemotePFsdata
          }
         if($LockedForMigration -like "True")
         {
-            ##TODO rearrange & add new stuff
-            Write-Host "Public folder migration in PROGRESS!" -BackgroundColor Gray 
             Write-Host "PublicFolderMailboxesCount = $PublicFolderMailboxesCount"
             Write-Host "RootPublicFolderMailbox = $RootPublicFolderMailbox"
-            $PFInfo|Add-Member -NotePropertyName "Public folder migration in PROGRESS!"
+            #$PFInfo|Add-Member -NotePropertyName "Public folder migration in PROGRESS!"
             $PFInfo|Add-Member -NotePropertyName "PublicFolder Mailboxes Count" -NotePropertyValue $PublicFolderMailboxesCount
             $PFInfo|Add-Member -NotePropertyName "Root PublicFolder Mailbox" -NotePropertyValue $RootPublicFolderMailbox
-            #Migration progress ,data synced,large items,baditems,DCS,jobs status,look for duplicate jobs,show errors in case found
-
+            [PSCustomObject]$PFInfoHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "CustomObject"  -TableType "List" -EffectiveDataArrayList $PFInfo
+            $null = $TheObjectToConvertToHTML.Add($PFInfoHTML)
+            $PFInfo= New-Object PSObject
+            $PFInfo=$null
+            [string]$SectionTitle = "Public Folder Migration & Endpoint Overview"
+            [string]$Description = "This section illustrates an overview over the public folder migration & public folder endpoint."
+            Write-Host
+            Write-Host "Public Folder Migration & Endpoint Overview:`n--------------------------------------------"  -ForegroundColor Cyan 
+            $PFEndpoint= New-Object PSObject
+            $Endpoint=Get-MigrationEndpoint |Where-Object{$_.EndpointType.ToString() -eq "PublicFolder"}
+            $PFbatch=Get-MigrationBatch | Where-Object{$_.MigrationType.ToString() -eq "PublicFolder"}
+            Write-Host "PublicFolderBatch Identity = $($PFbatch.Identity)"
+            Write-Host "PublicFolderBatch Guid = $($PFbatch.BatchGuid)"
+            Write-Host "PublicFolderBatch Status = $($PFbatch.Status.Value)"
+            Write-Host "PublicFolderBatch State = $($PFbatch.State.Value)"
+            Write-Host "PublicFolderBatch DataConsistencyScore = $($PFbatch.DataConsistencyScore)"
+            Write-Host "PublicFolderBatch TotalCount = $($PFbatch.TotalCount)"
+            Write-Host "PublicFolderBatch ActiveCount = $($PFbatch.ActiveCount)"
+            Write-Host "PublicFolderBatch StoppedCount = $($PFbatch.StoppedCount)"
+            Write-Host "PublicFolderBatch SyncedCount = $($PFbatch.SyncedCount)"
+            Write-Host "PublicFolderBatch FailedCount = $($PFbatch.FailedCount)"
+            Write-Host "PublicFolderBatch CreationDateTimeUTC = $($PFbatch.CreationDateTimeUTC)"
+            Write-Host "PublicFolderBatch StartDateTimeUTC = $($PFbatch.StartDateTimeUTC)"
+            Write-Host "PublicFolderBatch SubmittedByUser = $($PFbatch.SubmittedByUser)"
+            Write-Host "PublicFolderBatch SourcePFPrimaryMailboxGuid = $($PFbatch.SourcePFPrimaryMailboxGuid)"
+            Write-Host "PublicFolderBatch SourceEndpoint = $($PFbatch.SourceEndpoint)"
+            $PFEndpoint|Add-Member -NotePropertyName "PublicFolderBatch Identity" -NotePropertyValue $($PFbatch.Identity)
+            $PFEndpoint|Add-Member -NotePropertyName "PublicFolderBatch Guid" -NotePropertyValue $($PFbatch.BatchGuid.Guid)
+            $PFEndpoint|Add-Member -NotePropertyName "PublicFolderBatch Status" -NotePropertyValue $($PFbatch.Status.Value)
+            $PFEndpoint|Add-Member -NotePropertyName "PublicFolderBatch State" -NotePropertyValue $($PFbatch.State.Value)
+            $PFEndpoint|Add-Member -NotePropertyName "PublicFolderBatch DataConsistencyScore" -NotePropertyValue $($PFbatch.DataConsistencyScore)
+            $PFEndpoint|Add-Member -NotePropertyName "PublicFolderBatch TotalCount" -NotePropertyValue $($PFbatch.TotalCount)
+            $PFEndpoint|Add-Member -NotePropertyName "PublicFolderBatch ActiveCount" -NotePropertyValue $($PFbatch.ActiveCount)
+            $PFEndpoint|Add-Member -NotePropertyName "PublicFolderBatch StoppedCount" -NotePropertyValue $($PFbatch.StoppedCount)
+            $PFEndpoint|Add-Member -NotePropertyName "PublicFolderBatch SyncedCount" -NotePropertyValue $($PFbatch.SyncedCount)
+            $PFEndpoint|Add-Member -NotePropertyName "PublicFolderBatch FailedCount" -NotePropertyValue $($PFbatch.FailedCount)
+            $PFEndpoint|Add-Member -NotePropertyName "PublicFolderBatch CreationDateTimeUTC" -NotePropertyValue $($PFbatch.CreationDateTimeUTC)
+            $PFEndpoint|Add-Member -NotePropertyName "PublicFolderBatch StartDateTimeUTC" -NotePropertyValue $($PFbatch.StartDateTimeUTC)
+            $PFEndpoint|Add-Member -NotePropertyName "PublicFolderBatch SubmittedByUser" -NotePropertyValue $($PFbatch.SubmittedByUser)
+            $PFEndpoint|Add-Member -NotePropertyName "PublicFolderBatch SourcePFPrimaryMailboxGuid" -NotePropertyValue $($PFbatch.SourcePFPrimaryMailboxGuid)
+            $PFEndpoint|Add-Member -NotePropertyName "PublicFolderBatch SourceEndpoint" -NotePropertyValue $($PFbatch.SourceEndpoint)
+            Write-Host "PublicFolderEndpoint Identity = $($Endpoint.Identity)"
+            Write-Host "PublicFolderEndpoint GUID = $($Endpoint.Guid)"
+            Write-Host "PublicFolderEndpoint MaxConcurrentMigrations = $($Endpoint.MaxConcurrentMigrations)"
+            Write-Host "PublicFolderEndpoint MaxConcurrentIncrementalSyncs = $($Endpoint.MaxConcurrentIncrementalSyncs)"
+            $PFEndpoint|Add-Member -NotePropertyName "PublicFolderEndpoint Identity" -NotePropertyValue $($Endpoint.Identity)
+            $PFEndpoint|Add-Member -NotePropertyName "PublicFolderEndpoint GUID" -NotePropertyValue $($Endpoint.Guid)
+            $PFEndpoint|Add-Member -NotePropertyName "PublicFolderEndpoint MaxConcurrentMigrations" -NotePropertyValue $($Endpoint.MaxConcurrentMigrations)
+            $PFEndpoint|Add-Member -NotePropertyName "PublicFolderEndpoint MaxConcurrentIncrementalSyncs" -NotePropertyValue $($Endpoint.MaxConcurrentIncrementalSyncs)
+            if ($null -notlike $Endpoint.RemoteServer)
+            {
+                Write-Host "PublicFolderEndpoint RemoteServer = $($Endpoint.RemoteServer)"
+                $PFEndpoint|Add-Member -NotePropertyName "PublicFolderEndpoint RemoteServer" -NotePropertyValue $($Endpoint.RemoteServer)
+            }
+            else {
+                Write-Host "PublicFolderEndpoint RpcProxyServer = $($Endpoint.RpcProxyServer)"
+                Write-Host "PublicFolderEndpoint SourceMailboxLegacyDN = $($Endpoint.SourceMailboxLegacyDN)"
+                Write-Host "PublicFolderEndpoint PublicFolderDatabaseServerLegacyDN = $($Endpoint.PublicFolderDatabaseServerLegacyDN)"
+                Write-Host "PublicFolderEndpoint Authentication = $($Endpoint.Authentication)"
+                $PFEndpoint|Add-Member -NotePropertyName "PublicFolderEndpoint RpcProxyServer" -NotePropertyValue $($Endpoint.RpcProxyServer)
+                $PFEndpoint|Add-Member -NotePropertyName "PublicFolderEndpoint SourceMailboxLegacyDN" -NotePropertyValue $($Endpoint.SourceMailboxLegacyDN)
+                $PFEndpoint|Add-Member -NotePropertyName "PublicFolderEndpoint PublicFolderDatabaseServerLegacyDN" -NotePropertyValue $($Endpoint.PublicFolderDatabaseServerLegacyDN)
+                $PFEndpoint|Add-Member -NotePropertyName "PublicFolderEndpoint Authentication" -NotePropertyValue $($Endpoint.Authentication)
+            }
+            Write-Host "PublicFolderEndpoint Username = $($Endpoint.Username)"
+            $PFEndpoint|Add-Member -NotePropertyName "PublicFolderEndpoint Username" -NotePropertyValue $($Endpoint.Username)
+            #PF data to present in new section
+            
+            [PSCustomObject]$PFMigHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "CustomObject"  -TableType "List" -EffectiveDataArrayList $PFEndpoint
+            $null = $TheObjectToConvertToHTML.Add($PFMigHTML)
         }
         write-host
-        [PSCustomObject]$PFInfoHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "CustomObject"  -TableType "List" -EffectiveDataArrayList $PFInfo
-        $null = $TheObjectToConvertToHTML.Add($PFInfoHTML)
+        if($null -ne $PFInfo)
+        {
+            [PSCustomObject]$PFInfoHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "CustomObject"  -TableType "List" -EffectiveDataArrayList $PFInfo
+            $null = $TheObjectToConvertToHTML.Add($PFInfoHTML)
+        }
+
          #endregion main public folders overview information
          #region MEPF DBEB Check
          [string]$SectionTitle = "Mail-enabled Public Folders Health Check"
