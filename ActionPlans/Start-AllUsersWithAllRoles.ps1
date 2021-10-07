@@ -10,6 +10,7 @@ $ExportPath = "$global:WSPath\RbacRoleAll_$ts"
 mkdir $ExportPath -Force |Out-Null
 . $script:modulePath\ActionPlans\Start-RbacTools.ps1
 Get-AllUsersWithAllRoles | export-csv "$ExportPath\ManagementRoleAssignmentUsers_$ts.csv" -NoTypeInformation
+##TODO ADD HTML Report
 Write-Host "Export all users with all the roles assigned to the file: $ExportPath"
 Read-Key
 Start-O365TroubleshootersMenu
