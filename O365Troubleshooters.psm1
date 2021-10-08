@@ -1882,6 +1882,7 @@ Function Start-O365TroubleshootersMenu {
     14 Tools: Decode SafeLinks URL
     15 Tools: Export Quarantine Messages
     16 Tools: Transform IMCEAEX (old LegacyExchangeDN) to X500 address
+    19 Tools: Find policies preventing SPO sites to be deleted
     Q  Quit
      
     Select a task by number or Q to quit
@@ -1978,6 +1979,10 @@ Function Start-O365TroubleshootersMenu {
             . $script:modulePath\ActionPlans\Get-X500FromImceaexNDR.ps1
         }
 
+        "19" {
+            Write-Host "Tools: Find policies preventing SPO sites to be deleted" -ForegroundColor Green
+            . $script:modulePath\ActionPlans\Start-SPORetentionChecker.ps1
+        }
     
 
         "Q" {
