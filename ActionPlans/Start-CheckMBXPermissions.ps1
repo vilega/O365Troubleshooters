@@ -1,10 +1,38 @@
-
-<# 
+<# 1st requirement install the module O365 TS
 Import-Module C:\Users\alexaca\Documents\GitHub\O365Troubleshooters\O365Troubleshooters.psm1 -Force
+# 2nd requirement Execute set global variables
 Set-GlobalVariables
+# 3rd requirement to start the menu
 Start-O365TroubleshootersMenu
 #>
 
+<#
+
+        .SYNOPSIS
+
+        Get a report of mailbox folder permissions for one or more mailboxes
+
+
+
+        .DESCRIPTION
+
+        Get a report of mailbox folder permissions for one or more mailboxes...
+
+
+
+        .EXAMPLE
+
+        If we check a mailbox for folder permissions, we can find out if any of the default folders have modified default permissions and someone else has access to the contents of those folders
+
+        
+
+        .LINK
+
+        Online documentation: https://aka.ms/O365Troubleshooters/CheckMailboxFolderPermissions
+
+
+
+    #>
 
 function Get-AllDefaultUserMailboxFolderPermissions {
 
@@ -29,6 +57,12 @@ function Get-AllDefaultUserMailboxFolderPermissions {
             [System.Collections.ArrayList]$folders = get-mailbox $MBX | Get-MailboxFolderStatistics | select Identity, @{Name = 'Alias'; Expression = { $alias } } , @{Name = 'SMTP'; Expression = { $SMTP } } 
         }
         $foldersForAllMbx += $folders
+
+        #With below 2 command lines I am attempting to get the Top of Information Store folder permission as well in the mailbox.
+            $MBRightsRoot = Get-MailboxFolderPermission -Identity "$MBX" -ErrorAction Stop
+            $MBRightsRoot = $MBRightsRoot | Select FolderName, User, AccessRights, @{Name = 'SMTP'; Expression = { $SMTP } }
+            $null = $rights.Add($MBRightsRoot)
+
     }
     
     
@@ -39,15 +73,11 @@ function Get-AllDefaultUserMailboxFolderPermissions {
         $foldername = $folder.Identity.ToString().Replace([char]63743, "/").Replace($folder.alias, $folder.SMTP + ":")
         try {
             $MBrights = Get-MailboxFolderPermission -Identity "$foldername" -ErrorAction Stop
-            [System.Collections.ArrayList]$MBrights = $MBrights | Select FolderName, User, AccessRights, @{Name = 'SMTP'; Expression = { $SMTP } }
-            #With below 2 command lines I am attempting to get the Top of Information Store folder permission as well in the mailbox.
-            $MBRightsRoot = Get-MailboxFolderPermission -Identity "$MBX" -ErrorAction Stop
-            [System.Collections.ArrayList]$MBRightsRoot = $MBRightsRoot | Select FolderName, User, AccessRights, @{Name = 'SMTP'; Expression = { $SMTP } }
-            foreach ($entry in $MBRightsRoot) {
-                $null = $MBrights.Add($entry)
-            }
+            [System.Collections.ArrayList]$MBrights = $MBrights | Select FolderName, User, AccessRights, @{Name = 'SMTP'; Expression = { $SMTP } 
+        }
                 
             $null = $rights.Add($MBrights)
+           
         }
         Catch {}
     }
@@ -96,8 +126,56 @@ $ExportRights = $rights | % { $_ }
 
 $ExportRights | Export-Csv $ExportPath\Mailbox_Folder_Permissions_$ts.csv -NoTypeInformation
 
-#Start-Process     C:\Temp\permissions.csv
+<#
+#Create the collection of sections of HTML
 
+$TheObjectToConvertToHTML = New-Object -TypeName "System.Collections.ArrayList"
+
+foreach ($mailbox in $allMBX)
+{
+
+    [string]$SectionTitle = "Information for the following mailbox: $($mailbox.PrimarySmtpAddress)"
+
+    [string]$Description = "We take a look at the mailbox default folder permissions"
+
+    $ExportRightsCurrentMbx = $ExportRights | ? SMTP -eq  $mailbox.PrimarySmtpAddress | select * -ExcludeProperty SMTP
+
+
+
+    [PSCustomObject]$ListOfOriginalAndDecodedUrlsHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDataString " "
+
+    $null = $TheObjectToConvertToHTML.Add($ListOfOriginalAndDecodedUrlsHtml)
+
+}
+
+
+
+#Build HTML report out of the previous HTML sections
+
+[string]$FilePath = $ExportPath + "\DecodeSafeLinksUrl.html"
+
+Export-ReportToHTML -FilePath $FilePath -PageTitle "Microsoft Defender for Office 365 Safe Links Decoder" -ReportTitle "Microsoft Defender for Office 365 Safe Links Decoder" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
+
+#Ask end-user for opening the HTMl report
+
+$OpenHTMLfile = Read-Host "Do you wish to open HTML report file now?`nType Y(Yes) to open or N(No) to exit!"
+
+if ($OpenHTMLfile.ToLower() -like "*y*") {
+
+    Write-Host "Opening report...." -ForegroundColor Cyan
+
+    Start-Process $FilePath
+
+}
+
+#endregion ResultReport
+
+   
+
+# Print location where the data was exported
+
+Write-Host "`nOutput was exported in the following location: $ExportPath" -ForegroundColor Yellow 
+#>
 
 Read-Key
 # Go back to the main menu
