@@ -66,9 +66,6 @@ function Get-UserMailboxFolderPermissions {
     }
     write-log -Function "Start-CheckMBXFolderPermissions" -Step "Get-UserMailboxFolderPermissions" -Description "Preparing folder name format for input on Get-MailboxFolderPermission cmdlet"
 
-    
-        
-        
     #Adjusting the folder Identity values obtained by previous command, to comply with the Get-MailboxFolderPermission cmdlet required format. Getting the folder permissions as well.
     foreach ($folder in $foldersForAllMbx) {
         $foldername = $folder.Identity.ToString().Replace([char]63743, "/").Replace($folder.alias, $folder.SMTP + ":")
@@ -83,9 +80,8 @@ function Get-UserMailboxFolderPermissions {
             #TODO: Need to implement error handling in a future revision}
         }
         write-log -Function "Start-CheckMBXFolderPermissions" -Step "Get-UserMailboxFolderPermissions" -Description "Getting permissions for the list of mailbox folders"
-
-        return ($rights)
     }
+    return ($rights)
 } 
 # connect
 Clear-Host
