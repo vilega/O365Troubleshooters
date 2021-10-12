@@ -1961,7 +1961,7 @@ Function Start-O365TroubleshootersMenu {
 
         "17" {
             Write-Host "Check Mailbox Folder Permissions" -ForegroundColor Green
-            . $script:modulePath\ActionPlans\start-checkMbxPermissions.ps1
+            . $script:modulePath\ActionPlans\Start-CheckMbxFolderPermissions.ps1
         }
 
         "Q" {

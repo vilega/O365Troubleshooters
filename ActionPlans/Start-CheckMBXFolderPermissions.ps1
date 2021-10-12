@@ -34,7 +34,7 @@ Start-O365TroubleshootersMenu
 
     #>
 
-function Get-AllDefaultUserMailboxFolderPermissions {
+function Get-UserMailboxFolderPermissions {
 
     param(
         [System.Collections.ArrayList]$MBXs,
@@ -64,7 +64,8 @@ function Get-AllDefaultUserMailboxFolderPermissions {
         $null = $rights.Add($MBRightsRoot)
 
     }
-    
+    write-log -Function "Start-CheckMBXFolderPermissions" -Step "Get-UserMailboxFolderPermissions" -Description "Preparing folder name format for input on Get-MailboxFolderPermission cmdlet"
+
     
         
         
@@ -78,11 +79,14 @@ function Get-AllDefaultUserMailboxFolderPermissions {
             $null = $rights.Add($MBrights)
            
         }
-        Catch {}
+        Catch {
+            #TODO: Need to implement error handling in a future revision}
+        }
+        write-log -Function "Start-CheckMBXFolderPermissions" -Step "Get-UserMailboxFolderPermissions" -Description "Getting permissions for the list of mailbox folders"
+
+        return ($rights)
     }
-    return ($rights)
-}
-    
+} 
 # connect
 Clear-Host
 $Workloads = "exo"
@@ -91,7 +95,7 @@ Connect-O365PS $Workloads
 # logging
 $CurrentProperty = "Connecting to: $Workloads"
 $CurrentDescription = "Success"
-write-log -Function "Connecting to O365 workloads" -Step $CurrentProperty -Description $CurrentDescription 
+write-log -Function "Start-CheckMBXFolderPermissions" -Step $CurrentProperty -Description $CurrentDescription 
 
 $ts = get-date -Format yyyyMMdd_HHmmss
 $ExportPath = "$global:WSPath\MailboxDiagnosticLogs_$ts"
@@ -103,12 +107,17 @@ Write-Host "Warning: Please keep in mind that the more mailboxes are selected, t
 $choice = Read-Host "Please select the mailboxes that need to be checked (press Enter to display the list of mailboxes)"
 #$allMBXInitialCount = $allMBX.Count#
 [Array]$allMBX = ($allMBX | Select-Object DisplayName, PrimarySmtpAddress, UserPrincipalName | Out-GridView -PassThru -Title "Select one or more..").PrimarySmtpAddress
+ 
 $allMBXSelectedCount = $allMBX.Count
     
 If ($allMBXSelectedCount -eq 0) {
-    # Go to the menu or get again all mbx
+    write-log -Function "Start-CheckMBXFolderPermissions" -Step "SelectedMailboxes" -Description "Fail"  
+    Write-Host "You have made no selection, we will return to the main menu!"
+    Read-Key
+    Start-O365TroubleshootersMenu
 }
-    
+write-log -Function "Start-CheckMBXFolderPermissions" -Step "SelectedMailboxes" -Description "Success"
+
 Write-Host "Warning: Depending on the number of mailboxes selected, running the script to check all folders, might give a timeout" -ForegroundColor Yellow
 #$choice = Read-Host "Do you want to check all folders or only default ones? Input '1' for 'All folders' or '2' for 'Default folders'"
 $choice = Get-Choice -Options 'All Folders', 'Default Folders'   
@@ -118,11 +127,15 @@ if ($choice -eq "d") {
 elseif ($choice -eq "a") {
     $isDefaultFolder = $false
 }
-    
-$rights = Get-AllDefaultUserMailboxFolderPermissions -MBXs $allMBX -isDefaultFolder $isDefaultFolder
+write-log -Function "Start-CheckMBXFolderPermissions" -Step "Chose only default folders" -Description $isDefaultFolder   
+write-log -Function "Start-CheckMBXFolderPermissions" -Step "Get-UserMailboxFolderPermissions" -Description "Calling function"
+
+$rights = Get-UserMailboxFolderPermissions -MBXs $allMBX -isDefaultFolder $isDefaultFolder
+
+write-log -Function "Start-CheckMBXFolderPermissions" -Step "Get-UserMailboxFolderPermissions" -Description "Returning from function"
 
 $ExportRights = $rights | ForEach-Object { $_ }
-
+write-log -Function "Start-CheckMBXFolderPermissions" -Step "Export CSV with mailbox folder permissions for selected users" -Description "Success"
 $ExportRights | Export-Csv $ExportPath\Mailbox_Folder_Permissions_$ts.csv -NoTypeInformation
 
 
@@ -181,6 +194,7 @@ foreach ($mailbox in $allMBX) {
 [string]$FilePath = $ExportPath + "\MailboxFolderPermissions.html"
 
 Export-ReportToHTML -FilePath $FilePath -PageTitle "Check Mailbox Folder Permissions" -ReportTitle "Check Mailbox Folder Permissions" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
+write-log -Function "Start-CheckMBXFolderPermissions" -Step "Export HTML report" -Description "Success"
 
 #Ask end-user for opening the HTMl report
 
