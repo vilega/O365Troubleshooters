@@ -54,14 +54,14 @@ function Get-AllDefaultUserMailboxFolderPermissions {
             [System.Collections.ArrayList]$folders = get-mailbox $MBX | Get-MailboxFolderStatistics | Where-Object FolderType -ne "User Created" | select Identity, @{Name = 'Alias'; Expression = { $alias } } , @{Name = 'SMTP'; Expression = { $SMTP } } 
         }
         else {
-            [System.Collections.ArrayList]$folders = get-mailbox $MBX | Get-MailboxFolderStatistics | select Identity, @{Name = 'Alias'; Expression = { $alias } } , @{Name = 'SMTP'; Expression = { $SMTP } } 
+            [System.Collections.ArrayList]$folders = get-mailbox $MBX | Get-MailboxFolderStatistics | select-object Identity, @{Name = 'Alias'; Expression = { $alias } } , @{Name = 'SMTP'; Expression = { $SMTP } } 
         }
         $foldersForAllMbx += $folders
 
         #With below 2 command lines I am attempting to get the Top of Information Store folder permission as well in the mailbox.
-            $MBRightsRoot = Get-MailboxFolderPermission -Identity "$MBX" -ErrorAction Stop
-            $MBRightsRoot = $MBRightsRoot | Select FolderName, User, AccessRights, @{Name = 'SMTP'; Expression = { $SMTP } }
-            $null = $rights.Add($MBRightsRoot)
+        $MBRightsRoot = Get-MailboxFolderPermission -Identity "$MBX" -ErrorAction Stop
+        $MBRightsRoot = $MBRightsRoot | Select-Object FolderName, User, AccessRights, @{Name = 'SMTP'; Expression = { $SMTP } }
+        $null = $rights.Add($MBRightsRoot)
 
     }
     
@@ -73,8 +73,7 @@ function Get-AllDefaultUserMailboxFolderPermissions {
         $foldername = $folder.Identity.ToString().Replace([char]63743, "/").Replace($folder.alias, $folder.SMTP + ":")
         try {
             $MBrights = Get-MailboxFolderPermission -Identity "$foldername" -ErrorAction Stop
-            [System.Collections.ArrayList]$MBrights = $MBrights | Select FolderName, User, AccessRights, @{Name = 'SMTP'; Expression = { $SMTP } 
-        }
+            [System.Collections.ArrayList]$MBrights = $MBrights | Select-Object FolderName, User, AccessRights, @{Name = 'SMTP'; Expression = { $folder.SMTP } }
                 
             $null = $rights.Add($MBrights)
            
@@ -102,12 +101,12 @@ mkdir $ExportPath -Force | out-null
 $allMBX = Get-ExoMailbox -Filter "RecipientTypeDetails -eq 'UserMailbox' -or RecipientTypeDetails -eq 'SharedMailbox'" | select DisplayName, PrimarySmtpAddress, UserPrincipalName
 Write-Host "Warning: Please keep in mind that the more mailboxes are selected, this will affect the performance of the script" -ForegroundColor Yellow
 $choice = Read-Host "Please select the mailboxes that need to be checked (press Enter to display the list of mailboxes)"
-$allMBXInitialCount = $allMBX.Count
-[Array]$allMBX = ($allMBX | select DisplayName, PrimarySmtpAddress, UserPrincipalName | Out-GridView -PassThru -Title "Select one or more..").PrimarySmtpAddress
+#$allMBXInitialCount = $allMBX.Count#
+[Array]$allMBX = ($allMBX | Select-Object DisplayName, PrimarySmtpAddress, UserPrincipalName | Out-GridView -PassThru -Title "Select one or more..").PrimarySmtpAddress
 $allMBXSelectedCount = $allMBX.Count
     
 If ($allMBXSelectedCount -eq 0) {
-    # go to the menu or get again all mbx
+    # Go to the menu or get again all mbx
 }
     
 Write-Host "Warning: Depending on the number of mailboxes selected, running the script to check all folders, might give a timeout" -ForegroundColor Yellow
@@ -122,29 +121,56 @@ elseif ($choice -eq "a") {
     
 $rights = Get-AllDefaultUserMailboxFolderPermissions -MBXs $allMBX -isDefaultFolder $isDefaultFolder
 
-$ExportRights = $rights | % { $_ }
+$ExportRights = $rights | ForEach-Object { $_ }
 
 $ExportRights | Export-Csv $ExportPath\Mailbox_Folder_Permissions_$ts.csv -NoTypeInformation
 
-<#
+
 #Create the collection of sections of HTML
 
 $TheObjectToConvertToHTML = New-Object -TypeName "System.Collections.ArrayList"
 
-foreach ($mailbox in $allMBX)
-{
-
-    [string]$SectionTitle = "Information for the following mailbox: $($mailbox.PrimarySmtpAddress)"
-
-    [string]$Description = "We take a look at the mailbox default folder permissions"
-
-    $ExportRightsCurrentMbx = $ExportRights | ? SMTP -eq  $mailbox.PrimarySmtpAddress | select * -ExcludeProperty SMTP
+[string]$SectionTitle = "Information"
+[string]$Description = "We will highlight in red all the users which have folders where the Default user permission is different than None. This can impact security as this type permission allows all users in the organization to access that user's folder. Please review!"
+[PSCustomObject]$SectionHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString ""
+$null = $TheObjectToConvertToHTML.Add($SectionHTML)
 
 
 
-    [PSCustomObject]$ListOfOriginalAndDecodedUrlsHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDataString " "
+foreach ($mailbox in $allMBX) {
+    [string]$SectionTitle = "Information for the following mailbox: $($mailbox)"
+   
+    $ExportRightsCurrentMbx = $ExportRights | Where-Object SMTP -eq  $mailbox | Select-Object * -ExcludeProperty SMTP
 
-    $null = $TheObjectToConvertToHTML.Add($ListOfOriginalAndDecodedUrlsHtml)
+    $defaultuser = $true
+
+    foreach ($currentrights in $ExportRightsCurrentMbx) {
+
+        if (($currentrights.User.DisplayName -eq "Default") -and !($currentrights.AccessRights -eq "None") -and !($currentrights.AccessRights -eq "AvailabilityOnly")) {
+            $defaultuser = $false
+
+        }
+
+
+    }
+
+    if ($isDefaultFolder -eq $true) {
+        [string]$Description = "We take a look only at the mailbox's default folder permissions"
+    }
+
+    elseif ($isDefaultFolder -eq $false) {
+        [string]$Description = "We take a look at all mailbox's folder permissions"   
+    }
+
+    if ($defaultuser -eq $True) {
+        [PSCustomObject]$SectionHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -TableType "Table" -EffectiveDataArrayList $ExportRightsCurrentMbx
+    }
+    else {
+        [PSCustomObject]$SectionHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -TableType "Table" -EffectiveDataArrayList $ExportRightsCurrentMbx
+    }
+
+
+    $null = $TheObjectToConvertToHTML.Add($SectionHTML)
 
 }
 
@@ -152,9 +178,9 @@ foreach ($mailbox in $allMBX)
 
 #Build HTML report out of the previous HTML sections
 
-[string]$FilePath = $ExportPath + "\DecodeSafeLinksUrl.html"
+[string]$FilePath = $ExportPath + "\MailboxFolderPermissions.html"
 
-Export-ReportToHTML -FilePath $FilePath -PageTitle "Microsoft Defender for Office 365 Safe Links Decoder" -ReportTitle "Microsoft Defender for Office 365 Safe Links Decoder" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
+Export-ReportToHTML -FilePath $FilePath -PageTitle "Check Mailbox Folder Permissions" -ReportTitle "Check Mailbox Folder Permissions" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
 
 #Ask end-user for opening the HTMl report
 
