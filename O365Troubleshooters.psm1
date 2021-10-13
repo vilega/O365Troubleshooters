@@ -296,7 +296,7 @@ Function Connect-O365PS {
                 $mfa = $mfa.ToLower()
                 if ($mfa -eq "y") {
                     $global:MfaOption = 1
-                    Write-Host $global:MfaDisclaimer -ForegroundColor Red 
+                    #Write-Host $global:MfaDisclaimer -ForegroundColor Red 
                     $global:userPrincipalName = Get-ValidEmailAddress("UserPrincipalName used to connect to Office 365 Services")
                 }
                 if ($mfa -eq "n") {
