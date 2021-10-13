@@ -733,14 +733,14 @@ Function Connect-O365PS {
                         
         
                         $errordescr = $null
-                        if (($null -eq $Global:EXOSession ) -or ($Global:EXOSession.State -eq "Closed") -or ($Global:EXOSession.State -eq "Broken")) {
+                        if (($null -eq $Global:IPPSSession ) -or ($Global:IPPSSession.State -eq "Closed") -or ($Global:IPPSSession.State -eq "Broken")) {
                             
-                            Connect-IPPSSession -UserPrincipalName $global:UserPrincipalName -PSSessionOption $PSsettings -ShowBanner:$false -ErrorVariable errordescr -ErrorAction Stop 
-                            $Global:EXOSession = Get-PSSession  | Where-Object { ($_.name -like "ExchangeOnlineInternalSession*") -and ($_.ConnectionUri -like "*compliance.protection.outlook.com*") -and ($_.state -eq "Opened") }
+                            Connect-IPPSSession -UserPrincipalName $global:UserPrincipalName -PSSessionOption $PSsettings -ErrorVariable errordescr -ErrorAction Stop 
+                            $Global:IPPSSession = Get-PSSession  | Where-Object { ($_.name -like "ExchangeOnlineInternalSession*") -and ($_.ConnectionUri -like "*compliance.protection.outlook.com*") -and ($_.state -eq "Opened") }
                             $CurrentError = $errordescr.exception 
-                            Import-Module (Import-PSSession $EXOSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue
-                            $null = Get-OrganizationConfig -ErrorAction SilentlyContinue -ErrorVariable errordescr
-                            $CurrentError = $errordescr.exception.message + $Global:Error[0]
+                            Import-Module (Import-PSSession $IPPSSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue -Prefix cc
+                            #$null = Get-OrganizationConfig -ErrorAction SilentlyContinue -ErrorVariable errordescr
+                            #$CurrentError = $errordescr.exception.message + $Global:Error[0]
                         }
 
                     }
