@@ -5,10 +5,26 @@ Set-GlobalVariables
 # 3rd requirement to start the menu
 Start-O365TroubleshootersMenu
 #>
+
+<#
+.Synopsis
+   Checks for blockers preventing Distribution Group migration.
+.DESCRIPTION
+   This script illustrates Distribution to M365 Group migration eligibility checks taken place over the provided distribution group, most of the checks are listed on the below article!
+   https://docs.microsoft.com/en-us/microsoft-365/admin/manage/upgrade-distribution-lists?view=o365-worldwide
+   For more information on the script procedures please check the below article!
+   https://aka.ms/O365Troubleshooters/DlToGroupUpgrade
+.INPUTS
+  None.
+.OUTPUTS
+   HTML report showing distribution group migration blockers & eligibilities and log file
+.LINK
+   https://aka.ms/O365Troubleshooters/DlToGroupUpgrade
+#>
+
 Clear-Host
 
 #region Connecting to EXO & MSOL
-
 $Workloads = "exo","msol"
 try {
     Connect-O365PS $Workloads 
@@ -62,7 +78,7 @@ $Greeninhtml='<span style="color: green">GREEN</span>'
 $Redinhtml='<span style="color: red">RED</span>'
 [string]$SectionTitle = "Introduction"
 [String]$article='<a href="https://docs.microsoft.com/en-us/microsoft-365/admin/manage/upgrade-distribution-lists?view=o365-worldwide" target="_blank">Upgrade distribution lists to Microsoft 365 Groups in Outlook</a>'
-[string]$Description = "This report illustrates Distribution to O365 Group migration eligibility checks taken place over group SMTP: "+"<b>$dgsmtp</b>"+", Sections in$Redinhtml are for migration$blockersinhtml while Sections in$Greeninhtml are for migration$Eligibilitiesinhtml"
+[string]$Description = "This report illustrates Distribution to M365 Group migration eligibility checks taken place over group SMTP: "+"<b>$dgsmtp</b>"+", Sections in$Redinhtml are for migration$blockersinhtml while Sections in$Greeninhtml are for migration$Eligibilitiesinhtml"
 $Description=$Description+",for more informtion please check: $article"
 [PSCustomObject]$StartHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString "Please ensure to mitigate $blockersinhtml in case found!"
 #[PSCustomObject]$StartHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString "Please ensure to mitigate migration BLOCKERS in case found!"
@@ -203,6 +219,7 @@ $parentdgcount=1
 foreach($parentdg in $alldgs)
 {
     try {
+        write-host ""
         $Pmembers = Get-DistributionGroupMember $($parentdg.Guid.ToString()) -ErrorAction Stop
         #$CurrentProperty = "Retrieving: $parentdg members"
         #$CurrentDescription = "Success"
