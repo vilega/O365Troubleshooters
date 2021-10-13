@@ -28,36 +28,15 @@ x - Automate adding exception for a M365 group?
 #>
 #endregion ------------------------------------------------------------
 
-
-#region Quick reference on connectiong steps
-<#
-## Without MFA
-$UserCredential = Get-Credential -UserName "meganb@M365x768391.onmicrosoft.com" -Message "Enter password:"
-$Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri https://ps.compliance.protection.outlook.com/powershell-liveid/ -Credential $UserCredential -Authentication Basic -AllowRedirection
-Import-PSSession $Session -DisableNameChecking
-
-# Always remove the session otherwise it may lock you out and you'll need to wait previous sessions expire
-Remove-PSSession $Session
-
-
-## With MFA
-# Exchange Admin Center > Hybrid > Configure, install...
-Connect-IPPSSession -UserPrincipalName roan@roanmarques.onmicrosoft.com
-#>
-#endregion 
-
-
-<# DEv Setup
+<# DEV Setup ------------------------------------------------------
 import-module C:\GitHub\O365Troubleshooters\O365Troubleshooters.psm1 -Force
 Set-GlobalVariables
-Start-O365TroubleshootersMenu
-#>
+#Start-O365TroubleshootersMenu
+Connect-IPPSSession -UserPrincipalName roan@roanmarques.onmicrosoft.com -Prefix cc
+-------------------------------------------------------------------   #>
 
 #Connect-O365PS "SCC"
-#Connect-IPPSSession -UserPrincipalName roan@roanmarques.onmicrosoft.com -Prefix cc
-
-# Fill in export path ---------------------------------
-
+Connect-IPPSSession -UserPrincipalName roan@roanmarques.onmicrosoft.com -Prefix cc
 
 # Create the Export Folder
 $ts = get-date -Format yyyyMMdd_HHmmss
@@ -82,15 +61,18 @@ catch {
 # Initialization variables
 $workloads = @("SharePoint","OneDrive","ModernGroup") # SharePoint, OneDrive, ModernGroup (Microsoft 365 Groups)
 $Report = @()
-$Policies = @()
+
 
 # Get the info for each workload specified, then parses each policy in them
 Foreach ($workload in $workloads){
     
     #Loads the retention policies
+    $Policies = @() #$Policies must be reset for each workload and it must be and array
     $Policies += (Get-ccRetentionCompliancePolicy -ExcludeTeamsPolicy -DistributionDetail | Where-Object {$_.$($workload + "Location") -ne $Null})
     #Loads the holds from eDiscovery cases
-    $Policies += Get-ccComplianceCase | ForEach-Object { Get-ccCaseHoldPolicy -Case $_.Identity -DistributionDetail |  Where-Object {$_.$($workload + "Location") -ne $Null} }
+    $Policies += Get-ccComplianceCase | 
+        ForEach-Object { Get-ccCaseHoldPolicy -Case $_.Identity -DistributionDetail |
+            Where-Object {$_.$($workload + "Location") -ne $Null} }
     
     # Parses each policy info
     ForEach ($P in $Policies) {
@@ -105,11 +87,11 @@ Foreach ($workload in $workloads){
                   Type       = $P.Type
                   Guid       = $P.Guid
                   }
-                $Report += $ReportLine }
+                $Report += $ReportLine 
 
                 # Check if the policy have exceptions
                 If ($P.$($workload + "LocationException").count -gt 0) {
-                    $Locations = ($P | Select -ExpandProperty $($workload + "LocationException"))
+                    $Locations = ($P | Select-Object -ExpandProperty $($workload + "LocationException"))
                         ForEach ($L in $Locations) {
                             $Exception = "*Exclude* " + $L.DisplayName
                             $ReportLine = [PSCustomObject]@{
@@ -122,11 +104,12 @@ Foreach ($workload in $workloads){
                                         }
                             $Report += $ReportLine
                         }
+                }
             }
 
-            # Tread the policies where the scope is restrict to specific locations in the given workload
+            # Treat the policies where the scope is restrict to specific locations in the given workload
             If ($P.$($workload + "Location").Name -ne "All") {
-                $Locations = ($P | Select -ExpandProperty $($workload + "Location"))
+                $Locations = ($P | Select-Object -ExpandProperty $($workload + "Location"))
                 ForEach ($L in $Locations) {
                     $ReportLine = [PSCustomObject]@{
                                     PolicyName = $P.Name
@@ -143,7 +126,7 @@ Foreach ($workload in $workloads){
 }
 
 # Shows the reports in a gridview window
-$Report | Out-GridView -Title "SPO Tenant holds Report"
+#$Report | Out-GridView -Title "SPO Tenant holds Report"
 
 # If specified, exports the report for an CSV file  
 If ($exportPath) { $Report | Export-Csv -NoTypeInformation $ExportPath\SPOTenantHoldsReport.csv -Encoding UTF8 }
@@ -160,7 +143,6 @@ $null = $TheObjectToConvertToHTML.Add($SectionHtml)
 [string]$FilePath = $ExportPath + "\SPOTenantHoldsReport.html"
 Export-ReportToHTML -FilePath $FilePath -PageTitle "SPO Tenant holds Report" -ReportTitle "SPO Tenant holds Report" -TheObjectToConvertToHTML $TheObjectToConvertToHTML
 
-
 #Ask end-user for opening the HTMl report
 $OpenHTMLfile = Read-Host "Do you wish to open HTML report file now?`nType Y(Yes) to open or N(No) to exit!"
 if ($OpenHTMLfile.ToLower() -like "*y*") {
@@ -174,5 +156,3 @@ Write-Host "`nOutput was exported in the following location: $ExportPath" -Foreg
 Read-Key
 
 Start-O365TroubleshootersMenu
-
-$wor
