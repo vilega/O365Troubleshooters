@@ -12,6 +12,7 @@ ok 1 - Enumerate common issues this script may spot
 3 - Integrate with main menu
 4 - Integrate with S&C connection function
 5 - Create wiki for the Action Plan
+    word document
 x - Automate adding exception for a site?
 x - Automate adding exception for a M365 group?
 
@@ -28,6 +29,8 @@ x - Automate adding exception for a M365 group?
 Questions:
     1 - Field order in report
     2 - Export CSV should be optional?
+    3 - Make the report more inclusive
+    4 - PS session crashing --> Due to the module design
     
 #>
 #endregion ------------------------------------------------------------
@@ -40,7 +43,9 @@ Connect-IPPSSession -UserPrincipalName roan@roanmarques.onmicrosoft.com -Prefix 
 -------------------------------------------------------------------   #>
 
 #Connect-O365PS "SCC"
+#Connect-IPPSSession -Prefix cc
 Connect-IPPSSession -UserPrincipalName roan@roanmarques.onmicrosoft.com -Prefix cc
+
 
 # Create the Export Folder
 $ts = get-date -Format yyyyMMdd_HHmmss
@@ -129,30 +134,34 @@ Foreach ($workload in $workloads){
     }
 }
 
-# Filter SharePoint Holds - 
+# Filter SharePoint Holds - SharePoint + M365 groups
 $SPOReport = $Report | Where-Object {$_.Workload -in @("SharePoint","ModernGroup")}
 $SPOReport = $SPOReport | Sort-Object -Descending "SiteName" | Sort-Object "PolicyName"
 
-# Filter OneDrive Holds - SharePoint and OneDrive except policies expliciting a SharePoint Site
+# Filter OneDrive Holds - SharePoint and OneDrive except policies expliciting only SharePoint Sites
 $ODBReport = New-Object -TypeName "System.Collections.ArrayList"
 $ODBReport = $Report | Where-Object {$_.Workload -eq "SharePoint" -and $_.Address -notmatch "sharepoint.com"}
+$ODBReport += $Report | Where-Object {$_.Workload -eq "SharePoint" -and $_.Address -match "-my.sharepoint.com"}
 $ODBReport += $Report | Where-Object {$_.Workload -eq "OneDrive"}
 $ODBReport = $ODBReport | Sort-Object -Descending "SiteName" | Sort-Object "PolicyName"
 
 
 # If specified, exports the report for an CSV file  
-If ($exportPath) { $Report | Export-Csv -NoTypeInformation $ExportPath\SPOTenantHoldsReport.csv -Encoding UTF8 }
+$Report | Export-Csv -NoTypeInformation $ExportPath\SPOTenantHoldsReport.csv -Encoding UTF8
 
 #region Prepare HTML Report
 $TheObjectToConvertToHTML = New-Object -TypeName "System.Collections.ArrayList"
 
+# HTML sample: Start-DlToO365GroupUpgradeChecks
+
 # Adds general guidance about the report
 [string]$SectionTitle = "Report Guidance"
-[string]$Description = "A Site/OneDrive explicitly included is protected. A Site/OneDrive included by an 'All' workload policy is protected if not explicitly excluded by the same policy. Inclusion policies precede exclusion policies."
+[string]$Description = "A Site/OneDrive explicitly included is protected. `nA Site/OneDrive included by an 'All' workload policy is protected if not explicitly excluded by the same policy. `nInclusion policies precede exclusion policies."
 [PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -DataType "String" -EffectiveDataString $Description
 $null = $TheObjectToConvertToHTML.Add($SectionHtml)
 
 # Adds the session for policies affecting SharePoint
+#TODO: check if there is content
 [string]$SectionTitle = "SharePoint Holds"
 [string]$Description = "These are the holds which may be preventing SharePoint files and sites to be deleted. Sites connected to a M365 group are impacted by ModernGroup holds."
 #[PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDataString "Bla bla"
