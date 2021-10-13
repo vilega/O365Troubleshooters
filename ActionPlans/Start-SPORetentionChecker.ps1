@@ -1,23 +1,13 @@
 <# ------------------------------------------------------------------------------------------------------------------------------------------
 Description: 
     Get retention policies and eDiscovery holds rules for SharePoint, OneDrive and ModernGroups (Microsoft 365 Groups)
-    and exports the result for a CSV file if specified
 
-Issues:
-- SPO site bounded to a M365 non-excluded from from ModernGroups policies (Accept site URL parameter?)
-- Find a eDiscovery hold applied for a SPO/ODB site (Accept site URL parameter?)
-
-Attention:
-  - This script requires a Security & Compliance PS session active like described in:
-    Without MFA - https://docs.microsoft.com/en-us/powershell/exchange/office-365-scc/connect-to-scc-powershell/connect-to-scc-powershell
-    With MFA - https://docs.microsoft.com/en-us/powershell/exchange/office-365-scc/connect-to-scc-powershell/mfa-connect-to-scc-powershell
-  - This script DOES NOT check eDiscovery holds neither DLP policies
 -------------------------------------------------------------------------------------------------------------------------------------------#>
 
 #region To-Do --------------------------------------------------------
 <#
 
-1 - Enumerate common issues this script may spot
+ok 1 - Enumerate common issues this script may spot
 2 - Add output to highlight the issues and guide fixes
 3 - Integrate with main menu
 4 - Integrate with S&C connection function
@@ -25,6 +15,20 @@ Attention:
 x - Automate adding exception for a site?
 x - Automate adding exception for a M365 group?
 
+1 - Enumerate common issues this script may spot
+  ok  a. Sharepoint holds over ODB sites
+  ok  b. M365 group holds over SPO sites
+    c. Distribution issues checking status for Mode, DistributionStatus, DistributionResults
+    d. Show policies protecting a site
+
+2 - Add output to highlight the issues and guide fixes
+    a. Add references about how to setup the exclusions
+
+
+Questions:
+    1 - Field order in report
+    2 - Export CSV should be optional?
+    
 #>
 #endregion ------------------------------------------------------------
 
@@ -60,14 +64,14 @@ catch {
 
 # Initialization variables
 $workloads = @("SharePoint","OneDrive","ModernGroup") # SharePoint, OneDrive, ModernGroup (Microsoft 365 Groups)
-$Report = @()
+$Report = New-Object -TypeName "System.Collections.ArrayList"
 
 
 # Get the info for each workload specified, then parses each policy in them
 Foreach ($workload in $workloads){
     
     #Loads the retention policies
-    $Policies = @() #$Policies must be reset for each workload and it must be and array
+    $Policies = New-Object -TypeName "System.Collections.ArrayList" #$Policies must be reset for each workload and it must be and array
     $Policies += (Get-ccRetentionCompliancePolicy -ExcludeTeamsPolicy -DistributionDetail | Where-Object {$_.$($workload + "Location") -ne $Null})
     #Loads the holds from eDiscovery cases
     $Policies += Get-ccComplianceCase | 
@@ -84,7 +88,7 @@ Foreach ($workload in $workloads){
                   SiteName   = "All $workload Sites"
                   Address    = "All $workload Sites"
                   Workload   = "$workload"
-                  Type       = $P.Type
+                  #Type       = $P.Type #currently useless
                   Guid       = $P.Guid
                   }
                 $Report += $ReportLine 
@@ -99,7 +103,7 @@ Foreach ($workload in $workloads){
                                             SiteName   = $Exception
                                             Address    = $L.Name
                                             Workload   = "$workload"
-                                            Type       = $P.Type
+                                            #Type       = $P.Type #currently useless
                                             Guid       = $P.Guid
                                         }
                             $Report += $ReportLine
@@ -116,7 +120,7 @@ Foreach ($workload in $workloads){
                                     SiteName   = $L.DisplayName
                                     Address    = $L.Name
                                     Workload   = "$workload"
-                                    Type       = $P.Type
+                                    #Type       = $P.Type #currently useless
                                     Guid       = $P.Guid
                                     }
                     $Report += $ReportLine  
@@ -125,18 +129,47 @@ Foreach ($workload in $workloads){
     }
 }
 
-# Shows the reports in a gridview window
-#$Report | Out-GridView -Title "SPO Tenant holds Report"
+# Filter SharePoint Holds - 
+$SPOReport = $Report | Where-Object {$_.Workload -in @("SharePoint","ModernGroup")}
+$SPOReport = $SPOReport | Sort-Object -Descending "SiteName" | Sort-Object "PolicyName"
+
+# Filter OneDrive Holds - SharePoint and OneDrive except policies expliciting a SharePoint Site
+$ODBReport = New-Object -TypeName "System.Collections.ArrayList"
+$ODBReport = $Report | Where-Object {$_.Workload -eq "SharePoint" -and $_.Address -notmatch "sharepoint.com"}
+$ODBReport += $Report | Where-Object {$_.Workload -eq "OneDrive"}
+$ODBReport = $ODBReport | Sort-Object -Descending "SiteName" | Sort-Object "PolicyName"
+
 
 # If specified, exports the report for an CSV file  
 If ($exportPath) { $Report | Export-Csv -NoTypeInformation $ExportPath\SPOTenantHoldsReport.csv -Encoding UTF8 }
 
+#region Prepare HTML Report
 $TheObjectToConvertToHTML = New-Object -TypeName "System.Collections.ArrayList"
-[string]$SectionTitle = "Policies"
-[string]$Description = "If there is a hold, ...."
+
+# Adds general guidance about the report
+[string]$SectionTitle = "Report Guidance"
+[string]$Description = "A Site/OneDrive explicitly included is protected. A Site/OneDrive included by an 'All' workload policy is protected if not explicitly excluded by the same policy. Inclusion policies precede exclusion policies."
+[PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -DataType "String" -EffectiveDataString $Description
+$null = $TheObjectToConvertToHTML.Add($SectionHtml)
+
+# Adds the session for policies affecting SharePoint
+[string]$SectionTitle = "SharePoint Holds"
+[string]$Description = "These are the holds which may be preventing SharePoint files and sites to be deleted. Sites connected to a M365 group are impacted by ModernGroup holds."
 #[PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDataString "Bla bla"
-[PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $Report -TableType Table
+[PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $SPOReport -TableType Table
 #[PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $Report -TableType List
+$null = $TheObjectToConvertToHTML.Add($SectionHtml)
+
+# Adds the session for policies affecting OneDrive
+[string]$SectionTitle = "OneDrive Holds"
+[string]$Description = "These are the holds which may be preventing OneDrive files and sites to be deleted."
+[PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ODBReport -TableType Table
+$null = $TheObjectToConvertToHTML.Add($SectionHtml)
+
+# Adds recomendations to the report
+[string]$SectionTitle = "Recommendations"
+[string]$Description = "In case the Site/OneDrive you can't delete or remove files is not exempted in all the policies in which it's subjected to their scope, you'll need to add those exceptions to remove the retention protection."
+[PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -DataType "String" -EffectiveDataString $Description
 $null = $TheObjectToConvertToHTML.Add($SectionHtml)
 
 #Build HTML report out of the previous HTML sections
@@ -149,7 +182,7 @@ if ($OpenHTMLfile.ToLower() -like "*y*") {
     Write-Host "Opening report...." -ForegroundColor Cyan
     Start-Process $FilePath
 }
-#endregion ResultReport
+#endregion Prepare HTML Report
     
 # Print location where the data was exported
 Write-Host "`nOutput was exported in the following location: $ExportPath" -ForegroundColor Yellow 
