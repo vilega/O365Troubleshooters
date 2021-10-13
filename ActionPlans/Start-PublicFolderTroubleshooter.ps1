@@ -993,8 +993,8 @@ $menuchoice=Read-Host $PFMenu
 $menuchoice = $menuchoice.ToLower()
 if ($menuchoice -eq 1)
 {
-    #HTML report in next release
-    Write-Warning "This diagnostic is going to be generating HTML report output over the next O365Troubleshooter upcoming release!"
+    #HTML report 
+    #Write-Warning "This diagnostic is going to be generating HTML report output over the next O365Troubleshooter upcoming release!"
     Write-Warning "This diagnostic is tested on small public folder enviroments (1k) so please expect some delay if you have medium to huge public folder enviroments!" 
     Read-Key
     #Clear-Host
