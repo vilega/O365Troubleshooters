@@ -23,6 +23,7 @@ Start-O365TroubleshootersMenu
 #>
 
 Clear-Host
+
 #region Connecting to EXO & MSOL
 $Workloads = "exo","msol"
 try {
@@ -37,7 +38,7 @@ catch {
     write-log -Function "Connecting to O365 workloads" -Step $CurrentProperty -Description $CurrentDescription
     }
 #endregion Connecting to EXO & MSOL
-
+Clear-Host
 #region Create working folder for Groups Diag
 $ts= get-date -Format yyyyMMdd_HHmmss
 $ExportPath = "$global:WSPath\DlToO365GroupUpgradeChecks_$ts"
