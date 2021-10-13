@@ -1216,8 +1216,10 @@ function Start-Elevated {
     
     If (!([Net.ServicePointManager]::SecurityProtocol -eq [Net.SecurityProtocolType]::Tls12 ))
     {
-        write-host "SecurityProtocol version should be TLS12 for PowerShellGet to be installed. If the value will different than TLS12, the script will exit" -ForegroundColor Red
-        $answer = Read-Host "Do you agree to set SecurityProtocol to Tls12? Type y for `"Yes`" and n for `"No`""
+        #Bypass the question as anyway the configuration is just per session, won't persist after restart
+        #write-host "SecurityProtocol version should be TLS12 for PowerShellGet to be installed. If the value will different than TLS12, the script will exit" -ForegroundColor Red
+        #$answer = Read-Host "Do you agree to set SecurityProtocol to Tls12? Type y for `"Yes`" and n for `"No`""
+        $answer ="y"
         if ($answer.ToLower() -eq "y")
         {
             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 
