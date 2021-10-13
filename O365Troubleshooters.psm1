@@ -296,7 +296,7 @@ Function Connect-O365PS {
                 $mfa = $mfa.ToLower()
                 if ($mfa -eq "y") {
                     $global:MfaOption = 1
-                    Write-Host $global:MfaDisclaimer -ForegroundColor Red 
+                    #Write-Host $global:MfaDisclaimer -ForegroundColor Red 
                     $global:userPrincipalName = Get-ValidEmailAddress("UserPrincipalName used to connect to Office 365 Services")
                 }
                 if ($mfa -eq "n") {
@@ -733,14 +733,14 @@ Function Connect-O365PS {
                         
         
                         $errordescr = $null
-                        if (($null -eq $Global:EXOSession ) -or ($Global:EXOSession.State -eq "Closed") -or ($Global:EXOSession.State -eq "Broken")) {
+                        if (($null -eq $Global:IPPSSession ) -or ($Global:IPPSSession.State -eq "Closed") -or ($Global:IPPSSession.State -eq "Broken")) {
                             
-                            Connect-IPPSSession -UserPrincipalName $global:UserPrincipalName -PSSessionOption $PSsettings -ShowBanner:$false -ErrorVariable errordescr -ErrorAction Stop 
-                            $Global:EXOSession = Get-PSSession  | Where-Object { ($_.name -like "ExchangeOnlineInternalSession*") -and ($_.ConnectionUri -like "*compliance.protection.outlook.com*") -and ($_.state -eq "Opened") }
+                            Connect-IPPSSession -UserPrincipalName $global:UserPrincipalName -PSSessionOption $PSsettings -ErrorVariable errordescr -ErrorAction Stop 
+                            $Global:IPPSSession = Get-PSSession  | Where-Object { ($_.name -like "ExchangeOnlineInternalSession*") -and ($_.ConnectionUri -like "*compliance.protection.outlook.com*") -and ($_.state -eq "Opened") }
                             $CurrentError = $errordescr.exception 
-                            Import-Module (Import-PSSession $EXOSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue
-                            $null = Get-OrganizationConfig -ErrorAction SilentlyContinue -ErrorVariable errordescr
-                            $CurrentError = $errordescr.exception.message + $Global:Error[0]
+                            Import-Module (Import-PSSession $IPPSSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue -Prefix cc
+                            #$null = Get-OrganizationConfig -ErrorAction SilentlyContinue -ErrorVariable errordescr
+                            #$CurrentError = $errordescr.exception.message + $Global:Error[0]
                         }
 
                     }
@@ -1216,8 +1216,10 @@ function Start-Elevated {
     
     If (!([Net.ServicePointManager]::SecurityProtocol -eq [Net.SecurityProtocolType]::Tls12 ))
     {
-        write-host "SecurityProtocol version should be TLS12 for PowerShellGet to be installed. If the value will different than TLS12, the script will exit" -ForegroundColor Red
-        $answer = Read-Host "Do you agree to set SecurityProtocol to Tls12? Type y for `"Yes`" and n for `"No`""
+        #Bypass the question as anyway the configuration is just per session, won't persist after restart
+        #write-host "SecurityProtocol version should be TLS12 for PowerShellGet to be installed. If the value will different than TLS12, the script will exit" -ForegroundColor Red
+        #$answer = Read-Host "Do you agree to set SecurityProtocol to Tls12? Type y for `"Yes`" and n for `"No`""
+        $answer ="y"
         if ($answer.ToLower() -eq "y")
         {
             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 
