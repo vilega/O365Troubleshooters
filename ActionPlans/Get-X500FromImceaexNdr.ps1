@@ -43,7 +43,7 @@ catch {
 $ListOfOriginalImceaexAndX500 = New-Object -TypeName "System.Collections.ArrayList"
 
 # Loop until will be false (when administrator won't continue)
-$decode = true
+$decode = $true
 
 While ($decode) {
    
@@ -94,7 +94,7 @@ While ($decode) {
     }
     
     #Cast HashTabel into PSCustomObject and add it to the List collection
-    $null = $ListOfOriginalImceaexAndX500.Add([PSCustomObject]$urlHashTabel)
+    $null = $ListOfOriginalImceaexAndX500.Add([PSCustomObject]$X500HashTabel)
 
     # Ask if any new URL needs to be decoded
     Clear-Host
@@ -122,7 +122,7 @@ try {
     $TheObjectToConvertToHTML = New-Object -TypeName "System.Collections.ArrayList"
     for ($i = 0; $i -lt $ListOfOriginalImceaexAndX500.Count; $i++) {
 
-            [string]$SectionTitle = "Decode X500 - $($i+1)"
+            [string]$SectionTitle = "Decoded X500 - $($i+1)"
             [string]$Description = "The IMCEAEX NDR is decoded to create the X500"
             [PSCustomObject]$ListOfImceaexAndX500Html = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList  $ListOfOriginalImceaexAndX500[$i] -TableType "List"
             $null = $TheObjectToConvertToHTML.Add($ListOfImceaexAndX500Html)
