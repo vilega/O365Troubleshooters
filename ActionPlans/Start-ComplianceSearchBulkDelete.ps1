@@ -17,7 +17,7 @@
 
 $cleanup = {
     Write-Host "Currently the search is configured to exclude the 'Recoverable Items', 'Purges' and 'Versions' folders from its scope."
-    Write-Host -ForegroundColor Magenta "How do you prefer to keep the search?"
+    Write-Host -ForegroundColor Cyan "How do you prefer to keep the search?"
     Write-Host "Type 'K' to KEEP the exclusion: If you re-run the search, it will NOT find the initial items, but they are available under 'Purges' mailbox folder, governed by the mailbox retention settings and holds applied."
     Write-Host
     Write-Host "Type 'R' to Remove the exclusion: If you re-run the search, it will find the initial items, but they are available under 'Purges' mailbox folder, governed by the mailbox retention settings and holds applied."
@@ -98,7 +98,7 @@ $cleanup = {
     
     # Confirmation input
     
-    Write-Host -ForegroundColor Magenta "Are you sure you want to delete $initialitems items with size $contentsize found by the selected $searchname Compliance Search?"
+    Write-Host -ForegroundColor Cyan "Are you sure you want to delete $initialitems items with size $contentsize found by the selected $searchname Compliance Search?"
     
     [string]$Option = read-host "Type 'yes' to confirm"
     $option = $option.ToLower()
