@@ -41,7 +41,7 @@ $cleanup = {
     
         [string]$Description = "Selected '$searchname' search query has been updated to remove the exclusions and revert to the initial search query: '$OldContentMatchQuery'"
        
-        [PSCustomObject]$SectionHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString " "
+        [PSCustomObject]$SectionHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString " "
           
         $null = $TheObjectToConvertToHTML.Add($SectionHTML)
        
@@ -55,7 +55,7 @@ $cleanup = {
     
         [string]$Description = "Selected '$searchname' search query has been updated to keep the exclusions: '$latestquery'"
     
-        [PSCustomObject]$SectionHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString " "
+        [PSCustomObject]$SectionHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString " "
        
         $null = $TheObjectToConvertToHTML.Add($SectionHTML)
     
@@ -132,7 +132,7 @@ $searchdetails | export-csv -Path $ExportPath\Selected_search_details.csv -NoTyp
     
 [string]$Description = "Summary of the selected Compliance Search '$searchname'"
     
-[PSCustomObject]$SectionHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $searchdetails -tabletype List 
+[PSCustomObject]$SectionHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $searchdetails -tabletype List 
 $null = $TheObjectToConvertToHTML.Add($SectionHTML)
     
 # Identifying 'Recoverable Items', 'Purges' and 'Versions' folders - this part is taken from article:  

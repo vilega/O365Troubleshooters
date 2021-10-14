@@ -124,7 +124,7 @@ try {
 
             [string]$SectionTitle = "Decoded X500 - $($i+1)"
             [string]$Description = "The IMCEAEX NDR is decoded to create the X500"
-            [PSCustomObject]$ListOfImceaexAndX500Html = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList  $ListOfOriginalImceaexAndX500[$i] -TableType "List"
+            [PSCustomObject]$ListOfImceaexAndX500Html = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList  $ListOfOriginalImceaexAndX500[$i] -TableType "List"
             $null = $TheObjectToConvertToHTML.Add($ListOfImceaexAndX500Html)
     }
 

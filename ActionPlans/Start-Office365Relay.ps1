@@ -447,14 +447,14 @@ param(
     [string]$Description = "This section should display failures encountered for Smtp Relay/Direct Send attempts."
     if($SmtpRelayFunctionErrors){
         $SectionTitleColor = "Red"
-        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+        $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                 -DataType "CustomObject" -EffectiveDataArrayList $SmtpRelayFunctionErrors -TableType $TableType
 
         $null = $script:Office365RelayHTMLReportArray.Add($HTMLReportEntry)
     }
     else{
         $SectionTitleColor = "Green"
-        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+        $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                 -DataType "String" -EffectiveDataString $NoFailure
         $null = $script:Office365RelayHTMLReportArray.Add($HTMLReportEntry)
     }
@@ -464,14 +464,14 @@ param(
     [string]$Description = "This section should display failures encountered for SMTP Client Submission attempts."
     if($SmtpClientSubmissionFunctionErrors){
         $SectionTitleColor = "Red"
-        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+        $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                 -DataType "CustomObject" -EffectiveDataArrayList $SmtpClientSubmissionFunctionErrors -TableType $TableType
 
         $script:Office365RelayHTMLReportArray.Add($HTMLReportEntry)|Out-Null
     }
     else{
         $SectionTitleColor = "Green"
-        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+        $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                 -DataType "String" -EffectiveDataString $NoFailure
         $script:Office365RelayHTMLReportArray.Add($HTMLReportEntry)|Out-Null
     }
@@ -481,14 +481,14 @@ param(
     [string]$Description = "This section should display failures encountered during Authentication attempts."
     if($SmtpClientAuthenticationFunctionErrors){
         $SectionTitleColor = "Red"
-        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+        $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                 -DataType "CustomObject" -EffectiveDataArrayList $SmtpClientAuthenticationFunctionErrors -TableType $TableType
 
         $script:Office365RelayHTMLReportArray.Add($HTMLReportEntry)|Out-Null
     }
     else{
         $SectionTitleColor = "Green"
-        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+        $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                 -DataType "String" -EffectiveDataString $NoFailure
         $script:Office365RelayHTMLReportArray.Add($HTMLReportEntry)|Out-Null
     }
@@ -498,14 +498,14 @@ param(
     [string]$Description = "This section should display failures encountered for Smarthost resolution attempts."
     if($SmarthostFunctionErrors){
         $SectionTitleColor = "Red"
-        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+        $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                 -DataType "CustomObject" -EffectiveDataArrayList $SmarthostFunctionErrors -TableType $TableType
 
         $script:Office365RelayHTMLReportArray.Add($HTMLReportEntry)|Out-Null
     }
     else{
         $SectionTitleColor = "Green"
-        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+        $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                 -DataType "String" -EffectiveDataString $NoFailure
         $script:Office365RelayHTMLReportArray.Add($HTMLReportEntry)|Out-Null
     }

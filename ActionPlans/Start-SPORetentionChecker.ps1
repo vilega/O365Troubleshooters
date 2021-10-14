@@ -168,7 +168,7 @@ $TheObjectToConvertToHTML = New-Object -TypeName "System.Collections.ArrayList"
                             <li>A Site/OneDrive included by an "All [workload] Sites"  policy is protected if not explicitly excluded by the same policy.</li>
                             <li>Inclusion policies precede exclusion policies.</li>
                         </ul>'
-[PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString ""
+[PSCustomObject]$SectionHtml = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString ""
 
 $null = $TheObjectToConvertToHTML.Add($SectionHtml)
 
@@ -178,7 +178,7 @@ If ($HealthyPolicies.Count -gt 0){
     [string]$Description = 'These policies were checked for common distribution problems and no issue were found.<br>
                             <b>Note:</b> Disabled policies may still enforce holds due to the grace-period.
                             (Learn more about <a href="https://docs.microsoft.com/en-us/microsoft-365/compliance/retention?view=o365-worldwide#releasing-a-policy-for-retention" target="_blank">Grace-Period</a>)'
-    [PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $HealthyPolicies -TableType Table
+    [PSCustomObject]$SectionHtml = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $HealthyPolicies -TableType Table
     $null = $TheObjectToConvertToHTML.Add($SectionHtml)
 }
 
@@ -194,7 +194,7 @@ If ($DistributionIssues.Count -gt 0){
                                 Set-CaseHoldPolicy            -Identity "20ab020d-1c7e-464e-85f7-ef720c41825d" -RetryDistribution
                             </i>
                             <div>'
-    [PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $DistributionIssues -TableType Table
+    [PSCustomObject]$SectionHtml = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $DistributionIssues -TableType Table
     $null = $TheObjectToConvertToHTML.Add($SectionHtml)
 }
 
@@ -203,12 +203,12 @@ If ($DistributionIssues.Count -gt 0){
 If ($SPOReport.Count -gt 0){
     [string]$Description = "These are the holds which may be preventing SharePoint files and sites to be deleted.<br>
                             Sites connected to a M365 group are impacted by ModernGroup holds."
-    [PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $SPOReport -TableType Table
+    [PSCustomObject]$SectionHtml = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $SPOReport -TableType Table
 } Else {
     [string]$Description = 'No retention policy or eDiscovery case hold were found that could be preventing SharePoint files and sites to be deleted.<br>
                             In case you still face issues consider checking retention labels and disabled policies in grace-period.
                             (Learn more about <a href="https://docs.microsoft.com/en-us/microsoft-365/compliance/retention?view=o365-worldwide#retention-policies-and-retention-labels" target="_blank">Retention Labels</a>)'
-    [PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString ""   
+    [PSCustomObject]$SectionHtml = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString ""   
 }
 $null = $TheObjectToConvertToHTML.Add($SectionHtml)
 
@@ -216,12 +216,12 @@ $null = $TheObjectToConvertToHTML.Add($SectionHtml)
 [string]$SectionTitle = "OneDrive Holds"
 If ($ODBReport.Count -gt 0){   
     [string]$Description = "These are the holds which may be preventing OneDrive files and sites to be deleted."
-    [PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ODBReport -TableType Table
+    [PSCustomObject]$SectionHtml = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ODBReport -TableType Table
 } Else {
     [string]$Description = 'No retention policy or eDiscovery case hold were found that could be preventing OneDrive files and sites to be deleted.<br>
                             In case you still face issues consider checking retention labels and disabled policies in grace-period.
                             (Learn more about <a href="https://docs.microsoft.com/en-us/microsoft-365/compliance/retention?view=o365-worldwide#retention-policies-and-retention-labels" target="_blank">Retention Labels</a>)'
-    [PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString ""
+    [PSCustomObject]$SectionHtml = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString ""
 }
 $null = $TheObjectToConvertToHTML.Add($SectionHtml)
 
@@ -230,7 +230,7 @@ $null = $TheObjectToConvertToHTML.Add($SectionHtml)
 [string]$Description = 'To delete sites or their files, you must add an exclusion in all policies affecting the site.
                         Check how to <a href="https://docs.microsoft.com/en-us/sharepoint/troubleshoot/administration/exclude-sites-from-retention-policy" target="_blank">Exclude Sites from Retention Policy</a>. <br>
                         <b>Note:</b> For sites connected to Microsoft 365 group you must also exclude them from the M365 group workload associated.'
-[PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString ""
+[PSCustomObject]$SectionHtml = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString ""
 $null = $TheObjectToConvertToHTML.Add($SectionHtml)
 
 #Build HTML report out of the previous HTML sections

@@ -434,14 +434,14 @@ Function Export-CompromisedHTMLReport
     [string]$Description = "This section should display configuration snapshots for Admins where we have found potential issues."
     if($GlobalAdminsWithIssues) {
         $SectionTitleColor = "Red"
-        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+        $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                 -DataType "CustomObject" -EffectiveDataArrayList $GlobalAdminsWithIssues -TableType $TableType
 
         $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
     }
     else {
         $SectionTitleColor = "Green"
-        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+        $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                 -DataType "String" -EffectiveDataString $NoIssue
         $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
     }
@@ -451,13 +451,13 @@ Function Export-CompromisedHTMLReport
     [string]$Description = "This section should display suspicious Inbox Rules we have identified on GA Mailboxes.<br>The Script does yet check for Hidden Inbox Rules, you can do this manually as show in article:<br><a href=`"https://docs.microsoft.com/en-us/archive/blogs/hkong/how-to-delete-corrupted-hidden-inbox-rules-from-a-mailbox-using-mfcmapi`" target=`"_blank`">How To Check and Delete Corrupted or Hidden Inbox Rules</a>"
     if($InboxRules) {
         $SectionTitleColor = "Red"
-        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+        $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                                                         -DataType "CustomObject" -EffectiveDataArrayList $InboxRules -TableType $TableType
         $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
     }
     else {
         $SectionTitleColor = "Black"
-        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+        $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                                                         -DataType "String" -EffectiveDataString $NoIssue
         $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
     }
@@ -471,7 +471,7 @@ To identify and delete such rules, perform the steps from the following article:
     #$HiddenInboxRulesWarning = $null | ConvertTo-Html -PostContent $HiddenInboxRulesWarningString -PreContent "<h2 class=`"ResultNotOk`">Hidden Inbox Rules</h2>"
     <#
     $SectionTitleColor = "Red"
-    $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+    $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                                                     -DataType "String" -EffectiveDataString $HiddenInboxRulesWarningString
     $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
     #>
@@ -482,14 +482,14 @@ To identify and delete such rules, perform the steps from the following article:
     if($JournalRules)
     {
         $SectionTitleColor = "Red"
-        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+        $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                                                         -DataType "CustomObject" -EffectiveDataArrayList $JournalRules -TableType $TableType
         $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
     }
     else 
     {
         $SectionTitleColor = "Green"
-        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+        $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                                                         -DataType "String" -EffectiveDataString $NoIssue
         $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
     }
@@ -499,13 +499,13 @@ To identify and delete such rules, perform the steps from the following article:
     [string]$Description = "This section should display Blocked Senders from your Organization, identified as Outbound Spam Senders."
     if($BlockedSenderReasons) {
         $SectionTitleColor = "Red"
-        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+        $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                                                         -DataType "CustomObject" -EffectiveDataArrayList $BlockedSenderReasons -TableType $TableType
         $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
     }
     else {
         $SectionTitleColor = "Green"
-        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+        $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                                                         -DataType "String" -EffectiveDataString $NoIssue
         $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
     }
@@ -515,13 +515,13 @@ To identify and delete such rules, perform the steps from the following article:
     [string]$Description = "This section should display Suspicious Inbound Connectors, which can be used by attackers to relay emails through your tenant."
     if($InboundConnectors) {
         $SectionTitleColor = "Red"
-        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+        $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                                                         -DataType "CustomObject" -EffectiveDataArrayList $InboundConnectors -TableType $TableType
         $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
     }
     else {
         $SectionTitleColor = "Green"
-        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+        $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                                                         -DataType "String" -EffectiveDataString $NoIssue
         $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
     }
@@ -531,13 +531,13 @@ To identify and delete such rules, perform the steps from the following article:
     [string]$Description = "This section should display Suspicious Outbound Connectors, which can be used by attackers to route emails outside your tenant."
     if($OutboundConnectors) {
         $SectionTitleColor = "Red"
-        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+        $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                                                         -DataType "CustomObject" -EffectiveDataArrayList $OutboundConnectors -TableType $TableType
         $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
     }
     else {
         $SectionTitleColor = "Green"
-        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+        $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                                                         -DataType "String" -EffectiveDataString $NoIssue
         $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
     }
@@ -547,14 +547,14 @@ To identify and delete such rules, perform the steps from the following article:
     [string]$Description = "This section should display Suspicious Transport Rules, which can be used by attackers to exfiltrate data from your organization."
     if($TransportRules) {
         $SectionTitleColor = "Red"
-        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+        $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                 -DataType "CustomObject" -EffectiveDataArrayList $TransportRules -TableType $TableType
 
         $Office365RelayHTMLReportArray.Add($HTMLReportEntry)|Out-Null
     }
     else {
         $SectionTitleColor = "Green"
-        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+        $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                                                         -DataType "String" -EffectiveDataString $NoIssue
         $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
     }
@@ -565,7 +565,7 @@ To identify and delete such rules, perform the steps from the following article:
     if(!$OrganizationMailboxAuditDisabled) {
         #Organization Wide Mailbox Audit
         $SectionTitleColor = "Green"
-        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+        $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                                                         -DataType "String" -EffectiveDataString $NoIssue
         $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
 
@@ -574,14 +574,14 @@ To identify and delete such rules, perform the steps from the following article:
         [string]$Description = "This section shows Global Admin Mailboxes for which Mailbox Auditing is not enabled, this can be used by attackers to hide actions of exfiltrating data."
         if($MailboxAuditDisabledGAs) {
             $SectionTitleColor = "Red"
-            $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+            $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                     -DataType "CustomObject" -EffectiveDataArrayList $MailboxAuditDisabledGAs -TableType $TableType
     
             $Office365RelayHTMLReportArray.Add($HTMLReportEntry)|Out-Null
         }
         else {
             $SectionTitleColor = "Green"
-            $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+            $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                                                             -DataType "String" -EffectiveDataString $NoIssue
             $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
         }
@@ -591,14 +591,14 @@ To identify and delete such rules, perform the steps from the following article:
         [string]$Description = "This section shows Global Admins that Bypass Mailbox Auditing, this can be used by attackers to hide actions of exfiltrating data."
         if($MailboxAuditBypassGAs) {
             $SectionTitleColor = "Red"
-            $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+            $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                     -DataType "CustomObject" -EffectiveDataArrayList $MailboxAuditBypassGAs -TableType $TableType
     
             $Office365RelayHTMLReportArray.Add($HTMLReportEntry)|Out-Null
         }
         else {
             $SectionTitleColor = "Green"
-            $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+            $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                                                             -DataType "String" -EffectiveDataString $NoIssue
             $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
         }
@@ -606,7 +606,7 @@ To identify and delete such rules, perform the steps from the following article:
     else {
         $OrgWideMailboxAuditDisabledWarning = "Mailbox Audit Disabled Organization Wide, check via Exchange Online Powershell : Get-OrganizationConfig|select AuditDisabled"
         $SectionTitleColor = "Red"
-        $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+        $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                                                         -DataType "String" -EffectiveDataString $OrgWideMailboxAuditDisabledWarning
         $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
     }
@@ -623,7 +623,7 @@ These logs can be found in file:<br>
 $ExportPath\EXOAdminAuditLogs.csv"
 
     $SectionTitleColor = "Black"
-    $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+    $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                                                     -DataType "String" -EffectiveDataString $AdminAuditNotificationString
     $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
 
@@ -637,7 +637,7 @@ These logs can be found in file:<br>
 $ExportPath\EXOAdminAuditLogs.csv"
     
     $SectionTitleColor = "Black"
-    $HTMLReportEntry = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
+    $HTMLReportEntry = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor $SectionTitleColor -Description $Description `
                                                     -DataType "String" -EffectiveDataString $GlobalAdminsSignInAuditLogsNotificationString
     $Office365RelayHTMLReportArray.Add($HTMLReportEntry) | Out-Null
 

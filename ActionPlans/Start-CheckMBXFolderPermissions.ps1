@@ -133,7 +133,7 @@ $TheObjectToConvertToHTML = New-Object -TypeName "System.Collections.ArrayList"
 
 [string]$SectionTitle = "Information"
 [string]$Description = "We will highlight in red all the users which have folders where the Default user permission is different than None. This can impact security as this type permission allows all users in the organization to access that user's folder. Please review!"
-[PSCustomObject]$SectionHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString ""
+[PSCustomObject]$SectionHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString ""
 $null = $TheObjectToConvertToHTML.Add($SectionHTML)
 
 
@@ -164,10 +164,10 @@ foreach ($mailbox in $allMBX) {
     }
 
     if ($defaultuser -eq $True) {
-        [PSCustomObject]$SectionHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -TableType "Table" -EffectiveDataArrayList $ExportRightsCurrentMbx
+        [PSCustomObject]$SectionHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -TableType "Table" -EffectiveDataArrayList $ExportRightsCurrentMbx
     }
     else {
-        [PSCustomObject]$SectionHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -TableType "Table" -EffectiveDataArrayList $ExportRightsCurrentMbx
+        [PSCustomObject]$SectionHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -TableType "Table" -EffectiveDataArrayList $ExportRightsCurrentMbx
     }
 
 
