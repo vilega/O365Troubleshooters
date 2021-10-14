@@ -28,7 +28,7 @@ $cleanup = {
     } Until (($option -eq "k") -or ($option -eq "r"))
         
         If ($Option -eq "r") { 
-            Write-Host "Reverting to initial search folder scope for Compliance search $searchname"
+            Write-Host -ForegroundColor Yellow "Reverting to initial search folder scope for Compliance search $searchname"
             Set-ccComplianceSearch $searchname -ContentMatchQuery $OldContentMatchQuery
           Do {
                 $search = Get-ccComplianceSearch $searchname
@@ -46,7 +46,7 @@ $cleanup = {
             $null = $TheObjectToConvertToHTML.Add($SectionHTML)
        
         }
-        Else {Write-Host "Compliance search $searchname remains configured to exclude the 'Recoverable Items', 'Purges' and 'Versions' folders from its scope."
+        Else {Write-Host -ForegroundColor Yellow "Compliance search $searchname remains configured to exclude the 'Recoverable Items', 'Purges' and 'Versions' folders from its scope."
         $ComplianceSearch = Get-ccComplianceSearch -Identity $SelectedSearch
         $latestquery = ($ComplianceSearch.searchstatistics | ConvertFrom-Json).exchangebinding.queries[0].query
     
@@ -83,6 +83,8 @@ $cleanup = {
     $query = ($ComplianceSearch.searchstatistics | ConvertFrom-Json).exchangebinding.queries[0].query
     
     $contentsize = ($ComplianceSearch.searchstatistics | ConvertFrom-Json).exchangebinding.queries[0].contentsize
+
+    $location = $compliancesearch.ExchangeLocation
     
     Write-Host "Found " -NoNewline; Write-Host -ForegroundColor Yellow "$initialitems " -NoNewline; Write-Host -ForegroundColor white "items for compliance Search " -NoNewline; Write-Host -ForegroundColor yellow "$searchname"
     
@@ -111,6 +113,7 @@ $cleanup = {
             items = $initialitems
             searchquery = $query
             size = $contentsize
+            mailbox = $location
         }
         
         $TheObjectToConvertToHTML = New-Object -TypeName "System.Collections.ArrayList"
