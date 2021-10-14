@@ -12,7 +12,7 @@
 RootModule = '.\O365Troubleshooters.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.0.0.22'
+ModuleVersion = '2.0.0.23'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -136,6 +136,7 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = '
+        2.0.0.23 - Improved RBAC , IMCEAEX, SafeLinks diagnostics, Improved properties order in HTML report, new action plans CheckMBXFolderPermissions,ComplianceSearchBulkDelete, SPO Retention Checker
         2.0.0.22 - Improved DltoGroupschecker diagnostic
         2.0.0.21 - Fix minor issue on logging; Improved existing Dl To O365Group Upgrade Checks; Added console and logic for PF Dumpster investigation
         2.0.0.20 - Improved EXO and SCC connection
