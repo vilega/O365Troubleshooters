@@ -1882,7 +1882,7 @@ Function Start-O365TroubleshootersMenu {
     14 Tools: Decode SafeLinks URL
     15 Tools: Export Quarantine Messages
     16 Tools: Transform IMCEAEX (old LegacyExchangeDN) to X500 address
-    19 Tools: Find policies preventing SPO sites to be deleted
+    19 Tools: Find policies preventing SharePoint/OneDrive sites to be deleted
     Q  Quit
      
     Select a task by number or Q to quit

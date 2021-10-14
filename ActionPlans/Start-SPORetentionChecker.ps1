@@ -39,7 +39,7 @@ ok 5 - Code the issues checks scoped for hackathon
             https://docs.microsoft.com/en-us/sharepoint/troubleshoot/administration/exclude-sites-from-retention-policy
     ok  b. Explain about the grace-period for disabled policies
             https://docs.microsoft.com/en-us/microsoft-365/compliance/retention?view=o365-worldwide#releasing-a-policy-for-retention
-    ok  c. Add reference to the article to remove inconsistent policies
+        c. Add reference to the article to remove inconsistent policies
             https://docs.microsoft.com/en-us/sharepoint/troubleshoot/sites/compliance-policy-blocking-site-deletion
     ok  d. Add reference about retry distribution
             https://docs.microsoft.com/en-us/powershell/module/exchange/set-retentioncompliancepolicy
