@@ -1,14 +1,24 @@
-<# ------------------------------------------------------------------------------------------------------------------------------------------
-Description: 
-    Get retention policies and eDiscovery holds rules for SharePoint, OneDrive and ModernGroups (Microsoft 365 Groups)
+<#
+    .SYNOPSIS
+    Provide a report for retention policies and their distribution status along with recommendation for each case.
 
--------------------------------------------------------------------------------------------------------------------------------------------#>
+    .DESCRIPTION
+    Provide a report for retention policies and eDiscovery holds rules affecting SharePoint, OneDrive and Microsoft 365 Groups.
+    Check distribution status for the associated policies.
+    Provide recommended actions and reference given the main scenarios.
+
+    .EXAMPLE
+    Use a global admin when prompted for a account.
+    
+    .LINK
+    Online documentation: https://answers.microsoft.com/
+
+#>
 
 #region To-Do --------------------------------------------------------
 <#
-
 ok 1 - Enumerate common issues this script may spot
-   2 - Add output to highlight the issues and guide fixes
+ok 2 - Add output to highlight the issues and guide fixes
 ok 3 - Integrate with main menu
 ok 4 - Integrate with S&C connection function --> Pending function fix worked by Victor
 ok 5 - Code the issues checks scoped for hackathon
@@ -25,10 +35,16 @@ ok 5 - Code the issues checks scoped for hackathon
         d. Show policies protecting a site --> Create issue for later (not in hackathon sprint) 
 
 2 - Add output to highlight the issues and guide fixes
-        a. Add references about how to setup the exclusions
-        b. Explain about the grace-period for disabled policies
-        c. Add reference to the article to remove inconsistent policies
-        d. Add reference about retry distribution
+    ok  a. Add references about how to setup the exclusions
+            https://docs.microsoft.com/en-us/sharepoint/troubleshoot/administration/exclude-sites-from-retention-policy
+    ok  b. Explain about the grace-period for disabled policies
+            https://docs.microsoft.com/en-us/microsoft-365/compliance/retention?view=o365-worldwide#releasing-a-policy-for-retention
+    ok  c. Add reference to the article to remove inconsistent policies
+            https://docs.microsoft.com/en-us/sharepoint/troubleshoot/sites/compliance-policy-blocking-site-deletion
+    ok  d. Add reference about retry distribution
+            https://docs.microsoft.com/en-us/powershell/module/exchange/set-retentioncompliancepolicy
+    ok  e. Retention labels
+            https://docs.microsoft.com/en-us/microsoft-365/compliance/retention?view=o365-worldwide#retention-policies-and-retention-labels
 
 5 - Code the issues checks scoped for hackathon
     ok  a. Sharepoint holds over ODB sites
@@ -48,7 +64,8 @@ Questions:
     Closed   4 - PS session crashing --> Due to the module design, it won't happen in prod experience
 
 Issues:
-             1 - Script does not identify Enabled policies which have the workload disabled (hold will remain during grace-period)
+    1 - Script does not identify Enabled policies which have the workload disabled (hold will remain during grace-period)
+    2 - Show policies protecting a site --> Create issue for later (not in hackathon sprint) 
 #>
 #endregion ------------------------------------------------------------
 
@@ -206,20 +223,24 @@ $DistributionIssues += $PoliciesReport |
 #region Present data
 $TheObjectToConvertToHTML = New-Object -TypeName "System.Collections.ArrayList"
 
-# HTML sample: Start-DlToO365GroupUpgradeChecks
-
 # Adds general guidance about the report
 [string]$SectionTitle = "Report Guidance"
-#TODO: Break in multiple lines
-[string]$Description = "A Site/OneDrive explicitly included is protected. `nA Site/OneDrive included by an 'All' workload policy is protected if not explicitly excluded by the same policy. `nInclusion policies precede exclusion policies."
-[PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -DataType "String" -EffectiveDataString $Description
+[string]$Description = 'Consider these principles to interprete the information in this report:
+                        <ul style="margin:0 0 0 10px">
+                            <li>A Site/OneDrive explicitly included is protected.</li>
+                            <li>A Site/OneDrive included by an "All [workload] Sites"  policy is protected if not explicitly excluded by the same policy.</li>
+                            <li>Inclusion policies precede exclusion policies.</li>
+                        </ul>'
+[PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString ""
+
 $null = $TheObjectToConvertToHTML.Add($SectionHtml)
 
 # Adds the session for healthy policies  in case there is any
-#TODO: check if there is content
 If ($HealthyPolicies.Count -gt 0){
     [string]$SectionTitle = "Healthy Policies"
-    [string]$Description = "These policies were checked for common distribution problems and no issue were found. Note: Disabled policies may still enforce holds due to the grace-period."
+    [string]$Description = 'These policies were checked for common distribution problems and no issue were found.<br>
+                            <b>Note:</b> Disabled policies may still enforce holds due to the grace-period.
+                            (Learn more about <a href="https://docs.microsoft.com/en-us/microsoft-365/compliance/retention?view=o365-worldwide#releasing-a-policy-for-retention" target="_blank">Grace-Period</a>)'
     [PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $HealthyPolicies -TableType Table
     $null = $TheObjectToConvertToHTML.Add($SectionHtml)
 }
@@ -227,39 +248,52 @@ If ($HealthyPolicies.Count -gt 0){
 # Adds the session for distribution issues in case there is any
 If ($DistributionIssues.Count -gt 0){
     # Adds the session for distribution status
-    #TODO: check if there is content
     [string]$SectionTitle = "Policies Distribution Issues"
-    [string]$Description = "The policies below are in an inconsistent status, review and consider fixing the issues pointed out in DISTRIBUTIONRESULTS column. Then, retry the distribution."
+    [string]$Description = 'The policies below are in an inconsistent status, review and consider fixing the issues pointed out in <i>DISTRIBUTIONRESULTS</i> column. Then, retry the distribution.<br>
+                            Use the following command to retry distribution for a given policy:<br>
+                            <div style="margin-left:20px">
+                            <i>
+                                Set-RetentionCompliancePolicy -Identity "Hold Everything" -RetryDistribution    <br>
+                                Set-CaseHoldPolicy            -Identity "20ab020d-1c7e-464e-85f7-ef720c41825d" -RetryDistribution
+                            </i>
+                            <div>'
     [PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $DistributionIssues -TableType Table
     $null = $TheObjectToConvertToHTML.Add($SectionHtml)
 }
 
 # Adds the session for policies affecting SharePoint
-#TODO: check if there is content
 [string]$SectionTitle = "SharePoint Holds"
 If ($SPOReport.Count -gt 0){
-    [string]$Description = "These are the holds which may be preventing SharePoint files and sites to be deleted. Sites connected to a M365 group are impacted by ModernGroup holds."
+    [string]$Description = "These are the holds which may be preventing SharePoint files and sites to be deleted.<br>
+                            Sites connected to a M365 group are impacted by ModernGroup holds."
+    [PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $SPOReport -TableType Table
 } Else {
-    [string]$Description = "No retetion policies or eDiscovery case holds were found that could be preventing SharePoint files and sites to be deleted. In case you still face issues consider checking retention labels and disabled policies in grace-period."
+    [string]$Description = 'No retention policy or eDiscovery case hold were found that could be preventing SharePoint files and sites to be deleted.<br>
+                            In case you still face issues consider checking retention labels and disabled policies in grace-period.
+                            (Learn more about <a href="https://docs.microsoft.com/en-us/microsoft-365/compliance/retention?view=o365-worldwide#retention-policies-and-retention-labels" target="_blank">Retention Labels</a>)'
+    [PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString ""   
 }
-[PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $SPOReport -TableType Table
 $null = $TheObjectToConvertToHTML.Add($SectionHtml)
 
 # Adds the session for policies affecting OneDrive
-#TODO: check if there is content
 [string]$SectionTitle = "OneDrive Holds"
 If ($ODBReport.Count -gt 0){   
     [string]$Description = "These are the holds which may be preventing OneDrive files and sites to be deleted."
+    [PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ODBReport -TableType Table
 } Else {
-    [string]$Description = "No retetion policies or eDiscovery case holds were found that could be preventing OneDrive files and sites to be deleted. In case you still face issues consider checking retention labels and disabled policies in grace-period."
+    [string]$Description = 'No retention policy or eDiscovery case hold were found that could be preventing OneDrive files and sites to be deleted.<br>
+                            In case you still face issues consider checking retention labels and disabled policies in grace-period.
+                            (Learn more about <a href="https://docs.microsoft.com/en-us/microsoft-365/compliance/retention?view=o365-worldwide#retention-policies-and-retention-labels" target="_blank">Retention Labels</a>)'
+    [PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString ""
 }
-[PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ODBReport -TableType Table
 $null = $TheObjectToConvertToHTML.Add($SectionHtml)
 
 # Adds recomendations to the report
 [string]$SectionTitle = "Recommendations"
-[string]$Description = "In case the Site/OneDrive you can't delete or remove files is not exempted in all the policies in which it's subjected to their scope, you'll need to add those exceptions to remove the retention protection."
-[PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -DataType "String" -EffectiveDataString $Description
+[string]$Description = 'To delete sites or their files, you must add an exclusion in all policies affecting the site.
+                        Check how to <a href="https://docs.microsoft.com/en-us/sharepoint/troubleshoot/administration/exclude-sites-from-retention-policy" target="_blank">Exclude Sites from Retention Policy</a>. <br>
+                        <b>Note:</b> For sites connected to Microsoft 365 group you must also exclude them from the M365 group workload associated.'
+[PSCustomObject]$SectionHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString ""
 $null = $TheObjectToConvertToHTML.Add($SectionHtml)
 
 #Build HTML report out of the previous HTML sections
