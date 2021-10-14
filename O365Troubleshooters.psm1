@@ -1883,6 +1883,7 @@ Function Start-O365TroubleshootersMenu {
     14 Tools: Decode SafeLinks URL
     15 Tools: Export Quarantine Messages
     16 Tools: Transform IMCEAEX (old LegacyExchangeDN) to X500 address
+    17 Tools: Check Mailbox Folder Permissions
     18 Tools: Compliance Search Bulk Delete Action
     Q  Quit
      
@@ -1980,6 +1981,10 @@ Function Start-O365TroubleshootersMenu {
             . $script:modulePath\ActionPlans\Get-X500FromImceaexNDR.ps1
         }
 
+        "17" {
+            Write-Host "Check Mailbox Folder Permissions" -ForegroundColor Green
+            . $script:modulePath\ActionPlans\Start-CheckMbxFolderPermissions.ps1
+        }
         "18" {
             Write-Host "Tools: Compliance Search Bulk Delete Action" -ForegroundColor Green
             . $script:modulePath\ActionPlans\Start-ComplianceSearchBulkDelete.ps1
