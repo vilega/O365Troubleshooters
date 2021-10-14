@@ -41,9 +41,9 @@ $cleanup = {
         
         If ($Option -eq "r") { 
             Write-Host "Reverting to initial search folder scope for Compliance search $searchname"
-            Set-ComplianceSearch $searchname -ContentMatchQuery $OldContentMatchQuery
+            Set-ccComplianceSearch $searchname -ContentMatchQuery $OldContentMatchQuery
           Do {
-                $search = Get-ComplianceSearch $searchname
+                $search = Get-ccComplianceSearch $searchname
                 Write-Host "> current Search status is $($search.Status) and search job progress: $($search.JobProgress)%"
                 Start-Sleep -Seconds 5
              } While (($search.Status -ne 'Completed') -and ($search.JobProgress -ne '100'))
@@ -59,7 +59,7 @@ $cleanup = {
        
         }
         Else {Write-Host "Compliance search $searchname remains configured to exclude the 'Recoverable Items', 'Purges' and 'Versions' folders from its scope."
-        $ComplianceSearch = Get-ComplianceSearch -Identity $SelectedSearch
+        $ComplianceSearch = Get-ccComplianceSearch -Identity $SelectedSearch
         $latestquery = ($ComplianceSearch.searchstatistics | ConvertFrom-Json).exchangebinding.queries[0].query
     
          [string]$SectionTitle = "Updated Compliance Search Query - keep exclusions"
@@ -82,12 +82,12 @@ $cleanup = {
     
     # Select the search from existing searches
     
-    $allSearches = Get-ComplianceSearch
+    $allSearches = Get-ccComplianceSearch
     Write-Host -ForegroundColor Yellow "Please select the Compliance Search scoped for a single mailbox for which you wish to delete the found items:"
      
     [string]$SelectedSearch = ($allSearches | Select-Object name | Out-GridView -OutputMode single -Title "Select one search").Name
     
-    $ComplianceSearch = Get-ComplianceSearch -Identity $SelectedSearch
+    $ComplianceSearch = Get-ccComplianceSearch -Identity $SelectedSearch
     
     $initialitems = $ComplianceSearch.Items
     
@@ -118,7 +118,7 @@ $cleanup = {
             Read-Key
             Start-O365TroubleshootersMenu }
     
-        
+        # Create object for reporting
         $searchdetails = [PSCustomObject]@{
             Name = $searchname
             items = $initialitems
@@ -141,15 +141,13 @@ $cleanup = {
          [string]$Description = "Summary of the selected Compliance Search '$searchname'"
     
          [PSCustomObject]$SectionHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $searchdetails -tabletype List 
-         # [PSCustomObject]$SectionHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString " "
-         # [PSCustomObject]$SectionHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $searchdetails -tabletype Table 
          $null = $TheObjectToConvertToHTML.Add($SectionHTML)
     
     # Identifying 'Recoverable Items', 'Purges' and 'Versions' folders - this part is taken from article:  
     
     Write-Host "Identifying 'Recoverable Items', 'Purges' and 'Versions' folders"
     
-    [string]$mbx = $compliancesearch.exchangelocation # to add check to confirm there is a single mailbox in locations
+    [string]$mbx = $compliancesearch.exchangelocation 
     $folderQueries = @()
     $folderStatistics = Get-MailboxFolderStatistics $mbx | where-object { ($_.FolderPath -eq "/Recoverable Items") -or ($_.FolderPath -eq "/Purges") -or ($_.FolderPath -eq "/Versions") }
     foreach ($folderStatistic in $folderStatistics) {
@@ -180,9 +178,9 @@ $cleanup = {
     [string]$NewContentMatchQuery = $null
     [string]$NewContentMatchQuery = [string]$OldContentMatchQuery + "(NOT (($RecoverableItemsFolder) OR ($PurgesFolder) OR ($VersionsFolder)))"
     
-    Set-ComplianceSearch $searchname -ContentMatchQuery $NewContentMatchQuery
+    Set-ccComplianceSearch $searchname -ContentMatchQuery $NewContentMatchQuery
       Do {
-            $search = Get-ComplianceSearch $searchname
+            $search = Get-ccComplianceSearch $searchname
             Write-Host "> current Search status is $($search.Status)"
             Start-Sleep -Seconds 5
          } While (($search.Status -ne 'Completed') -and ($search.JobProgress -ne '100'))
@@ -198,9 +196,9 @@ $cleanup = {
         $iteration++
 
         # Check for and delete any existing purge actions for the selected Compliance Search
-        $PurgeAction = Get-ComplianceSearchAction | Where-Object { ($_.Name -match "$searchname") -and ($_.Name -match "_Purge") }
+        $PurgeAction = Get-ccComplianceSearchAction | Where-Object { ($_.Name -match "$searchname") -and ($_.Name -match "_Purge") }
         If ($PurgeAction) {
-            foreach ($p in $PurgeAction) { Remove-ComplianceSearchAction ($p).name -Confirm:$False | Out-Null }
+            foreach ($p in $PurgeAction) { Remove-ccComplianceSearchAction ($p).name -Confirm:$False | Out-Null }
         }
                             
         Start-Sleep -Seconds 5
@@ -214,7 +212,7 @@ $cleanup = {
         while ($repeat) {
             
             try {
-                New-ComplianceSearchAction -SearchName $searchname -Purge -PurgeType HardDelete -Confirm:$false -ErrorAction stop | Out-Null
+                New-ccComplianceSearchAction -SearchName $searchname -Purge -PurgeType HardDelete -Confirm:$false -ErrorAction stop | Out-Null
                 $repeat=$false
             }
             catch {
@@ -234,7 +232,7 @@ $cleanup = {
         
         Write-Host "> current batch Purge Action status: Running"
         Do {
-            $PurgeAction = Get-ComplianceSearchAction -Identity "$searchname`_Purge"
+            $PurgeAction = Get-ccComplianceSearchAction -Identity "$searchname`_Purge"
             Write-Host '*' -NoNewline
             Start-Sleep -Seconds 5
         } While ($PurgeAction.Status -ne 'Completed')
@@ -243,9 +241,11 @@ $cleanup = {
     } While ($iteration -ne $Iterations)
     
       Write-Host -ForegroundColor Yellow "Finished deleting $initialitems items with size $contentsize found by the selected $searchname Compliance Search!"
+
+    # Remove Compliance Search Action remained after last batch
+      Remove-ccComplianceSearchAction ($PurgeAction).name -Confirm:$False | Out-Null
     
-      Remove-ComplianceSearchAction ($PurgeAction).name -Confirm:$False | Out-Null
-    
+    # Call Cleanup script block to offer choice to keep or remove recoverable folders exclusions from the Content Search
     &$cleanup
     
     #Build HTML report out of the previous HTML sections
