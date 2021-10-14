@@ -11,75 +11,12 @@
     Use a global admin when prompted for a account.
     
     .LINK
-    Online documentation: https://answers.microsoft.com/
+    Online documentation: https://aka.ms/O365Troubleshooters/SPORetentionPoliciesTroubleshooter
 
 #>
 
-#region To-Do --------------------------------------------------------
-<#
-ok 1 - Enumerate common issues this script may spot
-ok 2 - Add output to highlight the issues and guide fixes
-ok 3 - Integrate with main menu
-ok 4 - Integrate with S&C connection function --> Pending function fix worked by Victor
-ok 5 - Code the issues checks scoped for hackathon
-   6 - Create wiki for the Action Plan
-   7 - Create the help info using the template
-   x - Add eDiscovery case name and ID to CaseHold items
-   x - Automate adding exception for a site?
-   x - Automate adding exception for a M365 group?
-
-1 - Enumerate common issues this script may spot
-    ok  a. Sharepoint holds over ODB sites
-    ok  b. M365 group holds over SPO sites
-    ok  c. Distribution issues checking status for Mode, DistributionStatus, DistributionResults
-        d. Show policies protecting a site --> Create issue for later (not in hackathon sprint) 
-
-2 - Add output to highlight the issues and guide fixes
-    ok  a. Add references about how to setup the exclusions
-            https://docs.microsoft.com/en-us/sharepoint/troubleshoot/administration/exclude-sites-from-retention-policy
-    ok  b. Explain about the grace-period for disabled policies
-            https://docs.microsoft.com/en-us/microsoft-365/compliance/retention?view=o365-worldwide#releasing-a-policy-for-retention
-        c. Add reference to the article to remove inconsistent policies
-            https://docs.microsoft.com/en-us/sharepoint/troubleshoot/sites/compliance-policy-blocking-site-deletion
-    ok  d. Add reference about retry distribution
-            https://docs.microsoft.com/en-us/powershell/module/exchange/set-retentioncompliancepolicy
-    ok  e. Retention labels
-            https://docs.microsoft.com/en-us/microsoft-365/compliance/retention?view=o365-worldwide#retention-policies-and-retention-labels
-
-5 - Code the issues checks scoped for hackathon
-    ok  a. Sharepoint holds over ODB sites
-    ok  b. M365 group holds over SPO sites
-    ok  c. Distribution issues checking status for Mode, DistributionStatus, DistributionResults
-
-6 - Create wiki for the Action Plan
-    Word document + share with Victor
-    https://answers.microsoft.com/en-us/msoffice/forum/all/how-to-diagnose-invalid-public-folder-dumpster/55d5fdfc-9309-4764-9b2e-5466bedc5227
-    https://answers.microsoft.com/en-us/msoffice/forum/all/validating-distribution-group-eligibility-for/dd3a2271-cb97-4579-8935-19409dab1dc2
-    https://answers.microsoft.com/en-us/msoffice/forum/all/creating-aad-connect-rules-to-synchronize-on/41444825-f62f-4f1a-a449-152806319568
-
-Questions:
-    Closed   1 - Field order in report --> Victor will either create a switch or let it respect the object order
-    Closed   2 - Export CSV should be optional? --> Export when not empty
-    Closed   3 - Make the report more inclusive including signs rather than colors only --> We'll create an 'issue' to build this after the hackathon 
-    Closed   4 - PS session crashing --> Due to the module design, it won't happen in prod experience
-
-Issues:
-    1 - Script does not identify Enabled policies which have the workload disabled (hold will remain during grace-period)
-    2 - Show policies protecting a site --> Create issue for later (not in hackathon sprint) 
-#>
-#endregion ------------------------------------------------------------
-
-<# DEV Setup ------------------------------------------------------
-import-module C:\GitHub\O365Troubleshooters\O365Troubleshooters.psm1 -Force
-Set-GlobalVariables
-#Start-O365TroubleshootersMenu
-Connect-IPPSSession -UserPrincipalName roan@roanmarques.onmicrosoft.com -Prefix cc
--------------------------------------------------------------------   #>
-
-#Connect-O365PS "SCC"
-Connect-IPPSSession -Prefix cc
-#Connect-IPPSSession -UserPrincipalName roan@roanmarques.onmicrosoft.com -Prefix cc
-
+Clear-Host
+Connect-O365PS "SCC"
 
 # Create the Export Folder
 $ts = get-date -Format yyyyMMdd_HHmmss
