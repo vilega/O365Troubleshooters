@@ -1717,7 +1717,6 @@ function Export-ReportToHTML {
         else {
             #$TheProperties = ($($Entry.EffectiveData) | Get-Member -MemberType NoteProperty).Name
             $TheProperties = $($Entry.EffectiveData).psobject.properties| Select-Object -ExpandProperty Name
-            $myObject.psobject.properties | Select-Object -ExpandProperty Name
             $TheValue = $($Entry.EffectiveData) | ConvertTo-Html -As $($Entry.TableType) -Property $TheProperties -Fragment | ForEach-Object { (($_.Replace("&lt;", "<")).Replace("&gt;", ">")).replace("&quot;", '"') }
             
             if ($Entry.TableType -eq "List") {
