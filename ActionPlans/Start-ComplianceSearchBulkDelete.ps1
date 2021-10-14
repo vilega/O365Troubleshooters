@@ -14,18 +14,6 @@
         Online documentation: https://aka.ms/O365Troubleshooters/ComplianceSearchActionBulkDelete
 
     #>
-<#
-    Import-Module C:\Work\Projects\PS\GitHubStuff\O365Troubleshooters\O365Troubleshooters.psm1 -Force
-
-# 2nd requirement Execute set global variables
-
-Set-GlobalVariables
-
-# 3rd requirement to start the menu
-
-Start-O365TroubleshootersMenu
-
-#>
 
 $cleanup = {
     Write-Host "Currently the search is configured to exclude the 'Recoverable Items', 'Purges' and 'Versions' folders from its scope."
@@ -74,11 +62,10 @@ $cleanup = {
     }  
     
     Clear-Host
-    #$Workloads = "exo", "SCC"
-       
-    #Connect-O365PS $Workloads
     
-    ### Scenario A.1. - Single mailbox scenario - Delete search items that are accessible to user
+    $Workloads = "exo", "SCC"
+       
+    Connect-O365PS $Workloads
     
     # Select the search from existing searches
     
