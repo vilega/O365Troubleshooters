@@ -19,7 +19,7 @@ Clear-Host
 # Variable to know if any URL needs to be decoded
 [bool]$decode = $true 
 
-# Create the Export Folder
+# Create timestamp
 $ts = get-date -Format yyyyMMdd_HHmmss
 
 # Create export folder
@@ -174,4 +174,6 @@ catch {
 
 # return to main menu
 Write-Log -function "Start-AP_DecodeSafeLinksURL" -step  "Load Start-O365Troubleshooters Menu" -Description "Success"
+Write-Host "The script will return to main menu."
+Read-Key
 Start-O365TroubleshootersMenu

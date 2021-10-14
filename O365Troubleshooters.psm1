@@ -675,7 +675,6 @@ Function Connect-O365PS {
             $CurrentProperty = "Connect SCC"
             $Global:Error.Clear();
             $Global:banner = "Security & Compliance Online PowerShell - Modern"
-
             if ($global:MfaOption -eq 2) {
                 $token = Get-TokenFromCache("EXO")
                 if ($null -eq $token) {
@@ -723,7 +722,7 @@ Function Connect-O365PS {
                     $try++
 
                     try {
-                        $null = Get-OrganizationConfig -ErrorAction Stop
+                        $null = Get-ccUser -ErrorAction Stop
                     }
                     catch {
                         Write-Host "$CurrentProperty"
@@ -735,7 +734,7 @@ Function Connect-O365PS {
                         $errordescr = $null
                         if (($null -eq $Global:IPPSSession ) -or ($Global:IPPSSession.State -eq "Closed") -or ($Global:IPPSSession.State -eq "Broken")) {
                             
-                            Connect-IPPSSession -UserPrincipalName $global:UserPrincipalName -PSSessionOption $PSsettings -ErrorVariable errordescr -ErrorAction Stop 
+                            Connect-IPPSSession -UserPrincipalName $global:UserPrincipalName -PSSessionOption $PSsettings -ErrorVariable errordescr -ErrorAction Stop -Prefix cc
                             $Global:IPPSSession = Get-PSSession  | Where-Object { ($_.name -like "ExchangeOnlineInternalSession*") -and ($_.ConnectionUri -like "*compliance.protection.outlook.com*") -and ($_.state -eq "Opened") }
                             $CurrentError = $errordescr.exception 
                             Import-Module (Import-PSSession $IPPSSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue -Prefix cc
