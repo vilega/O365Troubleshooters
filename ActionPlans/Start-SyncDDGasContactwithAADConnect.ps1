@@ -7,7 +7,7 @@ Function new-AADSyncDDGRules {
     {
         [string]$SectionTitle = "On-premises AD Connector used by the created rules"
         [string]$Description = "The rules will be created using the selected connector: $($selectConnector.name)"
-        [PSCustomObject]$OnPremisesADConnectorSelectedHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDatastring "See next sections for rule creations!"
+        [PSCustomObject]$OnPremisesADConnectorSelectedHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDatastring "See next sections for rule creations!"
         $null = $TheCollectionToConvertToHTML.Add($OnPremisesADConnectorSelectedHTML)
 
     #region Create ADSync PROVISION rule
@@ -22,7 +22,7 @@ Function new-AADSyncDDGRules {
 
             [string]$SectionTitle = "`"$ruleName`" - creation"
             [string]$Description = "The rule `"$ruleName`" has not been created using selected connector: $($selectConnector.name) because no slot was selected"
-            [PSCustomObject]$RuleHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring ""
+            [PSCustomObject]$RuleHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring ""
             $null = $TheCollectionToConvertToHTML.Add($RuleHTML)
         }
         else {
@@ -102,7 +102,7 @@ Function new-AADSyncDDGRules {
             
             [string]$SectionTitle = "`"$ruleName`" - creation"
             [string]$Description = "The rule `"$ruleName`" has been succesfully created using selected connector: $($selectConnector.name)"
-            [PSCustomObject]$RuleHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDatastring ""
+            [PSCustomObject]$RuleHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDatastring ""
             $null = $TheCollectionToConvertToHTML.Add($RuleHTML)
             
             Read-Key    
@@ -118,7 +118,7 @@ Function new-AADSyncDDGRules {
         
         [string]$SectionTitle = "`"$ruleName`" - creation"
         [string]$Description = "The rule `"$ruleName`" has not been succesfully created using selected connector: $($selectConnector.name) because already exists."
-        [PSCustomObject]$RuleHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring ""
+        [PSCustomObject]$RuleHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring ""
         $null = $TheCollectionToConvertToHTML.Add($RuleHTML)
 
         Read-Key    
@@ -137,7 +137,7 @@ Function new-AADSyncDDGRules {
             #TODO: write to the log file
             [string]$SectionTitle = "`"$ruleName`" - creation"
             [string]$Description = "The rule `"$ruleName`" has not been created using selected connector: $($selectConnector.name) because no slot was selected"
-            [PSCustomObject]$RuleHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring ""
+            [PSCustomObject]$RuleHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring ""
             $null = $TheCollectionToConvertToHTML.Add($RuleHTML)
 
             Read-Key
@@ -574,7 +574,7 @@ Function new-AADSyncDDGRules {
             
             [string]$SectionTitle = "`"$ruleName`" - creation"
             [string]$Description = "The rule `"$ruleName`" has been succesfully created using selected connector: $($selectConnector.name)"
-            [PSCustomObject]$RuleHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDatastring ""
+            [PSCustomObject]$RuleHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDatastring ""
             $null = $TheCollectionToConvertToHTML.Add($RuleHTML)
             
             
@@ -590,7 +590,7 @@ Function new-AADSyncDDGRules {
 
         [string]$SectionTitle = "`"$ruleName`" - creation"
         [string]$Description = "The rule `"$ruleName`" has not been succesfully created using selected connector: $($selectConnector.name) because already exists."
-        [PSCustomObject]$RuleHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring ""
+        [PSCustomObject]$RuleHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring ""
         $null = $TheCollectionToConvertToHTML.Add($RuleHTML)
 
         Read-Key    
@@ -605,7 +605,7 @@ else {
 
     [string]$SectionTitle = "On-premises AD Connector used by the created rules"
     [string]$Description = "No On-premises AD Connector was selected."
-    [PSCustomObject]$OnPremisesADConnectorSelectedHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring "No rules will be created!"
+    [PSCustomObject]$OnPremisesADConnectorSelectedHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDatastring "No rules will be created!"
     $null = $TheCollectionToConvertToHTML.Add($OnPremisesADConnectorSelectedHTML)
 
     read-Key    
@@ -703,7 +703,7 @@ mkdir $ExportPath -Force | Out-Null
 [string]$article1='<a href="https://docs.microsoft.com/previous-versions/office/exchange-server-2010/jj150422(v=exchg.141)?redirectedfrom=MSDN" target="_blank">Configure Dynamic Distribution Groups in a Hybrid Deployment</a>'
 [string]$article2='<a href="https://answers.microsoft.com/en-us/msoffice/forum/msoffice_o365admin-mso_exchon-mso_o365b/creating-aad-connect-rules-to-synchronize-on/41444825-f62f-4f1a-a449-152806319568?tm=1621510359210" target="_blank">Creating AAD Connect rules to synchronize on-premises Dynamic Distribution Groups as Exchange Online Contacts</a>'
 [string]$Description = "In a Hybrid Exchange environment, the on-premises Dynamic Distribution Groups (DDGs) are not synced in Azure AD / Exchange Online and this is by design. To workaround this limitation Microsoft recommends to create Exchange Online contacts for every on-premises dynamic distribution group. See $article1. To automatically maintain this Exchange Online contacts we can implement some custom AAD Connect rules without touching any default ones. For more information see article $article2."
-[PSCustomObject]$InformatioHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring "Please check bellow for what was implemented!"
+[PSCustomObject]$InformatioHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDatastring "Please check bellow for what was implemented!"
 $null = $TheCollectionToConvertToHTML.Add($InformatioHTML)
 
 # Write current step in the log

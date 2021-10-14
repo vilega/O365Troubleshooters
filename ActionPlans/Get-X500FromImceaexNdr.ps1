@@ -88,7 +88,7 @@ While ($decode) {
     Write-Host $X500
     Write-Log -function "Get-X500FromImceaexNdr" -step  "Transform to X500" -Description "Decoded X500 is: $X500"
     Read-Key
-    $X500HashTabel = @{
+    $X500HashTabel = [Ordered]@{
         IMCEAEX = $Imceaex
         X500    = $X500 
     }
@@ -106,7 +106,7 @@ While ($decode) {
     elseif ($answer -eq 'n') {
         $decode = $false 
     }
-
+    Clear-Host
 }
 
 
@@ -124,7 +124,7 @@ try {
 
             [string]$SectionTitle = "Decoded X500 - $($i+1)"
             [string]$Description = "The IMCEAEX NDR is decoded to create the X500"
-            [PSCustomObject]$ListOfImceaexAndX500Html = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList  $ListOfOriginalImceaexAndX500[$i] -TableType "List"
+            [PSCustomObject]$ListOfImceaexAndX500Html = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList  $ListOfOriginalImceaexAndX500[$i] -TableType "List"
             $null = $TheObjectToConvertToHTML.Add($ListOfImceaexAndX500Html)
     }
 
@@ -153,7 +153,7 @@ Read-Key
 
 # Create CSV 
 try {
-    $ListOfOriginalAndDecodedUrls | Export-Csv -Path "$ExportPath\X500.csv" -NoTypeInformation
+    $ListOfOriginalImceaexAndX500 | Export-Csv -Path "$ExportPath\X500.csv" -NoTypeInformation
     Write-Log -function "Get-X500FromImceaexNdr" -step  "Generate CSV Report" -Description "Success"
 }
 catch {

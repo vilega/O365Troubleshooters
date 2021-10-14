@@ -1715,7 +1715,8 @@ function Export-ReportToHTML {
             $TheValue = "					`<p style=`"font-family: FabricMDL2Icons; font-weight: 800; margin-left: 10px;`"`>$($Entry.EffectiveData)`<`/p>"
         }
         else {
-            $TheProperties = ($($Entry.EffectiveData) | Get-Member -MemberType NoteProperty).Name
+            #$TheProperties = ($($Entry.EffectiveData) | Get-Member -MemberType NoteProperty).Name
+            $TheProperties = $($Entry.EffectiveData).psobject.properties| Select-Object -ExpandProperty Name
             $TheValue = $($Entry.EffectiveData) | ConvertTo-Html -As $($Entry.TableType) -Property $TheProperties -Fragment | ForEach-Object { (($_.Replace("&lt;", "<")).Replace("&gt;", ">")).replace("&quot;", '"') }
             
             if ($Entry.TableType -eq "List") {
@@ -1753,7 +1754,7 @@ function Export-ReportToHTML {
 
 
 ### <summary>
-### Prepare-ObjectForHTMLReport function is used to prepare the objects to be converted to HTML file
+### New-ObjectForHTMLReport function is used to prepare the objects to be converted to HTML file
 ### </summary>
 ### <param name="SectionTitle">SectionTitle represents the header of the section</param>
 ### <param name="SectionTitleColor">SectionTitleColor represents the color of the header of the section (valid values to use: "Black", "Green" or "Red")</param>
@@ -1765,7 +1766,7 @@ function Export-ReportToHTML {
 ###         This is available only if DataType is "ArrayList" (valid values to use: "List" or "Table")</param>
 ###
 ### <returns>TheObject - this is the object in which data that need to be converted to HTML is stored</returns>
-function Prepare-ObjectForHTMLReport {
+function New-ObjectForHTMLReport {
     param (
         [Parameter(ParameterSetName = "String", Mandatory = $false)]
         [Parameter(ParameterSetName = "CustomObject", Mandatory = $false)]

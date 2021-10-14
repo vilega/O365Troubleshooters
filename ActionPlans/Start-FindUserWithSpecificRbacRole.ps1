@@ -22,11 +22,11 @@ $SpecificRoleMembers=Get-SpecificRoleMembers
 [string]$SectionTitle = "Introduction"
 [String]$article='<a href="https://docs.microsoft.com/en-us/exchange/understanding-role-based-access-control-exchange-2013-help" target="_blank">Understanding role based access control</a>'
 [string]$Description = "This report spans all management roles across your enviroment to list users member of a selected exchange online organization Role "+"<b>$($SpecificRoleMembers.role[0].tostring())</b>"+", for more information on RBAC please check the following article: $article"
-[PSCustomObject]$StartHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString "Please check the next section for more information!"
+[PSCustomObject]$StartHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString "Please check the next section for more information!"
 $null = $TheObjectToConvertToHTML.Add($StartHTML)
 [string]$SectionTitle = "Management Role Assignment Users Table"
 [string]$Description = "This section lists a table with the tenant users & their corresponding management RBAC roles."
-[PSCustomObject]$RBACHTML = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $SpecificRoleMembers -TableType Table
+[PSCustomObject]$RBACHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $SpecificRoleMembers -TableType Table
 $null = $TheObjectToConvertToHTML.Add($RBACHTML)
 #region ResultReport
 [string]$FilePath = $ExportPath + "\ManagementRoleAssignmentUsers.html"

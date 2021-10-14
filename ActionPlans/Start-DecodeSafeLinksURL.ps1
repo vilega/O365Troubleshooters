@@ -128,13 +128,13 @@ try {
         if ($null -eq $ListOfOriginalAndDecodedUrls[$i].decodedURL) {
             [string]$SectionTitle = "Decode Safe Links URL - $($i+1)"
             [string]$Description = "$encodedURL is not in the correct Safe Links format"
-            [PSCustomObject]$ListOfOriginalAndDecodedUrlsHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDataString " "
+            [PSCustomObject]$ListOfOriginalAndDecodedUrlsHtml = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "String" -EffectiveDataString " "
             $null = $TheObjectToConvertToHTML.Add($ListOfOriginalAndDecodedUrlsHtml)
         }
         else {
             [string]$SectionTitle = "Decode Safe Links URL - $($i+1)"
             [string]$Description = "The encoded Microsoft Defender for Office 365 Safe Links URL is decoded to show the original URL"
-            [PSCustomObject]$ListOfOriginalAndDecodedUrlsHtml = Prepare-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList  $ListOfOriginalAndDecodedUrls[$i] -TableType "List"
+            [PSCustomObject]$ListOfOriginalAndDecodedUrlsHtml = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList  $ListOfOriginalAndDecodedUrls[$i] -TableType "List"
             $null = $TheObjectToConvertToHTML.Add($ListOfOriginalAndDecodedUrlsHtml)
         }
 
