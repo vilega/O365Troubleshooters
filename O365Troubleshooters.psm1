@@ -1885,6 +1885,7 @@ Function Start-O365TroubleshootersMenu {
     16 Tools: Transform IMCEAEX (old LegacyExchangeDN) to X500 address
     17 Tools: Check Mailbox Folder Permissions
     18 Tools: Compliance Search Bulk Delete Action
+    19 Tools: Find policies preventing SharePoint/OneDrive sites to be deleted
     Q  Quit
      
     Select a task by number or Q to quit
@@ -1985,11 +1986,16 @@ Function Start-O365TroubleshootersMenu {
             Write-Host "Check Mailbox Folder Permissions" -ForegroundColor Green
             . $script:modulePath\ActionPlans\Start-CheckMbxFolderPermissions.ps1
         }
+
         "18" {
             Write-Host "Tools: Compliance Search Bulk Delete Action" -ForegroundColor Green
             . $script:modulePath\ActionPlans\Start-ComplianceSearchBulkDelete.ps1
         }
-    
+        
+        "19" {
+            Write-Host "Tools: Find policies preventing SPO sites to be deleted" -ForegroundColor Green
+            . $script:modulePath\ActionPlans\Start-SPORetentionChecker.ps1  
+        }  
 
         "Q" {
             Write-Host "Quitting" -ForegroundColor Green
