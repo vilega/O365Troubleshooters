@@ -15,6 +15,13 @@
 
 #>
 
+<# DEV Setup ------------------------------------------------------
+import-module C:\GitHub\O365Troubleshooters\O365Troubleshooters.psm1 -Force
+Set-GlobalVariables
+#Start-O365TroubleshootersMenu
+Connect-IPPSSession -UserPrincipalName roan@roanmarques.onmicrosoft.com -Prefix cc
+-------------------------------------------------------------------   #>
+
 Clear-Host
 Connect-O365PS "SCC"
 
