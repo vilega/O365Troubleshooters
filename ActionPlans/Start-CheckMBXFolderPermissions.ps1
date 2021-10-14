@@ -1,11 +1,3 @@
-<# 1st requirement install the module O365 TS
-Import-Module C:\Users\alexaca\Documents\GitHub\O365Troubleshooters\O365Troubleshooters.psm1 -Force
-# 2nd requirement Execute set global variables
-Set-GlobalVariables
-# 3rd requirement to start the menu
-Start-O365TroubleshootersMenu
-#>
-
 <#
 
         .SYNOPSIS
