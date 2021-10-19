@@ -919,7 +919,7 @@ Function Set-GlobalVariables {
 "@
 
     Write-Host $global:Disclaimer -ForegroundColor Red
-    Start-Sleep -Seconds 3
+    Read-Key
     
     if (!(Test-Path $Path)) {
         Write-Host "We are creating the following folder $Path"
