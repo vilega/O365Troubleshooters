@@ -38,13 +38,12 @@ $cleanup = {
         Write-Host "Done"
     
         [string]$SectionTitle = "Updated Compliance Search Query - remove exclusions"
-    
         [string]$Description = "Selected '$searchname' search query has been updated to remove the exclusions and revert to the initial search query: '$OldContentMatchQuery'"
-       
         [PSCustomObject]$SectionHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString " "
-          
         $null = $TheObjectToConvertToHTML.Add($SectionHTML)
        
+        Write-Log -function "Start-complianceSearchBulkDelete" -step  "Opting to Keep exclusion for recoverable items folders or Revert to initial search query" -Description "Selected '$searchname' search query has been updated to remove the exclusions and revert to the initial search query: '$OldContentMatchQuery'"
+    
     }
     Else {
         Write-Host -ForegroundColor Yellow "Compliance search $searchname remains configured to exclude the 'Recoverable Items', 'Purges' and 'Versions' folders from its scope."
@@ -52,13 +51,11 @@ $cleanup = {
         $latestquery = ($ComplianceSearch.searchstatistics | ConvertFrom-Json).exchangebinding.queries[0].query
     
         [string]$SectionTitle = "Updated Compliance Search Query - keep exclusions"
-    
         [string]$Description = "Selected '$searchname' search query has been updated to keep the exclusions: '$latestquery'"
-    
         [PSCustomObject]$SectionHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString " "
-       
         $null = $TheObjectToConvertToHTML.Add($SectionHTML)
     
+        Write-Log -function "Start-complianceSearchBulkDelete" -step  "Opting to Keep exclusion for recoverable items folders or Revert to initial search query" -Description "Selected '$searchname' search query is keeping the exclusions and the current search query is: '$latestquery'"
     }
 }  
     
@@ -67,71 +64,107 @@ Clear-Host
 $Workloads = "exo", "SCC"
        
 Connect-O365PS $Workloads
-    
+
 # Select the search from existing searches
-    
+Clear-Host
+
+Write-Host -ForegroundColor Red "IMPORTANT:"
+Write-Host -ForegroundColor Red -BackgroundColor White "This tool is intended for single mailbox Compliance Searches only!"
+Write-Host -ForegroundColor Red -BackgroundColor White "Trying to adjust it for multiple mailboxes may lead to unforeseen issues, due to per tenant Compliance Search limits!"
 $allSearches = Get-ccComplianceSearch
 Write-Host -ForegroundColor Yellow "Please select the Compliance Search scoped for a single mailbox for which you wish to delete the found items:"
      
 [string]$SelectedSearch = ($allSearches | Select-Object name | Out-GridView -OutputMode single -Title "Select one search").Name
-    
-$ComplianceSearch = Get-ccComplianceSearch -Identity $SelectedSearch
-    
-$initialitems = $ComplianceSearch.Items
-    
-$searchname = $ComplianceSearch.Name
-    
-$query = ($ComplianceSearch.searchstatistics | ConvertFrom-Json).exchangebinding.queries[0].query
-    
-$contentsize = ($ComplianceSearch.searchstatistics | ConvertFrom-Json).exchangebinding.queries[0].contentsize
+$searchname = $SelectedSearch
 
+Do {
+    $search = Get-ccComplianceSearch $SelectedSearch
+    Write-Host "> current Search status is $($search.Status) and its progress is $($search.JobProgress)"
+    Start-Sleep -Seconds 5
+} While (($search.Status -ne 'Completed') -and ($search.JobProgress -ne '100'))
+
+$ComplianceSearch = Get-ccComplianceSearch -Identity $SelectedSearch
+$initialitems = $ComplianceSearch.Items
+$query = ($ComplianceSearch.searchstatistics | ConvertFrom-Json).exchangebinding.queries[0].query
+$contentsize = ($ComplianceSearch.searchstatistics | ConvertFrom-Json).exchangebinding.queries[0].contentsize
+[int64]$contentsizebytes = ($ComplianceSearch.searchstatistics | ConvertFrom-Json).exchangebinding.queries[0].contentsizeRaw
 $location = $compliancesearch.ExchangeLocation
     
-Write-Host "Found " -NoNewline; Write-Host -ForegroundColor Yellow "$initialitems " -NoNewline; Write-Host -ForegroundColor white "items for compliance Search " -NoNewline; Write-Host -ForegroundColor yellow "$searchname"
+Write-Log -function "Start-complianceSearchBulkDelete" -step  "User to select the Compliance Search" -Description "User selected the Compliance Search '$searchname'"
     
-# Check if search 'locations' contains only one '@' symbol, else prompt 'Not single mailbox search, please select a search for a single mailbox' and loop at beginning.
+# Check if search 'locations' contains only one mailbox, else prompt 'Not single mailbox search, please select a search for a single mailbox' and loop at beginning.
 If ($compliancesearch.ExchangeLocation.count -ne 1) {
     write-host "You have selected a Compliance Search scoped for more than 1 mailbox, please press any key to restart and select a search scoped for a single mailbox."
     Write-Log -function "Start-complianceSearchBulkDelete" -step  "Selecting a Compliance Search scoped for a single mailbox" -Description "Selected the Compliance Search '$ComplianceSearch', which is scoped for more than 1 mailbox, redirecting to new search selection."
     Read-Key
     Start-O365TroubleshootersMenu
 }
-    
-# Confirmation input
-    
-Write-Host -ForegroundColor Cyan "Are you sure you want to delete $initialitems items with size $contentsize found by the selected $searchname Compliance Search?"
-    
-[string]$Option = read-host "Type 'yes' to confirm"
-$option = $option.ToLower()
-If ($Option -ne "yes") { 
-    Write-Host "You haven't confirmed by typing 'yes'. Press any key to restart."
+
+Write-Host -ForegroundColor Yellow "You have selected the Compliance Search named '$Searchname', having $initialitems items found with their total size of $contentsize in mailbox '$location'."
+
+# Check available space under Recoverable Items
+
+[int64]$RecoverableItemsSize = (Get-MailboxFolderStatistics $location[0] -FolderScope RecoverableItems)[0].FolderAndSubfolderSize.ToString().Split("(")[1].Split(" ")[0].Replace(",","")
+[int64]$RecoverableItemsQuota = (Get-Mailbox $location[0]).RecoverableItemsQuota.ToString().Split("(")[1].Split(" ")[0].Replace(",","")
+[int64]$RecoverableItemsSizeFinal = $RecoverableItemsSize + $contentsizebytes
+[int64]$MaxAvailable = $RecoverableItemsQuota - $RecoverableItemsSizeFinal
+
+If ($MaxAvailable -le 0) {
+    Write-Host "Not enough space available under 'Recoverable Items' folder to accommodate the items!"
+    Write-Host "Either adjust the search query to return fewer items, or make additional space in 'Recoverable Items' mailbox folder."
     Read-Key
-    Start-O365TroubleshootersMenu 
+    Start-O365TroubleshootersMenu
 }
+else {
+    Write-Host "At the end of deleting the $initialitems items, mailbox '$location' will have $MaxAvailable bytes of free space remaining available under 'Recoverable Items' folder."
+        If ($MaxAvailable -le 1073741824) {
+            Write-Host -ForegroundColor Yellow "The remaining space under 'Recoverable Items' folder will be below 1GB after deletion!"
+            Write-Host -ForegroundColor Red "IMPORTANT:"
+            Write-Host -ForegroundColor Yellow "Please avoid reching quota for 'Recoverable Items', to avoid issues such as user not being able to delete emails!"
+        }
     
+    Write-Host -ForegroundColor Red "IMPORTANT:"
+    Write-Host -ForegroundColor Yellow "If there are no holds protecting the items or mailbox, there is the risk for these items to be purged with the next Mailbox Folder Assistant run!"
+    Write-Host "Mailbox Folder Assistant runs automatically at anytime between 1 to 7 days since its last execution."
+    Write-Host "If there are holds protecting the items or the mailbox, the items will be present in 'Purges' folder, under 'Recoverable Items' mailbox folder after deletion process. They will not be accessible to the user via email clients, but the tenant admin will be able to either restore them or find them using Compliance Search and export them as PST."   
+    Write-Host -ForegroundColor Cyan "Are you sure you want to delete the $initialitems items with size $contentsize found by the selected '$searchname' Compliance Search from mailbox '$location'?"
+    
+    # Confirmation input to proceed with deletion
+        [string]$Option = read-host "Type 'yes' to confirm"
+        $option = $option.ToLower()
+        If ($Option -ne "yes") { 
+            Write-Host "You haven't confirmed by typing 'yes'. Press any key to restart."
+            Read-Key
+            Start-O365TroubleshootersMenu 
+        }
+}
+
+Write-Log -function "Start-complianceSearchBulkDelete" -step  "User confirmation to go ahead with items deletion for Compliance Search '$searchname'" -Description "User confirmed to go ahead with items deletion for Compliance Search '$searchname'"
+
 # Create object for reporting
 $searchdetails = [PSCustomObject]@{
     Name        = $searchname
-    items       = $initialitems
-    searchquery = $query
-    size        = $contentsize
-    mailbox     = $location
+    Items       = $initialitems
+    "Search Query" = $query
+    "Items size"        = $contentsize
+    Mailbox     = $location
+    "Recoverable items size before" = "$RecoverableItemsSize bytes"
+    "Recoverable items size after" = "$RecoverableItemsSizeFinal bytes"
+    "Recoverable items quota" = "$RecoverableItemsQuota bytes"
 }
         
 $TheObjectToConvertToHTML = New-Object -TypeName "System.Collections.ArrayList"
     
 $ts = get-date -Format yyyyMMdd_HHmmss
-    
 $ExportPath = "$global:WSPath\ComplianceSearch_bulkdelete_$ts"
-        
 mkdir $ExportPath -Force | out-null
     
 $searchdetails | export-csv -Path $ExportPath\Selected_search_details.csv -NoTypeInformation 
-        
+
+Write-Log -function "Start-complianceSearchBulkDelete" -step  "Creating report object and exporting details for Compliance Search '$searchname' as csv file" -Description "Exported details for Compliance Search '$searchname' as csv file at path: $ExportPath\Selected_search_details.csv"
+
 [string]$SectionTitle = "Selected Compliance Search details"
-    
 [string]$Description = "Summary of the selected Compliance Search '$searchname'"
-    
 [PSCustomObject]$SectionHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $searchdetails -tabletype List 
 $null = $TheObjectToConvertToHTML.Add($SectionHTML)
     
@@ -179,7 +212,10 @@ Do {
         
 $Iterations = [math]::Ceiling($initialitems / 10)
 $iteration = 0
-    
+
+Write-Log -function "Start-complianceSearchBulkDelete" -step  "Identifying and excluding 'Recoverable Items'and 'Purges' and 'Versions' folders from Compliance Search '$searchname'" -Description "Identifyied and excluded 'Recoverable Items'and 'Purges' and 'Versions' folders from Compliance Search '$searchname'"
+
+
 # Starting bulk deletion
     
 write-host "Deleting " -NoNewline; Write-Host -ForegroundColor Yellow "$initialitems" -NoNewline; Write-Host -ForegroundColor white " items in " -NoNewline; Write-Host -ForegroundColor yellow "$iterations" -NoNewline; Write-Host -ForegroundColor white " batches of 10 items each, due to Compliance Search Action limit"
@@ -251,11 +287,8 @@ Export-ReportToHTML -FilePath $FilePath -PageTitle "Compliance Search Bulk Delet
 $OpenHTMLfile = Read-Host "Do you wish to open HTML report file now?`nType 'Y' to open or any other character to exit!"
     
 if ($OpenHTMLfile.ToLower() -like "*y*") {
-    
     Write-Host "Opening report...." -ForegroundColor Cyan
-    
     Start-Process $FilePath
-    
 }
     
 #endregion ResultReport
@@ -265,7 +298,9 @@ if ($OpenHTMLfile.ToLower() -like "*y*") {
 Write-Host "`nOutput was exported in the following location: $ExportPath" -ForegroundColor Yellow 
     
 Read-Key 
-    
+
+Write-Log -function "Start-complianceSearchBulkDelete" -step  "Return to main menu" -Description "Done"
+
 Start-O365TroubleshootersMenu
     
     
