@@ -12,7 +12,7 @@
 RootModule = '.\O365Troubleshooters.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.0.0.23'
+ModuleVersion = '2.0.0.24'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -115,7 +115,8 @@ FileList = @(
     'ActionPlans\Start-DlToO365GroupUpgradeChecks.ps1'
     'ActionPlans\Start-PublicFolderTroubleshooter.ps1'
     'ActionPlans\Start-SyncDDGasContactwithAADConnect.ps1'
-)
+    'ActionPlans\Start-ComplianceSearchBulkDelete.ps1'
+    )
 
 # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
 PrivateData = @{
@@ -136,6 +137,7 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = '
+        2.0.0.24 - Improved ComplianceSearchBulkDelete verbose warnings
         2.0.0.23 - Improved RBAC , IMCEAEX, SafeLinks diagnostics, Improved properties order in HTML report, new action plans CheckMBXFolderPermissions,ComplianceSearchBulkDelete, SPO Retention Checker
         2.0.0.22 - Improved DltoGroupschecker diagnostic
         2.0.0.21 - Fix minor issue on logging; Improved existing Dl To O365Group Upgrade Checks; Added console and logic for PF Dumpster investigation
