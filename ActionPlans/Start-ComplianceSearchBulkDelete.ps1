@@ -130,6 +130,8 @@ else {
     Write-Host
     Write-Host "If there are holds protecting the items or the mailbox, the items will be present in 'Purges' folder, under 'Recoverable Items' mailbox folder after deletion process. They will not be accessible to the user via email clients, but the tenant admin will be able to either restore them or find them using Compliance Search and export them as PST."   
     Write-Host -ForegroundColor Cyan "Are you sure you want to delete the $initialitems items with size $contentsize found by the selected '$searchname' Compliance Search from mailbox '$location'?"
+ 
+    # one more change here
     
     # Confirmation input to proceed with deletion
         [string]$Option = read-host "Type 'yes' to confirm"
