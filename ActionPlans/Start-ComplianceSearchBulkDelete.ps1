@@ -94,6 +94,7 @@ Write-Log -function "Start-complianceSearchBulkDelete" -step  "User to select th
     
 # Check if search 'locations' contains only one mailbox, else prompt 'Not single mailbox search, please select a search for a single mailbox' and loop at beginning.
 If ($compliancesearch.ExchangeLocation.count -ne 1) {
+    Write-Host
     write-host "You have selected a Compliance Search scoped for more than 1 mailbox, please press any key to restart and select a search scoped for a single mailbox."
     Write-Log -function "Start-complianceSearchBulkDelete" -step  "Selecting a Compliance Search scoped for a single mailbox" -Description "Selected the Compliance Search '$ComplianceSearch', which is scoped for more than 1 mailbox, redirecting to new search selection."
     Read-Key
@@ -124,8 +125,9 @@ else {
         }
     
     Write-Host -ForegroundColor Red "IMPORTANT:"
-    Write-Host -ForegroundColor Yellow "If there are no holds protecting the items or mailbox, there is the risk for these items to be purged with the next Mailbox Folder Assistant run!"
-    Write-Host "Mailbox Folder Assistant runs automatically at anytime between 1 to 7 days since its last execution."
+    Write-Host -ForegroundColor Yellow "If there are no holds protecting the items or mailbox, there is the risk for these items to be purged with the next Managed Folder Assistant run!"
+    Write-Host "Managed Folder Assistant runs automatically at anytime between 1 to 7 days since its last execution."
+    Write-Host
     Write-Host "If there are holds protecting the items or the mailbox, the items will be present in 'Purges' folder, under 'Recoverable Items' mailbox folder after deletion process. They will not be accessible to the user via email clients, but the tenant admin will be able to either restore them or find them using Compliance Search and export them as PST."   
     Write-Host -ForegroundColor Cyan "Are you sure you want to delete the $initialitems items with size $contentsize found by the selected '$searchname' Compliance Search from mailbox '$location'?"
     
