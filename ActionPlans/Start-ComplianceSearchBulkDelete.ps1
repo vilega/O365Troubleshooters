@@ -23,7 +23,7 @@ $cleanup = {
     Write-Host "Type 'R' to Remove the exclusion: If you re-run the search, it will find the initial items, but they are available under 'Purges' mailbox folder, governed by the mailbox retention settings and holds applied."
     
     Do {
-        [string]$option = read-host "Please type one of the above mentioned options"
+        [string]$option = read-host "Please type 'K' or 'R' to select one of the above mentioned options"
         $option = $option.ToLower()
     } Until (($option -eq "k") -or ($option -eq "r"))
         
@@ -79,7 +79,7 @@ $searchname = $SelectedSearch
 
 Do {
     $search = Get-ccComplianceSearch $SelectedSearch
-    Write-Host "> current Search status is $($search.Status) and its progress is $($search.JobProgress)"
+    Write-Host "> Selected Search status is $($search.Status) and its progress is $($search.JobProgress)"
     Start-Sleep -Seconds 5
 } While (($search.Status -ne 'Completed') -and ($search.JobProgress -ne '100'))
 
@@ -131,8 +131,6 @@ else {
     Write-Host "If there are holds protecting the items or the mailbox, the items will be present in 'Purges' folder, under 'Recoverable Items' mailbox folder after deletion process. They will not be accessible to the user via email clients, but the tenant admin will be able to either restore them or find them using Compliance Search and export them as PST."   
     Write-Host -ForegroundColor Cyan "Are you sure you want to delete the $initialitems items with size $contentsize found by the selected '$searchname' Compliance Search from mailbox '$location'?"
  
-    # one more change here
-    
     # Confirmation input to proceed with deletion
         [string]$Option = read-host "Type 'yes' to confirm"
         $option = $option.ToLower()
@@ -173,7 +171,8 @@ Write-Log -function "Start-complianceSearchBulkDelete" -step  "Creating report o
 $null = $TheObjectToConvertToHTML.Add($SectionHTML)
     
 # Identifying 'Recoverable Items', 'Purges' and 'Versions' folders - this part is taken from article:  
-    
+
+Write-Host
 Write-Host "Identifying 'Recoverable Items', 'Purges' and 'Versions' folders"
     
 [string]$mbx = $compliancesearch.exchangelocation 
@@ -222,6 +221,7 @@ Write-Log -function "Start-complianceSearchBulkDelete" -step  "Identifying and e
 
 # Starting bulk deletion
     
+Write-Host
 write-host "Deleting " -NoNewline; Write-Host -ForegroundColor Yellow "$initialitems" -NoNewline; Write-Host -ForegroundColor white " items in " -NoNewline; Write-Host -ForegroundColor yellow "$iterations" -NoNewline; Write-Host -ForegroundColor white " batches of 10 items each, due to Compliance Search Action limit"
     
 DO {
@@ -271,7 +271,8 @@ DO {
     Write-Host "`n> current batch Purge Action status: Completed"
     
 } While ($iteration -ne $Iterations)
-    
+
+Write-Host
 Write-Host -ForegroundColor Yellow "Finished deleting $initialitems items with size $contentsize found by the selected $searchname Compliance Search!"
 
 # Remove Compliance Search Action remained after last batch
