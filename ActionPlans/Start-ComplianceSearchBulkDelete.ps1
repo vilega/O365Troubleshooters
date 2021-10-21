@@ -14,13 +14,33 @@
         Online documentation: https://aka.ms/O365Troubleshooters/ComplianceSearchActionBulkDelete
 
     #>
+    <#function Test-SearchStatusIsComplete {
+        param ($SearchNameToTest)
+            Do {
+            $search = Get-ccComplianceSearch $SearchNameToTest
+            Write-Host "> Selected Search status is $($search.Status) and its progress is $($search.JobProgress)"
+            Start-Sleep -Seconds 5
+            } While (($search.Status -ne 'Completed') -and ($search.JobProgress -ne '100'))
+    }#>
+
+    function Test-SearchStatusIsComplete {
+        param ($SearchNameToTest)
+        Write-Host "> Checking current status for the selected Compliance Search '$searchname'"
+            Do {
+            Write-Host '*' -NoNewline
+            Start-Sleep -Seconds 5
+            $search = Get-ccComplianceSearch $SearchNameToTest
+            } Until (($search.Status -eq 'Completed') -and ($search.JobProgress -eq '100'))
+        Start-Sleep -Seconds 5
+        Write-Host "`n> Compliance Search status is $($search.Status) and its progress is $($search.JobProgress)"
+    }
 
 $cleanup = {
-    Write-Host "Currently the search is configured to exclude the 'Recoverable Items', 'Purges' and 'Versions' folders from its scope."
+    Write-Host "Currently the search is configured to exclude the 'Recoverable Items', 'Purges', 'DiscoveryHolds' and 'Versions' folders from its scope."
     Write-Host -ForegroundColor Cyan "How do you prefer to keep the search?"
-    Write-Host "Type 'K' to KEEP the exclusion: If you re-run the search, it will NOT find the initial items, but they are available under 'Purges' mailbox folder, governed by the mailbox retention settings and holds applied."
+    Write-Host "Type 'K' to KEEP the exclusion: If you re-run the search, it will NOT find the initial items, but they are available under 'Recoverable Items' mailbox folder, governed by the mailbox SIR settings and holds applied."
     Write-Host
-    Write-Host "Type 'R' to Remove the exclusion: If you re-run the search, it will find the initial items, but they are available under 'Purges' mailbox folder, governed by the mailbox retention settings and holds applied."
+    Write-Host "Type 'R' to Remove the exclusion: If you re-run the search, it will find the initial items, but they are available under 'Recoverable Items' mailbox folder, governed by the mailbox SIR settings and holds applied."
     
     Do {
         [string]$option = read-host "Please type 'K' or 'R' to select one of the above mentioned options"
@@ -30,12 +50,8 @@ $cleanup = {
     If ($Option -eq "r") { 
         Write-Host -ForegroundColor Yellow "Reverting to initial search folder scope for Compliance search $searchname"
         Set-ccComplianceSearch $searchname -ContentMatchQuery $OldContentMatchQuery
-        Do {
-            $search = Get-ccComplianceSearch $searchname
-            Write-Host "> current Search status is $($search.Status) and search job progress: $($search.JobProgress)%"
-            Start-Sleep -Seconds 5
-        } While (($search.Status -ne 'Completed') -and ($search.JobProgress -ne '100'))
-        Write-Host "Done"
+        
+        Test-SearchStatusIsComplete $searchname
     
         [string]$SectionTitle = "Updated Compliance Search Query - remove exclusions"
         [string]$Description = "Selected '$searchname' search query has been updated to remove the exclusions and revert to the initial search query: '$OldContentMatchQuery'"
@@ -46,8 +62,8 @@ $cleanup = {
     
     }
     Else {
-        Write-Host -ForegroundColor Yellow "Compliance search $searchname remains configured to exclude the 'Recoverable Items', 'Purges' and 'Versions' folders from its scope."
-        $ComplianceSearch = Get-ccComplianceSearch -Identity $SelectedSearch
+        Write-Host -ForegroundColor Yellow "Compliance search $searchname remains configured to exclude the 'Recoverable Items', 'Purges', 'DiscoveryHolds' and 'Versions' folders from its scope."
+        $ComplianceSearch = Get-ccComplianceSearch -Identity $searchname
         $latestquery = ($ComplianceSearch.searchstatistics | ConvertFrom-Json).exchangebinding.queries[0].query
     
         [string]$SectionTitle = "Updated Compliance Search Query - keep exclusions"
@@ -63,7 +79,7 @@ Clear-Host
     
 $Workloads = "exo", "SCC"
        
-Connect-O365PS $Workloads
+#Connect-O365PS $Workloads
 
 # Select the search from existing searches
 Clear-Host
@@ -74,16 +90,12 @@ Write-Host -ForegroundColor Red -BackgroundColor White "Trying to adjust it for 
 $allSearches = Get-ccComplianceSearch
 Write-Host -ForegroundColor Yellow "Please select the Compliance Search scoped for a single mailbox for which you wish to delete the found items:"
      
-[string]$SelectedSearch = ($allSearches | Select-Object name | Out-GridView -OutputMode single -Title "Select one search").Name
-$searchname = $SelectedSearch
+[string]$searchname = ($allSearches | Select-Object name | Out-GridView -OutputMode single -Title "Select one search").Name
 
-Do {
-    $search = Get-ccComplianceSearch $SelectedSearch
-    Write-Host "> Selected Search status is $($search.Status) and its progress is $($search.JobProgress)"
-    Start-Sleep -Seconds 5
-} While (($search.Status -ne 'Completed') -and ($search.JobProgress -ne '100'))
+# Wait for Compliance Search in case it is running
+Test-SearchStatusIsComplete $searchname
 
-$ComplianceSearch = Get-ccComplianceSearch -Identity $SelectedSearch
+$ComplianceSearch = Get-ccComplianceSearch -Identity $searchname
 $initialitems = $ComplianceSearch.Items
 $query = ($ComplianceSearch.searchstatistics | ConvertFrom-Json).exchangebinding.queries[0].query
 $contentsize = ($ComplianceSearch.searchstatistics | ConvertFrom-Json).exchangebinding.queries[0].contentsize
@@ -128,10 +140,30 @@ else {
     Write-Host -ForegroundColor Yellow "If there are no holds protecting the items or mailbox, there is the risk for these items to be purged with the next Managed Folder Assistant run!"
     Write-Host "Managed Folder Assistant runs automatically at anytime between 1 to 7 days since its last execution."
     Write-Host
-    Write-Host "If there are holds protecting the items or the mailbox, the items will be present in 'Purges' folder, under 'Recoverable Items' mailbox folder after deletion process. They will not be accessible to the user via email clients, but the tenant admin will be able to either restore them or find them using Compliance Search and export them as PST."   
+    Write-Host "If there are holds protecting the items or the mailbox, the items will be present under 'Recoverable Items' mailbox folder after deletion process finishes. They will not be accessible to the user via email clients, but the tenant admin will be able to either restore them or find them using Compliance Search and export them as PST."   
+    Write-Host
+
+# Check for Single Item Recovery settings on mailbox
+
+[bool]$SIREnabled = (Get-Mailbox $location[0]).SingleItemRecoveryEnabled
+$SIRRetainDays = (Get-Mailbox $location[0]).RetainDeletedItemsFor.split(".")[0]
+#[int]$ = $SIRRetainDays.Substring(0,1)
+If ($SIRRetainDays.Substring(0,1) -eq "0") {
+Write-Host -ForegroundColor DarkRed -BackgroundColor White "'RetainDeleteditemsFor' parameter is set to 0 days for this mailbox!!"
+Write-Host -ForegroundColor Red -BackgroundColor White "If you choose to proceed with deletion, the items will be PERMANENTLY LOST!!!"
+}
+Elseif ( !($SIREnabled) ) {
+Write-Host -ForegroundColor DarkRed -BackgroundColor White "'Single Item Recovery' is DISABLED for this mailbox!!"
+Write-Host -ForegroundColor Red -BackgroundColor White "If you choose to proceed with deletion, the items will be PERMANENTLY LOST!!!"
+}
+Else {
+Write-Host -ForegroundColor Yellow "'RetainDeletedItemsFor' parameter is set to $SIRRetainDays days for this mailbox!"
+Write-Host -ForegroundColor Yellow "After deletion finishes, the items will be PERMANENTLY LOST after $SIRRetainDays days!!"
+}
+   
+# Confirmation input to proceed with deletion
     Write-Host -ForegroundColor Cyan "Are you sure you want to delete the $initialitems items with size $contentsize found by the selected '$searchname' Compliance Search from mailbox '$location'?"
  
-    # Confirmation input to proceed with deletion
         [string]$Option = read-host "Type 'yes' to confirm"
         $option = $option.ToLower()
         If ($Option -ne "yes") { 
@@ -170,14 +202,14 @@ Write-Log -function "Start-complianceSearchBulkDelete" -step  "Creating report o
 [PSCustomObject]$SectionHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $searchdetails -tabletype List 
 $null = $TheObjectToConvertToHTML.Add($SectionHTML)
     
-# Identifying 'Recoverable Items', 'Purges' and 'Versions' folders - this part is taken from article:  
+# Identifying 'Recoverable Items', 'Purges', 'DiscoveryHolds' and 'Versions' folders - this part is taken from article:  
 
 Write-Host
-Write-Host "Identifying 'Recoverable Items', 'Purges' and 'Versions' folders"
+Write-Host "Identifying 'Recoverable Items', 'Purges', 'DiscoveryHolds' and 'Versions' folders"
     
 [string]$mbx = $compliancesearch.exchangelocation 
 $folderQueries = @()
-$folderStatistics = Get-MailboxFolderStatistics $mbx | where-object { ($_.FolderPath -eq "/Recoverable Items") -or ($_.FolderPath -eq "/Purges") -or ($_.FolderPath -eq "/Versions") }
+$folderStatistics = Get-MailboxFolderStatistics $mbx | where-object { ($_.FolderPath -eq "/Recoverable Items") -or ($_.FolderPath -eq "/Purges") -or ($_.FolderPath -eq "/Versions")  -or ($_.FolderPath -eq "/DiscoveryHolds") }
 foreach ($folderStatistic in $folderStatistics) {
     $folderId = $folderStatistic.FolderId;
     $folderPath = $folderStatistic.FolderPath;
@@ -197,27 +229,26 @@ foreach ($folderStatistic in $folderStatistics) {
 $RecoverableItemsFolder = $folderQueries.folderquery[0]
 $PurgesFolder = $folderQueries.folderquery[1]
 $VersionsFolder = $folderQueries.folderquery[2]
+$DiscoveryHoldsFolder = $folderQueries.folderquery[3]
+
+# Adjusting the search scope to exclude 'Recoverable Items', 'Purges', 'DiscoveryHolds' and 'Versions' folders 
     
-# Adjusting the search scope to exclude 'Recoverable Items', 'Purges' and 'Versions' folders 
-    
-Write-Host -ForegroundColor Yellow "Adjusting the search scope to exclude 'Recoverable Items', 'Purges' and 'Versions' folders"
+Write-Host -ForegroundColor Yellow "Adjusting the search scope to exclude 'Recoverable Items', 'Purges', 'DiscoveryHolds' and 'Versions' folders"
     
 [string]$OldContentMatchQuery = $ComplianceSearch.ContentMatchQuery
 [string]$NewContentMatchQuery = $null
-[string]$NewContentMatchQuery = [string]$OldContentMatchQuery + "(NOT (($RecoverableItemsFolder) OR ($PurgesFolder) OR ($VersionsFolder)))"
+[string]$NewContentMatchQuery = [string]$OldContentMatchQuery + "(NOT (($RecoverableItemsFolder) OR ($PurgesFolder) OR ($VersionsFolder)  OR ($DiscoveryHoldsFolder)))"
     
 Set-ccComplianceSearch $searchname -ContentMatchQuery $NewContentMatchQuery
-Do {
-    $search = Get-ccComplianceSearch $searchname
-    Write-Host "> current Search status is $($search.Status)"
-    Start-Sleep -Seconds 5
-} While (($search.Status -ne 'Completed') -and ($search.JobProgress -ne '100'))
-        
+
+# Wait for Compliance Search in case it is running
+Test-SearchStatusIsComplete $searchname
+
+# Calculate the number of batches
 $Iterations = [math]::Ceiling($initialitems / 10)
 $iteration = 0
 
-Write-Log -function "Start-complianceSearchBulkDelete" -step  "Identifying and excluding 'Recoverable Items'and 'Purges' and 'Versions' folders from Compliance Search '$searchname'" -Description "Identifyied and excluded 'Recoverable Items'and 'Purges' and 'Versions' folders from Compliance Search '$searchname'"
-
+Write-Log -function "Start-complianceSearchBulkDelete" -step  "Identifying and excluding 'Recoverable Items'and 'Purges', 'DiscoveryHolds' and 'Versions' folders from Compliance Search '$searchname'" -Description "Identifyied and excluded 'Recoverable Items'and 'Purges', 'DiscoveryHolds' and 'Versions' folders from Compliance Search '$searchname'"
 
 # Starting bulk deletion
     
