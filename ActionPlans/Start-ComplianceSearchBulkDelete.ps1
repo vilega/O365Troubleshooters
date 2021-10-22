@@ -215,11 +215,11 @@ If ($Option -ne "yes") {
 
 # Add record of user confirmation to execution report
 [string]$SectionTitle = "User confirmation choice"
-[string]$Description = "User confirmed to proceed with bulk deletion of $initialitems items with size $contentsize found by the selected '$searchname' Compliance Search from mailbox '$location', by typing 'yes' +ENTER"
+[string]$Description = "User '$global:userPrincipalName' confirmed to proceed with bulk deletion of $initialitems items with size $contentsize found by the selected '$searchname' Compliance Search from mailbox '$location', by typing 'yes' +ENTER"
 [PSCustomObject]$SectionHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Black" -Description $Description -DataType "String" -EffectiveDataString " "
 $null = $TheObjectToConvertToHTML.Add($SectionHTML)
 
-Write-Log -function "Start-complianceSearchBulkDelete" -step  "User confirmation to go ahead with items deletion for Compliance Search '$searchname'" -Description "User confirmed to go ahead with items deletion for Compliance Search '$searchname'"
+Write-Log -function "Start-complianceSearchBulkDelete" -step  "User confirmation to go ahead with items deletion for Compliance Search '$searchname'" -Description "User '$global:userPrincipalName' confirmed to go ahead with items deletion for Compliance Search '$searchname'"
 
 # Identifying 'Recoverable Items', 'Purges', 'DiscoveryHolds' and 'Versions' folders - this part is taken from article:  
 Write-Host
