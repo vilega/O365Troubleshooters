@@ -12,7 +12,7 @@
 RootModule = '.\O365Troubleshooters.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.0.0.24'
+ModuleVersion = '2.0.0.25'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -137,6 +137,7 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = '
+        2.0.0.25 - Improved ComplianceSearchBulkDelete Start-ComplianceSearchBulkDelete wwith SIR checks
         2.0.0.24 - Improved ComplianceSearchBulkDelete verbose warnings
         2.0.0.23 - Improved RBAC , IMCEAEX, SafeLinks diagnostics, Improved properties order in HTML report, new action plans CheckMBXFolderPermissions,ComplianceSearchBulkDelete, SPO Retention Checker
         2.0.0.22 - Improved DltoGroupschecker diagnostic
