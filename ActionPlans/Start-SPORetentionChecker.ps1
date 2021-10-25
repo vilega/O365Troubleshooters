@@ -15,6 +15,21 @@
 
 #>
 
+<# DEV Setup ------------------------------------------------------
+import-module C:\GitHub\O365Troubleshooters\O365Troubleshooters.psm1 -Force
+Set-GlobalVariables
+#Start-O365TroubleshootersMenu
+Connect-IPPSSession -UserPrincipalName roan@roanmarques.onmicrosoft.com -Prefix cc
+-------------------------------------------------------------------   #>
+
+<# To-Do
+- Decide either to create a function to connect to SPO or not
+- Get user input
+- Evaluate the site against the pocilies found
+- Create the section to present the policies
+- Enumerate the scenarios where the script might not be conclusive
+#>
+
 Clear-Host
 Connect-O365PS "SCC"
 
@@ -144,7 +159,6 @@ $HealthyPolicies += $PoliciesLeanReport |
                             $_.DistributionResult.count -eq 0 -and
                             $_.Mode -eq "Enforce"
                         }
-                        #$Policies[0] | FL
 
 # Filter Distribution issues (Mode not: 'Enforce'; Status not: 'Success';  Results not: empty)
 $DistributionIssues = New-Object -TypeName "System.Collections.ArrayList"
