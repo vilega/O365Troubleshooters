@@ -428,7 +428,7 @@ catch {
 $counter=1
 foreach($sharedMBX in $sharedMBXs)
 {
-    if ($sharedMBX.ForwardingAddress -eq $dg.name -or $sharedMBX.ForwardingSmtpAddress -match $dg.PrimarySmtpAddress)
+    if ($sharedMBX.ForwardingAddress -eq $dg.name -or $sharedMBX.ForwardingSmtpAddress -eq $dg.PrimarySmtpAddress)
     {
         $Conditionfwdmbx= $Conditionfwdmbx+$sharedMBX
         $counter++
