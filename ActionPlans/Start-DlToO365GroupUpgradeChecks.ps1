@@ -127,29 +127,13 @@ $ConditionEAP=New-Object PSObject
 # Bypass that step if there's no EAP 
  if($null -ne $eap)
  {
-     #added case sensitive operator to catch any difference even in letters of smtp address
-     #add case sensitive condition with information in case found a violation
+     #Case sensitive operator to catch any difference even in letters of smtp address
+
  $ViolatedEap = @( $eap | where-object{$_.RecipientFilter -eq "RecipientTypeDetails -eq 'GroupMailbox'" -and $_.EnabledPrimarySMTPAddressTemplate.ToString().Split("@")[1] -cne $dg.PrimarySmtpAddress.ToString().Split("@")[1]})
  if ($ViolatedEap.Count -ge 1) {
-     <#$count=1
-     foreach($violateeap in $ViolatedEap)
-     {
-         $ConditionEAP|Add-Member -NotePropertyName "EmailAddressPolicy$count Name" -NotePropertyValue $violateeap
-         $count++
-    }
-    #>
-    #check if it's case sensitive or not
-     <#
-    $GetnotcasesensintiveiolatedEap = @( $eap | where-object{$_.RecipientFilter -eq "RecipientTypeDetails -eq 'GroupMailbox'" -and $_.EnabledPrimarySMTPAddressTemplate.ToString().Split("@")[1] -ne $dg.PrimarySmtpAddress.ToString().Split("@")[1]})
-    if($ViolatedEap|ForEach-Object{$_.EnabledPrimarySMTPAddressTemplate.split("@")[1] -ne $GetnotcasesensintiveiolatedEap.EnabledPrimarySMTPAddressTemplate.split("@")[1]})
-    {
-        #Case sensitive EAP found
-    }
-    #>
     $ConditionEAP=$ViolatedEap|Select-Object Identity,Priority,@{label='PrimarySMTPAddressTemplate';expression={($_.EnabledPrimarySMTPAddressTemplate).split("@")[1]}} |Sort-Object priority
     [PSCustomObject]$ConditionEAPHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionEAP -TableType "Table"
     $null = $TheObjectToConvertToHTML.Add($ConditionEAPHTML)
-    
 }
 else {
     $ConditionNOEAP="NO matching Group Email Address Policy for the groups on the organization"
@@ -162,41 +146,8 @@ else {
     $null = $TheObjectToConvertToHTML.Add($ConditionEAPHTML)
 }
 
- #endregion Check if Distribution Group can't be upgraded because EmailAddressPolicyViolated
-<#
-#region Check if Distribution Group can't be upgraded because DlHasChildGroups
-[string]$SectionTitle = "Validating Distribution Group Child Membership"
-[string]$Description = "Checking if Distribution Group can't be upgraded because it contains child groups"
-$ConditionChildDG=New-Object PSObject    
-try {
-    $members = Get-DistributionGroupMember $($dg.Guid.ToString()) -ErrorAction stop
-    $CurrentProperty = "Retrieving: $dgsmtp members"
-    $CurrentDescription = "Success"
-    write-log -Function "Retrieve Distribution Group membership" -Step $CurrentProperty -Description $CurrentDescription
-}
-catch {
-    $CurrentProperty = "Retrieving: $dgsmtp members"
-    $CurrentDescription = "Failure"
-    write-log -Function "Retrieve Distribution Group membership" -Step $CurrentProperty -Description $CurrentDescription
-}
-$childgroups = $members | Where-Object{ $_.RecipientTypeDetails -eq "MailUniversalDistributionGroup"}
-if ($null -ne $childgroups) {
-    $count=1
-    foreach($childgroup in $childgroups)
-    {
-        $ConditionChildDG|Add-Member -NotePropertyName "Child Group$count ALias" -NotePropertyValue $childgroup.Alias
-        $count++
-    }
-    [PSCustomObject]$ConditionChildDGHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionChildDG -TableType "Table"
-    $null = $TheObjectToConvertToHTML.Add($ConditionChildDGHTML)
-} 
-else {
-    $ConditionChildDG|Add-Member -NotePropertyName "Child Group ALias" -NotePropertyValue "No child groups found"
-    [PSCustomObject]$ConditionChildDGHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionChildDG -TableType "Table"
-    $null = $TheObjectToConvertToHTML.Add($ConditionChildDGHTML)
-}
-#endregion Check if Distribution Group can't be upgraded because DlHasChildGroups
-#>
+#endregion Check if Distribution Group can't be upgraded because EmailAddressPolicyViolated
+
 #region Check if Distribution Group can't be upgraded because DlHasParentGroups
 [string]$SectionTitle = "Validating Distribution Group Parent Membership"
 [string]$Description = "Checking if Distribution Group can't be upgraded because it is a child group of another parent group"
@@ -216,10 +167,12 @@ catch {
 
 #I've commented write-log functions under try to remove enter spaces cursors when quering members inside each DL
 $parentdgcount=1
+$DGcounter=0
 foreach($parentdg in $alldgs)
 {
+    $DGcounter++
     try {
-        write-host ""
+        write-host "Processing $DGcounter group out from $($alldgs.count)" -ForegroundColor Cyan
         $Pmembers = Get-DistributionGroupMember $($parentdg.Guid.ToString()) -ErrorAction Stop
         #$CurrentProperty = "Retrieving: $parentdg members"
         #$CurrentDescription = "Success"
@@ -255,7 +208,6 @@ else {
 #region Check if Distribution Group can't be upgraded because DlHasNonSupportedMemberTypes with RecipientTypeDetails other than UserMailbox, SharedMailbox, TeamMailbox, MailUser
 [string]$SectionTitle = "Validating Distribution Group Members Recipient Types"
 [string]$Description = "Checking if Distribution Group can't be upgraded because DL contains member RecipientTypeDetails other than UserMailbox, SharedMailbox, TeamMailbox, MailUser"
-#$ConditionDGmembers=New-Object psobject
 try {
     $members = Get-DistributionGroupMember $($dg.Guid.ToString()) -ErrorAction stop
     $CurrentProperty = "Retrieving: $dgsmtp members"
