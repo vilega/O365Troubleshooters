@@ -172,7 +172,9 @@ foreach($parentdg in $alldgs)
 {
     $DGcounter++
     try {
-        write-host "Processing $DGcounter group out from $($alldgs.count)" -ForegroundColor Cyan
+        $DGcounter++
+        $percent=[Int32]($DGcounter/$alldgs.count*100)
+        Write-Progress -Activity "Processing DGs"  -PercentComplete $percent -Status "Processing $DGcounter/$($alldgs.count)group" -CurrentOperation OuterLoop
         $Pmembers = Get-DistributionGroupMember $($parentdg.Guid.ToString()) -ErrorAction Stop
         #$CurrentProperty = "Retrieving: $parentdg members"
         #$CurrentDescription = "Success"
@@ -183,15 +185,25 @@ foreach($parentdg in $alldgs)
         $CurrentDescription = "Failure"
         write-log -Function "Retrieve Distribution Group membership" -Step $CurrentProperty -Description $CurrentDescription
     }
-
+$DGmembercounter=0
 foreach ($member in $Pmembers)
-{if ($member.alias -like $dg.alias)
 {
-    $ConditionParentDG+=$parentdg
-    $parentdgcount++
+    if ($Pmembers.count -ge 1)
+        {
+          $DGmembercounter++
+          $childpercent=[Int32]($DGmembercounter/$Pmembers.count*100)
+          Write-Progress -Activity "Processing members" -Id 1 -PercentComplete $childpercent -Status "Processing $DGmembercounter/$($Pmembers.count) member" -CurrentOperation InnerLoop
+          if ($member.alias -like $dg.alias)
+            {
+                $ConditionParentDG+=$parentdg
+                $parentdgcount++
+            }
+        }
+    }
+    
 }
-}
-}
+Write-Progress -Activity "Processing members" -Completed -id 1
+Write-Progress -Activity "Processing DGs" -Completed
 if($parentdgcount -le 1)
 {
     [String]$NoParentDG="Distribution group is NOT a member of another group"
