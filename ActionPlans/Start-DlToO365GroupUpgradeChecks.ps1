@@ -180,7 +180,7 @@ foreach($parentdg in $alldgs)
         {
             $DGcounter++
             $percent=[Int32]($DGcounter/$alldgs.count*100)
-            Write-Progress -Activity "Processing DGs"  -PercentComplete $percent -Status "Processing $DGcounter/$($alldgs.count)group" -CurrentOperation OuterLoop
+            Write-Progress -Activity "Querying Distribution Groups"  -PercentComplete $percent -Status "Processing $DGcounter/$($alldgs.count)group"
         }
     }
     catch {
@@ -191,7 +191,7 @@ foreach($parentdg in $alldgs)
     $DGmembercounter=0
     foreach($DistributionGroupMember in $DistributionGroupMembers)
     {
-        if ($DistributionGroupMember.Alias -like $dg.Alias)
+        if ($DistributionGroupMember.Alias -eq $dg.Alias)
         {
         $parentdgcount++
         $ConditionParentDG=$ConditionParentDG+$parentdg
@@ -199,12 +199,12 @@ foreach($parentdg in $alldgs)
         if ($DistributionGroupMembers.count -ge 2) {
         $DGmembercounter++
         $childpercent=[Int32]($DGmembercounter/$DistributionGroupMembers.count*100)
-        Write-Progress -Activity "Processing members" -Id 1 -PercentComplete $childpercent -Status "Processing $DGmembercounter/$($DistributionGroupMembers.count) member" -CurrentOperation InnerLoop     
+        Write-Progress -Activity "Querying Group Members" -Id 1 -PercentComplete $childpercent -Status "Processing $DGmembercounter/$($DistributionGroupMembers.count) member"    
         } 
     }
 }
-Write-Progress -Activity "Processing members" -Completed -id 1
-Write-Progress -Activity "Processing DGs" -Completed
+Write-Progress -Activity "Querying Group Members" -Completed -Id 1
+Write-Progress -Activity "Querying Distribution Groups" -Completed
 if($parentdgcount -le 1)
 {
     [String]$NoParentDG="Distribution group is NOT a member of another group"
@@ -391,6 +391,7 @@ catch {
     write-log -Function "Retrieve Shared Mailboxes" -Step $CurrentProperty -Description $CurrentDescription
 }
 $counter=1
+$Sharedcounter=0
 foreach($sharedMBX in $sharedMBXs)
 {
     if ($sharedMBX.ForwardingAddress -eq $dg.name -or $sharedMBX.ForwardingSmtpAddress -eq $dg.PrimarySmtpAddress)
@@ -398,7 +399,15 @@ foreach($sharedMBX in $sharedMBXs)
         $Conditionfwdmbx= $Conditionfwdmbx+$sharedMBX
         $counter++
     }
+    if ($sharedMBXs.count -ge 2) 
+    {
+        $Sharedcounter++
+        $percent=[Int32]($Sharedcounter/$sharedMBXs.count*100)
+        Write-Progress -Activity "Querying Shared Mailboxes"  -PercentComplete $percent -Status "Processing $Sharedcounter/$($sharedMBXs.count) Mailboxes"
+    }
+    
 }
+Write-Progress -Activity "Querying Shared Mailboxes" -Completed
 if ($counter -le 1) {
     $Nofwdmbxfound="Distribution group is NOT configured to be a forwarding address for any Shared Mailbox"
     [PSCustomObject]$ConditionfwdmbxHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDataString $Nofwdmbxfound
