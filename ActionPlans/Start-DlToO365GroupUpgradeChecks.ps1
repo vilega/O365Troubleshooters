@@ -172,35 +172,36 @@ foreach($parentdg in $alldgs)
 {
     $DGcounter++
     try {
-        $DGcounter++
-        $percent=[Int32]($DGcounter/$alldgs.count*100)
-        Write-Progress -Activity "Processing DGs"  -PercentComplete $percent -Status "Processing $DGcounter/$($alldgs.count)group" -CurrentOperation OuterLoop
-        $Pmembers = Get-DistributionGroupMember $($parentdg.Guid.ToString()) -ErrorAction Stop
+        $DistributionGroupMembers = Get-DistributionGroupMember $($parentdg.Guid.ToString()) -ErrorAction Stop
         #$CurrentProperty = "Retrieving: $parentdg members"
         #$CurrentDescription = "Success"
         #write-log -Function "Retrieve Distribution Group membership" -Step $CurrentProperty -Description $CurrentDescription
+        if($alldgs.count -ge 2)
+        {
+            $DGcounter++
+            $percent=[Int32]($DGcounter/$alldgs.count*100)
+            Write-Progress -Activity "Processing DGs"  -PercentComplete $percent -Status "Processing $DGcounter/$($alldgs.count)group" -CurrentOperation OuterLoop
+        }
     }
     catch {
         $CurrentProperty = "Retrieving: $parentdg members"
         $CurrentDescription = "Failure"
         write-log -Function "Retrieve Distribution Group membership" -Step $CurrentProperty -Description $CurrentDescription
     }
-$DGmembercounter=0
-foreach ($member in $Pmembers)
-{
-    if ($Pmembers.count -ge 1)
+    $DGmembercounter=0
+    foreach($DistributionGroupMember in $DistributionGroupMembers)
+    {
+        if ($DistributionGroupMember.Alias -like $dg.Alias)
         {
-          $DGmembercounter++
-          $childpercent=[Int32]($DGmembercounter/$Pmembers.count*100)
-          Write-Progress -Activity "Processing members" -Id 1 -PercentComplete $childpercent -Status "Processing $DGmembercounter/$($Pmembers.count) member" -CurrentOperation InnerLoop
-          if ($member.alias -like $dg.alias)
-            {
-                $ConditionParentDG+=$parentdg
-                $parentdgcount++
-            }
+        $parentdgcount++
+        $ConditionParentDG=$ConditionParentDG+$parentdg
         }
+        if ($DistributionGroupMembers.count -ge 2) {
+        $DGmembercounter++
+        $childpercent=[Int32]($DGmembercounter/$DistributionGroupMembers.count*100)
+        Write-Progress -Activity "Processing members" -Id 1 -PercentComplete $childpercent -Status "Processing $DGmembercounter/$($DistributionGroupMembers.count) member" -CurrentOperation InnerLoop     
+        } 
     }
-    
 }
 Write-Progress -Activity "Processing members" -Completed -id 1
 Write-Progress -Activity "Processing DGs" -Completed
