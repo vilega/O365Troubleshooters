@@ -153,6 +153,7 @@ else {
 [string]$Description = "Checking if Distribution Group can't be upgraded because it is a child group of another parent group"
 $ConditionParentDG=@()
 try {
+    Write-Host "Retrieving all distribution groups in Exchange online, please wait...." -ForegroundColor Yellow
     $alldgs=Get-DistributionGroup -ResultSize unlimited -ErrorAction Stop
     $CurrentProperty = "Retrieving All DGs in the EXO directory"
     $CurrentDescription = "Success"
@@ -164,18 +165,12 @@ catch {
     $CurrentDescription = "Failure"
     write-log -Function "Retrieve All DGs" -Step $CurrentProperty -Description $CurrentDescription
 }  
-
-#I've commented write-log functions under try to remove enter spaces cursors when quering members inside each DL
 $parentdgcount=1
 $DGcounter=0
 foreach($parentdg in $alldgs)
 {
-    $DGcounter++
     try {
         $DistributionGroupMembers = Get-DistributionGroupMember $($parentdg.Guid.ToString()) -ErrorAction Stop
-        #$CurrentProperty = "Retrieving: $parentdg members"
-        #$CurrentDescription = "Success"
-        #write-log -Function "Retrieve Distribution Group membership" -Step $CurrentProperty -Description $CurrentDescription
         if($alldgs.count -ge 2)
         {
             $DGcounter++
@@ -222,6 +217,7 @@ else {
 [string]$SectionTitle = "Validating Distribution Group Members Recipient Types"
 [string]$Description = "Checking if Distribution Group can't be upgraded because DL contains member RecipientTypeDetails other than UserMailbox, SharedMailbox, TeamMailbox, MailUser"
 try {
+    Write-Host "Retrieving $dg.primarysmtpaddress members, please wait...." -ForegroundColor Yellow
     $members = Get-DistributionGroupMember $($dg.Guid.ToString()) -ErrorAction stop
     $CurrentProperty = "Retrieving: $dgsmtp members"
     $CurrentDescription = "Success"
@@ -334,9 +330,16 @@ else {
 [string]$SectionTitle = "Validating Distribution Group Sender Restriction"
 [string]$Description = "Checking if Distribution Group can't be upgraded because the distribution list is part of Sender Restriction in another DL"
 $ConditionDGSender=@()
+$DGcounterloop=0
 [int]$SenderRestrictionCount=1
 foreach($alldg in $alldgs)
 {
+    if($alldgs.count -ge 2)
+        {
+            $DGcounterloop++
+            $perc=[Int32]($DGcounterloop/$alldgs.count*100)
+            Write-Progress -Activity "Querying Distribution Groups"  -PercentComplete $perc -Status "Processing $DGcounterloop/$($alldgs.count)group"
+        }
 if ($alldg.AcceptMessagesOnlyFromSendersOrMembers -like $dg.Name -or $alldg.AcceptMessagesOnlyFromDLMembers -like $dg.Name )
 {
     
@@ -344,6 +347,7 @@ if ($alldg.AcceptMessagesOnlyFromSendersOrMembers -like $dg.Name -or $alldg.Acce
     $SenderRestrictionCount++
 }
 }
+Write-Progress -Activity "Querying Distribution Groups" -Completed
 if ($SenderRestrictionCount -le 1) {
     $NoDGSenderfound="Distribution group is NOT part of Sender Restriction in another group"
     [PSCustomObject]$ConditionDGSenderHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDataString $NoDGSenderfound
@@ -380,6 +384,7 @@ $Conditionfwdmbx=@()
 [string]$Description = "Checking if Distribution Group can't be upgraded because the distribution list is configured to be a forwarding address for Shared Mailbox"
 
 try {
+    Write-Host "Retrieving all shared mailboxes in Exchange online, please wait...." -ForegroundColor Yellow
     $sharedMBXs=Get-Mailbox -ResultSize unlimited -RecipientTypeDetails sharedmailbox -ErrorAction stop
     $CurrentProperty = "Retrieving All Shared MBXs in the EXO directory"
     $CurrentDescription = "Success"
