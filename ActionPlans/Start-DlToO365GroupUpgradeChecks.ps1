@@ -217,7 +217,7 @@ else {
 [string]$SectionTitle = "Validating Distribution Group Members Recipient Types"
 [string]$Description = "Checking if Distribution Group can't be upgraded because DL contains member RecipientTypeDetails other than UserMailbox, SharedMailbox, TeamMailbox, MailUser"
 try {
-    Write-Host "Retrieving $dg.primarysmtpaddress members, please wait...." -ForegroundColor Yellow
+    Write-Host "Retrieving $($dg.PrimarySmtpAddress) members, please wait...." -ForegroundColor Yellow
     $members = Get-DistributionGroupMember $($dg.Guid.ToString()) -ErrorAction stop
     $CurrentProperty = "Retrieving: $dgsmtp members"
     $CurrentDescription = "Success"
@@ -430,6 +430,7 @@ $Conditiondupobj=@()
 [string]$SectionTitle = "Validating Distribution Group Duplicates"
 [string]$Description = "Checking if Distribution Group can't be upgraded because duplicate objects having same Alias,PrimarySmtpAddress,Name,DisplayName found"
 try {
+    Write-Host "Querying across Exchange online recipients for duplicate objects with $($dg.PrimarySmtpAddress) group, please wait..." -ForegroundColor Yellow
     $dupAlias=Get-Recipient -IncludeSoftDeletedRecipients -Identity $dg.alias -ResultSize unlimited -ErrorAction stop
     $dupAddress=Get-Recipient -IncludeSoftDeletedRecipients -ResultSize unlimited -Identity $dg.PrimarySmtpAddress -ErrorAction stop
     $dupDisplayName=Get-Recipient -IncludeSoftDeletedRecipients -ResultSize unlimited -Identity $dg.DisplayName -ErrorAction stop
