@@ -338,7 +338,7 @@ foreach($alldg in $alldgs)
         {
             $DGcounterloop++
             $perc=[Int32]($DGcounterloop/$alldgs.count*100)
-            Write-Progress -Activity "Querying Distribution Groups"  -PercentComplete $perc -Status "Processing $DGcounterloop/$($alldgs.count)group"
+            Write-Progress -Activity "Validating Distribution Groups Sender Restriction"  -PercentComplete $perc -Status "Processing $DGcounterloop/$($alldgs.count)group"
         }
 if ($alldg.AcceptMessagesOnlyFromSendersOrMembers -like $dg.Name -or $alldg.AcceptMessagesOnlyFromDLMembers -like $dg.Name )
 {
@@ -347,7 +347,7 @@ if ($alldg.AcceptMessagesOnlyFromSendersOrMembers -like $dg.Name -or $alldg.Acce
     $SenderRestrictionCount++
 }
 }
-Write-Progress -Activity "Querying Distribution Groups" -Completed
+Write-Progress -Activity "Validating Distribution Groups Sender Restriction" -Completed
 if ($SenderRestrictionCount -le 1) {
     $NoDGSenderfound="Distribution group is NOT part of Sender Restriction in another group"
     [PSCustomObject]$ConditionDGSenderHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDataString $NoDGSenderfound
