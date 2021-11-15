@@ -48,7 +48,7 @@ mkdir $ExportPath -Force |out-null
 #region Getting the DG SMTP
 $dgsmtp=Get-ValidEmailAddress("Email address of the Distribution Group ")
 try {
-    $dg=get-DistributionGroup -Identity $dgsmtp -ErrorAction stop
+    $dg=get-DistributionGroup -Identity $dgsmtp -ErrorAction stop -ResultSize unlimited
     $CurrentProperty = "Retrieving: $dgsmtp object from EXO Directory"
     $CurrentDescription = "Success"
     write-log -Function "Retrieve Distribution Group Object From EXO Directory" -Step $CurrentProperty -Description $CurrentDescription
@@ -170,7 +170,7 @@ $DGcounter=0
 foreach($parentdg in $alldgs)
 {
     try {
-        $DistributionGroupMembers = Get-DistributionGroupMember $($parentdg.Guid.ToString()) -ErrorAction Stop
+        $DistributionGroupMembers = Get-DistributionGroupMember $($parentdg.Guid.ToString()) -ErrorAction Stop -ResultSize unlimited
         if($alldgs.count -ge 2)
         {
             $DGcounter++
@@ -218,7 +218,7 @@ else {
 [string]$Description = "Checking if Distribution Group can't be upgraded because DL contains member RecipientTypeDetails other than UserMailbox, SharedMailbox, TeamMailbox, MailUser"
 try {
     Write-Host "Retrieving $($dg.PrimarySmtpAddress) members, please wait...." -ForegroundColor Yellow
-    $members = Get-DistributionGroupMember $($dg.Guid.ToString()) -ErrorAction stop
+    $members = Get-DistributionGroupMember $($dg.Guid.ToString()) -ErrorAction stop -ResultSize unlimited
     $CurrentProperty = "Retrieving: $dgsmtp members"
     $CurrentDescription = "Success"
     write-log -Function "Retrieve Distribution Group membership" -Step $CurrentProperty -Description $CurrentDescription
@@ -291,7 +291,7 @@ if ($checkifownerhasmailbox -match "Continuechecking")
     foreach($owner in $owners)
     {
         try {
-            $owner=Get-Recipient $owner -ErrorAction stop
+            $owner=Get-Recipient $owner -ErrorAction stop -ResultSize unlimited
             if (!($owner.RecipientTypeDetails -eq "UserMailbox" -or $owner.RecipientTypeDetails -eq "MailUser")) 
                 { 
                     $ConditionDGownernonsupported=$ConditionDGownernonsupported+$owner
@@ -302,7 +302,7 @@ if ($checkifownerhasmailbox -match "Continuechecking")
             $CurrentDescription = "Failure"
             write-log -Function "Validate owner RecipientTypeDetails" -Step $CurrentProperty -Description $CurrentDescription
             #check if the owner RecipientTypeDetails is User
-            $owner=Get-User $owner -ErrorAction stop
+            $owner=Get-User $owner -ErrorAction stop -ResultSize unlimited
             $ConditionDGownernonsupportedforusers=$ConditionDGownernonsupportedforusers+$owner
         }
     }
