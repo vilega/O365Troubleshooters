@@ -1816,6 +1816,131 @@ function New-ObjectForHTMLReport {
 
 }
 
+### <summary>
+### Create-CompressedZIPFile function compress a file, or content of a folder to a .zip file
+### </summary>
+### <param name="SourceFile">SourceFile represent the file that will be compressed </param>
+### <param name="SourceFolder">SourceFolder represents the folder of which content's will be compressed </param>
+### <param name="DeleteSource">DeleteSource is to used to delete or not the source file or folder </param>
+### <param name="WhatToDelete">In case we compressed the content of a folder, and we need to delete the content after that (DeleteSource is set to $true),
+###        WhatToDelete will let us know if we need to delete just the content of the Source folder, or, the entire Source folder </param>
+### <param name="TargetFile">TargetFile represents the .zip file in which the compressed data will be stored </param>
+### <return "Success">This function will return if it managed to successfully complete the asked tasks, or not </return>
+
+### Examples of how you should use it:
+###        [bool]$Result = Create-CompressedZIPFile -SourceFile $SourceFile -TargetFile $TargetFile
+###        [bool]$Result = Create-CompressedZIPFile -SourceFile $SourceFile -TargetFile $TargetFile -DeleteSource $true
+
+###        [bool]$Result = Create-CompressedZIPFile -SourceFolder $SourceFolder -TargetFile $TargetFile
+###        [bool]$Result = Create-CompressedZIPFile -SourceFolder $SourceFolder -TargetFile $TargetFile -DeleteSource $true
+###        [bool]$Result = Create-CompressedZIPFile -SourceFolder $SourceFolder -TargetFile $TargetFile -DeleteSource $true -WhatToDelete SourceFolderWithChildItems
+###        [bool]$Result = Create-CompressedZIPFile -SourceFolder $SourceFolder -TargetFile $TargetFile -DeleteSource $true -WhatToDelete JustChildItemsOfSourceFolder
+###        
+
+function Create-CompressedZIPFile {
+    param (
+        [Parameter(ParameterSetName = "File", Mandatory=$true, Position=0)]
+        [string]$SourceFile,
+
+        [Parameter(ParameterSetName = "Folder", Mandatory=$true, Position=0)]
+        [string]$SourceFolder,
+
+        [Parameter(Mandatory=$false)]
+        [bool]$DeleteSource = $false,
+
+        [ValidateSet("SourceFolderWithChildItems", "JustChildItemsOfSourceFolder")]
+        [Parameter(ParameterSetName = "Folder", Mandatory=$false)]
+        [string]$WhatToDelete,
+
+        [Parameter(Mandatory=$false)]
+        [string]$TargetFile
+    )
+
+    Write-Log -function "Create-CompressedZIPFile" -step "Function" -Description "Start"
+
+    [bool]$Success = $true
+
+    if ($SourceFile) {
+        try {
+            Write-Log -function "Create-CompressedZIPFile" -step "Create .zip compressed file for a file (File: `"$SourceFile`")" -Description "Start"
+            Compress-Archive -LiteralPath $SourceFile -DestinationPath $TargetFile -CompressionLevel Optimal -Force -ErrorAction Stop
+            Write-Log -function "Create-CompressedZIPFile" -step "Create .zip compressed file for a file (File: `"$SourceFile`")" -Description "Success"
+            if ($DeleteSource) {
+                try {
+                    Write-Log -function "Create-CompressedZIPFile" -step "Remove source file (File: `"$SourceFile`")" -Description "Start"
+                    Remove-Item -LiteralPath $SourceFile -Confirm:$false -Force -ErrorAction Stop
+                    Write-Log -function "Create-CompressedZIPFile" -step "Remove source file (File: `"$SourceFile`")" -Description "Success"
+                }
+                catch {
+                    [bool]$Success = $false
+                    Write-Log -function "Create-CompressedZIPFile" -step "Remove source file (File: `"$SourceFile`")" -Description "Error"
+                }
+                finally {
+                    Write-Log -function "Create-CompressedZIPFile" -step "Remove source file (File: `"$SourceFile`")" -Description "Finish"
+                }
+            }
+        }
+        catch {
+            [bool]$Success = $false
+            Write-Log -function "Create-CompressedZIPFile" -step "Create .zip compressed file for a file (File: `"$SourceFile`")" -Description "Error"
+        }
+        finally {
+            Write-Log -function "Create-CompressedZIPFile" -step "Create .zip compressed file for a file (File: `"$SourceFile`")" -Description "Finish"
+        }
+    }
+    elseif ($SourceFolder) {
+        $AllChildItems = Get-ChildItem $SourceFolder -Recurse -Force
+        try {
+            Write-Log -function "Create-CompressedZIPFile" -step "Create .zip compressed file for content of a folder (Folder: `"$SourceFolder`")" -Description "Start"
+            Compress-Archive -Path "$SourceFolder*" -DestinationPath $TargetFile -CompressionLevel Optimal -Force -ErrorAction Stop
+            Write-Log -function "Create-CompressedZIPFile" -step "Create .zip compressed file for content of a folder (Folder: `"$SourceFolder`")" -Description "Success"
+            if ($DeleteSource) {
+                if ($WhatToDelete -eq "JustChildItemsOfSourceFolder") {
+                    try {
+                        Write-Log -function "Create-CompressedZIPFile" -step "Remove content of source folder, but, keep the source folder" -Description "Start"
+                        foreach ($Item in $AllChildItems) {
+                            Remove-Item -LiteralPath $($Item.FullName) -Recurse -Confirm:$false -Force -ErrorAction Stop
+                        }
+                        Write-Log -function "Create-CompressedZIPFile" -step "Remove content of source folder, but, keep the source folder" -Description "Success"
+                    }
+                    catch {
+                        [bool]$Success = $false
+                        Write-Log -function "Create-CompressedZIPFile" -step "Remove content of source folder, but, keep the source folder" -Description "Error"
+                    }
+                    finally {
+                        Write-Log -function "Create-CompressedZIPFile" -step "Remove content of source folder, but, keep the source folder" -Description "Finish"
+                    }
+                }
+                else {
+                    try {
+                        Write-Log -function "Create-CompressedZIPFile" -step "Remove entire source folder (Folder: `"$SourceFolder`")" -Description "Start"
+                        Remove-Item -Path $SourceFolder -Recurse -Confirm:$false -Force -ErrorAction Stop
+                        Write-Log -function "Create-CompressedZIPFile" -step "Remove entire source folder (Folder: `"$SourceFolder`")" -Description "Success"
+                    }
+                    catch {
+                        [bool]$Success = $false
+                        Write-Log -function "Create-CompressedZIPFile" -step "Remove entire source folder (Folder: `"$SourceFolder`")" -Description "Error"
+                    }
+                    finally {
+                        Write-Log -function "Create-CompressedZIPFile" -step "Remove entire source folder (Folder: `"$SourceFolder`")" -Description "Finish"
+                    }
+                }
+            }
+        }
+        catch {
+            [bool]$Success = $false
+            Write-Log -function "Create-CompressedZIPFile" -step "Create .zip compressed file for content of a folder (Folder: `"$SourceFolder`")" -Description "Error"
+        }
+        finally {
+            Write-Log -function "Create-CompressedZIPFile" -step "Create .zip compressed file for content of a folder (Folder: `"$SourceFolder`")" -Description "Finish"
+        }
+    }
+    
+    Write-Log -function "Create-CompressedZIPFile" -step "Function" -Description "Finish"
+    return $Success
+
+}
+
 
 Function    Start-O365Troubleshooters {
     param(
