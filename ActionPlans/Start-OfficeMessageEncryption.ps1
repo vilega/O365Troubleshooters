@@ -743,3 +743,4 @@ Show-Menu
 Stop-Transcript
 write-log -Function "Start-OfficeMessageEncryption" -Step "Return to Start-O365TroubleshootersMenu"-Description "Succes"     
 Start-O365TroubleshootersMenu
+
