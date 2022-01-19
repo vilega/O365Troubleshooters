@@ -48,7 +48,7 @@ mkdir $ExportPath -Force |out-null
 #region Getting the DG SMTP
 $dgsmtp=Get-ValidEmailAddress("Email address of the Distribution Group ")
 try {
-    $dg=get-DistributionGroup -Identity $dgsmtp -ErrorAction stop
+    $dg=get-DistributionGroup -Identity $dgsmtp -ErrorAction stop -ResultSize unlimited
     $CurrentProperty = "Retrieving: $dgsmtp object from EXO Directory"
     $CurrentDescription = "Success"
     write-log -Function "Retrieve Distribution Group Object From EXO Directory" -Step $CurrentProperty -Description $CurrentDescription
@@ -127,29 +127,13 @@ $ConditionEAP=New-Object PSObject
 # Bypass that step if there's no EAP 
  if($null -ne $eap)
  {
-     #added case sensitive operator to catch any difference even in letters of smtp address
-     #add case sensitive condition with information in case found a violation
+     #Case sensitive operator to catch any difference even in letters of smtp address
+
  $ViolatedEap = @( $eap | where-object{$_.RecipientFilter -eq "RecipientTypeDetails -eq 'GroupMailbox'" -and $_.EnabledPrimarySMTPAddressTemplate.ToString().Split("@")[1] -cne $dg.PrimarySmtpAddress.ToString().Split("@")[1]})
  if ($ViolatedEap.Count -ge 1) {
-     <#$count=1
-     foreach($violateeap in $ViolatedEap)
-     {
-         $ConditionEAP|Add-Member -NotePropertyName "EmailAddressPolicy$count Name" -NotePropertyValue $violateeap
-         $count++
-    }
-    #>
-    #check if it's case sensitive or not
-     <#
-    $GetnotcasesensintiveiolatedEap = @( $eap | where-object{$_.RecipientFilter -eq "RecipientTypeDetails -eq 'GroupMailbox'" -and $_.EnabledPrimarySMTPAddressTemplate.ToString().Split("@")[1] -ne $dg.PrimarySmtpAddress.ToString().Split("@")[1]})
-    if($ViolatedEap|ForEach-Object{$_.EnabledPrimarySMTPAddressTemplate.split("@")[1] -ne $GetnotcasesensintiveiolatedEap.EnabledPrimarySMTPAddressTemplate.split("@")[1]})
-    {
-        #Case sensitive EAP found
-    }
-    #>
     $ConditionEAP=$ViolatedEap|Select-Object Identity,Priority,@{label='PrimarySMTPAddressTemplate';expression={($_.EnabledPrimarySMTPAddressTemplate).split("@")[1]}} |Sort-Object priority
     [PSCustomObject]$ConditionEAPHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionEAP -TableType "Table"
     $null = $TheObjectToConvertToHTML.Add($ConditionEAPHTML)
-    
 }
 else {
     $ConditionNOEAP="NO matching Group Email Address Policy for the groups on the organization"
@@ -162,46 +146,14 @@ else {
     $null = $TheObjectToConvertToHTML.Add($ConditionEAPHTML)
 }
 
- #endregion Check if Distribution Group can't be upgraded because EmailAddressPolicyViolated
-<#
-#region Check if Distribution Group can't be upgraded because DlHasChildGroups
-[string]$SectionTitle = "Validating Distribution Group Child Membership"
-[string]$Description = "Checking if Distribution Group can't be upgraded because it contains child groups"
-$ConditionChildDG=New-Object PSObject    
-try {
-    $members = Get-DistributionGroupMember $($dg.Guid.ToString()) -ErrorAction stop
-    $CurrentProperty = "Retrieving: $dgsmtp members"
-    $CurrentDescription = "Success"
-    write-log -Function "Retrieve Distribution Group membership" -Step $CurrentProperty -Description $CurrentDescription
-}
-catch {
-    $CurrentProperty = "Retrieving: $dgsmtp members"
-    $CurrentDescription = "Failure"
-    write-log -Function "Retrieve Distribution Group membership" -Step $CurrentProperty -Description $CurrentDescription
-}
-$childgroups = $members | Where-Object{ $_.RecipientTypeDetails -eq "MailUniversalDistributionGroup"}
-if ($null -ne $childgroups) {
-    $count=1
-    foreach($childgroup in $childgroups)
-    {
-        $ConditionChildDG|Add-Member -NotePropertyName "Child Group$count ALias" -NotePropertyValue $childgroup.Alias
-        $count++
-    }
-    [PSCustomObject]$ConditionChildDGHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Red" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionChildDG -TableType "Table"
-    $null = $TheObjectToConvertToHTML.Add($ConditionChildDGHTML)
-} 
-else {
-    $ConditionChildDG|Add-Member -NotePropertyName "Child Group ALias" -NotePropertyValue "No child groups found"
-    [PSCustomObject]$ConditionChildDGHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "CustomObject" -EffectiveDataArrayList $ConditionChildDG -TableType "Table"
-    $null = $TheObjectToConvertToHTML.Add($ConditionChildDGHTML)
-}
-#endregion Check if Distribution Group can't be upgraded because DlHasChildGroups
-#>
+#endregion Check if Distribution Group can't be upgraded because EmailAddressPolicyViolated
+
 #region Check if Distribution Group can't be upgraded because DlHasParentGroups
 [string]$SectionTitle = "Validating Distribution Group Parent Membership"
 [string]$Description = "Checking if Distribution Group can't be upgraded because it is a child group of another parent group"
 $ConditionParentDG=@()
 try {
+    Write-Host "Retrieving all distribution groups in Exchange online, please wait...." -ForegroundColor Yellow
     $alldgs=Get-DistributionGroup -ResultSize unlimited -ErrorAction Stop
     $CurrentProperty = "Retrieving All DGs in the EXO directory"
     $CurrentDescription = "Success"
@@ -213,32 +165,41 @@ catch {
     $CurrentDescription = "Failure"
     write-log -Function "Retrieve All DGs" -Step $CurrentProperty -Description $CurrentDescription
 }  
-
-#I've commented write-log functions under try to remove enter spaces cursors when quering members inside each DL
 $parentdgcount=1
+$DGcounter=0
 foreach($parentdg in $alldgs)
 {
     try {
-        write-host ""
-        $Pmembers = Get-DistributionGroupMember $($parentdg.Guid.ToString()) -ErrorAction Stop
-        #$CurrentProperty = "Retrieving: $parentdg members"
-        #$CurrentDescription = "Success"
-        #write-log -Function "Retrieve Distribution Group membership" -Step $CurrentProperty -Description $CurrentDescription
+        $DistributionGroupMembers = Get-DistributionGroupMember $($parentdg.Guid.ToString()) -ErrorAction Stop -ResultSize unlimited
+        if($alldgs.count -ge 2)
+        {
+            $DGcounter++
+            $percent=[Int32]($DGcounter/$alldgs.count*100)
+            Write-Progress -Activity "Querying Distribution Groups"  -PercentComplete $percent -Status "Processing $DGcounter/$($alldgs.count)group"
+        }
     }
     catch {
         $CurrentProperty = "Retrieving: $parentdg members"
         $CurrentDescription = "Failure"
         write-log -Function "Retrieve Distribution Group membership" -Step $CurrentProperty -Description $CurrentDescription
     }
-
-foreach ($member in $Pmembers)
-{if ($member.alias -like $dg.alias)
-{
-    $ConditionParentDG+=$parentdg
-    $parentdgcount++
+    $DGmembercounter=0
+    foreach($DistributionGroupMember in $DistributionGroupMembers)
+    {
+        if ($DistributionGroupMember.Alias -eq $dg.Alias)
+        {
+        $parentdgcount++
+        $ConditionParentDG=$ConditionParentDG+$parentdg
+        }
+        if ($DistributionGroupMembers.count -ge 2) {
+        $DGmembercounter++
+        $childpercent=[Int32]($DGmembercounter/$DistributionGroupMembers.count*100)
+        Write-Progress -Activity "Querying Group Members" -Id 1 -PercentComplete $childpercent -Status "Processing $DGmembercounter/$($DistributionGroupMembers.count) member"    
+        } 
+    }
 }
-}
-}
+Write-Progress -Activity "Querying Group Members" -Completed -Id 1
+Write-Progress -Activity "Querying Distribution Groups" -Completed
 if($parentdgcount -le 1)
 {
     [String]$NoParentDG="Distribution group is NOT a member of another group"
@@ -255,9 +216,9 @@ else {
 #region Check if Distribution Group can't be upgraded because DlHasNonSupportedMemberTypes with RecipientTypeDetails other than UserMailbox, SharedMailbox, TeamMailbox, MailUser
 [string]$SectionTitle = "Validating Distribution Group Members Recipient Types"
 [string]$Description = "Checking if Distribution Group can't be upgraded because DL contains member RecipientTypeDetails other than UserMailbox, SharedMailbox, TeamMailbox, MailUser"
-#$ConditionDGmembers=New-Object psobject
 try {
-    $members = Get-DistributionGroupMember $($dg.Guid.ToString()) -ErrorAction stop
+    Write-Host "Retrieving $($dg.PrimarySmtpAddress) members, please wait...." -ForegroundColor Yellow
+    $members = Get-DistributionGroupMember $($dg.Guid.ToString()) -ErrorAction stop -ResultSize unlimited
     $CurrentProperty = "Retrieving: $dgsmtp members"
     $CurrentDescription = "Success"
     write-log -Function "Retrieve Distribution Group membership" -Step $CurrentProperty -Description $CurrentDescription
@@ -330,7 +291,7 @@ if ($checkifownerhasmailbox -match "Continuechecking")
     foreach($owner in $owners)
     {
         try {
-            $owner=Get-Recipient $owner -ErrorAction stop
+            $owner=Get-Recipient $owner -ErrorAction stop -ResultSize unlimited
             if (!($owner.RecipientTypeDetails -eq "UserMailbox" -or $owner.RecipientTypeDetails -eq "MailUser")) 
                 { 
                     $ConditionDGownernonsupported=$ConditionDGownernonsupported+$owner
@@ -341,7 +302,7 @@ if ($checkifownerhasmailbox -match "Continuechecking")
             $CurrentDescription = "Failure"
             write-log -Function "Validate owner RecipientTypeDetails" -Step $CurrentProperty -Description $CurrentDescription
             #check if the owner RecipientTypeDetails is User
-            $owner=Get-User $owner -ErrorAction stop
+            $owner=Get-User $owner -ErrorAction stop -ResultSize unlimited
             $ConditionDGownernonsupportedforusers=$ConditionDGownernonsupportedforusers+$owner
         }
     }
@@ -369,9 +330,16 @@ else {
 [string]$SectionTitle = "Validating Distribution Group Sender Restriction"
 [string]$Description = "Checking if Distribution Group can't be upgraded because the distribution list is part of Sender Restriction in another DL"
 $ConditionDGSender=@()
+$DGcounterloop=0
 [int]$SenderRestrictionCount=1
 foreach($alldg in $alldgs)
 {
+    if($alldgs.count -ge 2)
+        {
+            $DGcounterloop++
+            $perc=[Int32]($DGcounterloop/$alldgs.count*100)
+            Write-Progress -Activity "Validating Distribution Groups Sender Restriction"  -PercentComplete $perc -Status "Processing $DGcounterloop/$($alldgs.count)group"
+        }
 if ($alldg.AcceptMessagesOnlyFromSendersOrMembers -like $dg.Name -or $alldg.AcceptMessagesOnlyFromDLMembers -like $dg.Name )
 {
     
@@ -379,6 +347,7 @@ if ($alldg.AcceptMessagesOnlyFromSendersOrMembers -like $dg.Name -or $alldg.Acce
     $SenderRestrictionCount++
 }
 }
+Write-Progress -Activity "Validating Distribution Groups Sender Restriction" -Completed
 if ($SenderRestrictionCount -le 1) {
     $NoDGSenderfound="Distribution group is NOT part of Sender Restriction in another group"
     [PSCustomObject]$ConditionDGSenderHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDataString $NoDGSenderfound
@@ -415,6 +384,7 @@ $Conditionfwdmbx=@()
 [string]$Description = "Checking if Distribution Group can't be upgraded because the distribution list is configured to be a forwarding address for Shared Mailbox"
 
 try {
+    Write-Host "Retrieving all shared mailboxes in Exchange online, please wait...." -ForegroundColor Yellow
     $sharedMBXs=Get-Mailbox -ResultSize unlimited -RecipientTypeDetails sharedmailbox -ErrorAction stop
     $CurrentProperty = "Retrieving All Shared MBXs in the EXO directory"
     $CurrentDescription = "Success"
@@ -426,14 +396,23 @@ catch {
     write-log -Function "Retrieve Shared Mailboxes" -Step $CurrentProperty -Description $CurrentDescription
 }
 $counter=1
+$Sharedcounter=0
 foreach($sharedMBX in $sharedMBXs)
 {
-    if ($sharedMBX.ForwardingAddress -match $dg.name -or $sharedMBX.ForwardingSmtpAddress -match $dg.PrimarySmtpAddress)
+    if ($sharedMBX.ForwardingAddress -eq $dg.name -or $sharedMBX.ForwardingSmtpAddress -eq $dg.PrimarySmtpAddress)
     {
         $Conditionfwdmbx= $Conditionfwdmbx+$sharedMBX
         $counter++
     }
+    if ($sharedMBXs.count -ge 2) 
+    {
+        $Sharedcounter++
+        $percent=[Int32]($Sharedcounter/$sharedMBXs.count*100)
+        Write-Progress -Activity "Querying Shared Mailboxes"  -PercentComplete $percent -Status "Processing $Sharedcounter/$($sharedMBXs.count) Mailboxes"
+    }
+    
 }
+Write-Progress -Activity "Querying Shared Mailboxes" -Completed
 if ($counter -le 1) {
     $Nofwdmbxfound="Distribution group is NOT configured to be a forwarding address for any Shared Mailbox"
     [PSCustomObject]$ConditionfwdmbxHTML = New-ObjectForHTMLReport -SectionTitle $SectionTitle -SectionTitleColor "Green" -Description $Description -DataType "String" -EffectiveDataString $Nofwdmbxfound
@@ -451,6 +430,7 @@ $Conditiondupobj=@()
 [string]$SectionTitle = "Validating Distribution Group Duplicates"
 [string]$Description = "Checking if Distribution Group can't be upgraded because duplicate objects having same Alias,PrimarySmtpAddress,Name,DisplayName found"
 try {
+    Write-Host "Querying across Exchange online recipients for duplicate objects with $($dg.PrimarySmtpAddress) group, please wait..." -ForegroundColor Yellow
     $dupAlias=Get-Recipient -IncludeSoftDeletedRecipients -Identity $dg.alias -ResultSize unlimited -ErrorAction stop
     $dupAddress=Get-Recipient -IncludeSoftDeletedRecipients -ResultSize unlimited -Identity $dg.PrimarySmtpAddress -ErrorAction stop
     $dupDisplayName=Get-Recipient -IncludeSoftDeletedRecipients -ResultSize unlimited -Identity $dg.DisplayName -ErrorAction stop
