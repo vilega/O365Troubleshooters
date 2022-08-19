@@ -229,11 +229,12 @@ Function Compliance {
 }
 
 Set-GlobalVariables
+
 Check-MailboxStatistics
 Check-Holds
 Check-LastErrorComponent 
 Check-LegacyMRM
-Check-FolderStatistics ( + PendingRescan, NeedsRescan, IncludeAnalysis on a specific folder/all)
+Check-FolderStatistics # ( + PendingRescan, NeedsRescan, IncludeAnalysis on a specific folder/all)
 
 
 # what other MRM configuration we can find
