@@ -1,35 +1,48 @@
-Function Set-GlobalVariables {
+Function Confirm-User {
     $global:path = "C:\Users\vilega\OneDrive - Microsoft\EEE\Torus\Temp\$bug"
     mkdir $path -Force | out-null
     Set-Location $path
-    $global:User = get-user $o\$u
+
+    #$SaveErrorActionPreference = $ErrorActionPreference
+    #$ErrorActionPreference = SilentlyContinue
+   
+    $global:User = get-user $u -ErrorAction SilentlyContinue
     if ($User) {
+        
         Write-Host "$u is a $($User.RecipientTypeDetails)"
         if ($User.RecipientType -eq "UserMailbox") {   
-            $Global:m = Get-mailbox $o\$u
+            $Global:m = Get-mailbox $u
 
         } 
         elseif ($User.RecipientType -eq "MailUser") {
-            $Global:m = Get-mailuser $o\$u
+            $Global:m = Get-mailuser $u
         }
-        $Global:MailboxLocations = Get-MailboxLocation -User $o\$($m.Guid.Guid)
+
+
+        $Global:MailboxLocations = Get-MailboxLocation -User $($m.Guid.Guid)
+
+        $Global:MailboxLocations =  $MailboxLocations | ?{($_.MailboxLocationType -eq "Primary") -or ( $_.MailboxLocationType -eq "MainArchive") -or ( $_.MailboxLocationType -eq "AuxArchive")}
         Write-Host "User $u has the $($MailboxLocations.count) mailbox locations"
         $Global:PrimaryMailbox = $MailboxLocations | ? MailboxLocationType -eq "Primary"
         $Global:MainArchive = $MailboxLocations | ? MailboxLocationType -eq "MainArchive"
 
-        foreach ($MailboxLocation in $MailboxLocations) {
-            if ($MailboxLocation.MailboxLocationType -eq "DemotedArchive") {
-                Write-Host "User $u has a demoted archive $($MailboxLocation.Identify)" -ForegroundColor Red
-            }
-        }
+
 
     }
     else {
 
-        #TODO: check soft deleted recipients, SoftDeleted, Inactive, When, Was, Is
-        $Global:m = Get-mailbox -InactiveMailbox $o\$u
-        $Global:m = Get-Mailbox -SoftDeletedMailbox $o\$u
-        $Global:m = get-mailbox -organization $o -SoftDeletedMailbox $u | select -first 1
+        Write-Host "User cannot be found!" -ForegroundColor Red
+        Read-Host "Press [ENTER] to reload the main menu"
+        Show-Menu
+    }
+}
+
+Function Check-DemotedArchive{
+    foreach ($MailboxLocation in $MailboxLocations) {
+        if ($MailboxLocation.MailboxLocationType -eq "DemotedArchive") {
+            Write-Host "User $u has a demoted archive $($MailboxLocation.Identify)" -ForegroundColor Red
+            # Customer can remove them if needed by using Set-Mailbox -RemoveDisabledArchive / set-mailuser -RemoveDisabledArchive
+        }
     }
 }
 
@@ -37,19 +50,49 @@ Function Check-MailboxStatistics {
 
     [System.Collections.ArrayList]$global:MailboxStatistics = @()
     foreach ($MailboxLocation in $m.MailboxLocations) {
-        If ($MailboxLocation.split(";")[2] -ne "ComponentShared") {
-            $CurrentMailboxStats = get-mailboxstatistics "$o\$($MailboxLocation.split(";")[1])"
-            $null = $MailboxStatistics.Add($CurrentMailboxStats)
-        }
+        $CurrentMailboxStats = get-mailboxstatistics "$($MailboxLocation.split(";")[1])"
+        $null = $MailboxStatistics.Add($CurrentMailboxStats)
     }
     $MailboxStatistics | ft MailboxGuid, Total*Size, MailboxTypeDetail, IsArchiveMailbox
     
-    Write-Host "Aggregated Archive Mailbox Statistics" -ForegroundColor Cyan
-    $Global:ArchiveMailboxStatistics = Get-MailboxStatistics $o\$u -archive
-    $ArchiveMailboxStatistics | fl MailboxGuid, Total*Size, MailboxTypeDetail, IsArchiveMailbox, DeletedItemCount, ItemCount
-
+    if ($m.MailboxLocations -match "MainArchive") {
+        Write-Host "Total Archive Mailbox Statistics" -ForegroundColor Cyan
+        $Global:ArchiveMailboxStatistics = Get-MailboxStatistics $u -archive
+        $ArchiveMailboxStatistics | fl MailboxGuid, Total*Size, MailboxTypeDetail, IsArchiveMailbox, DeletedItemCount, ItemCount
+    }
 }
 
+Check-MRMforUser{
+    If (($OrganizationConfig).ElcProcessingDisabled -eq $true) {
+        Write-Host "ELC is disabled at Tenant level!" -ForegroundColor Red
+    }
+    RetentionHoldEnabled
+
+    Write-Host "`nUser license:" -ForegroundColor Cyan
+    $m.PersistedCapabilities # Exchange_Enterprise, Archive-Addon
+
+    Write-Host "`nIf account is disabled, EWS is disable or Self permissions are missing the items are not moved to archive. Self needs both {FullAccess, ReadPermission}" -ForegroundColor Cyan
+    
+    # AccountDisabled 
+    $m | fl AccountDisabled, ExchangeUserAccountControl, RecipientType*
+
+
+    # EWS Check
+    get-casmailbox $o\$u | fl *ews*
+
+    # Mailbox Permissions
+    Get-MailboxPermission $o\$u -User Self
+
+    Write-Host "`nIf there are items larger than max send/receive size, these won't be archived and can block the archive split if there are already in MainArchive" -ForegroundColor Cyan
+    $m | fl max*size
+
+    Write-Host "`nMailbox quotas:" -ForegroundColor Cyan
+    $mb | fl *quota*, UseDatabaseQuotaDefaults
+
+    Write-Host "`nCheck if ELC is proccessing the mailbox, items are moved to Purges and when expire" -ForegroundColor Cyan
+    $m | fl ElcProcessingDisabled, RetentionHoldEnabled , SingleItemRecoveryEnabled, RetainDeletedItemsFor, UseDatabaseRetentionDefaults, UseDatabaseQuotaDefaults
+
+}
 Function Check-Holds {
     Write-Host "`nChecking Organization's Holds!" -ForegroundColor Cyan
     $OrganizationConfig = get-organizationconfig $o
@@ -61,39 +104,10 @@ Function Check-Holds {
         Write-Host "Organization has no global holds: " -ForegroundColor Yellow
     }
 
-    If (($OrganizationConfig).ElcProcessingDisabled -eq $true) {
-        Write-Host "ELC is disabled at Tenant level!" -ForegroundColor Red
-    }
+
 
     Write-Host "`nChecking Holds settings for user $u !" -ForegroundColor Cyan
-    $m | fl LitigationHoldEnabled, RetentionHoldEnabled, EndDateForRetentionHold, StartDateForRetentionHold, LitigationHoldDate, LitigationHoldOwner, ComplianceTagHoldApplied, DelayHoldApplied, DelayReleaseHoldApplied, LitigationHoldDuration 
-    Write-Host "InPlaceHolds:"
-    $m.InPlaceHolds
- 
-
-    Write-Host "`nUser license:" -ForegroundColor Cyan
-    $m.PersistedCapabilities
-
-    Write-Host "`nIf account is disabled, EWS is disable or Self permissions are missing the items are not moved to archive. Self needs both {FullAccess, ReadPermission}" -ForegroundColor Cyan
-    $m | fl AccountDisabled, ExchangeUserAccountControl, RecipientType*
-    get-casmailbox $o\$u | fl *ews*
-    Get-MailboxPermission $o\$u -User Self
-  
-    Write-Host "`nIf there are items larger than max send/receive size, these won't be archived and can block the archive split if there are already in MainArchive" -ForegroundColor Cyan
-    $m | fl max*size
-
-    Write-Host "`nMailbox quotas:" -ForegroundColor Cyan
-    $mb | fl *quota*, UseDatabaseQuotaDefaults
-
-    Write-Host "`nArchive Details"
-    $m | fl *archive*
-
-    Write-Host "`nMailbox, Archive and User GUIDs" -ForegroundColor Cyan
-    $m | fl *guid*
-
-    Write-Host "`nCheck if ELC is proccessing the mailbox, items are moved to Purges and when expire" -ForegroundColor Cyan
-    $m | fl ElcProcessingDisabled, RetentionHoldEnabled , SingleItemRecoveryEnabled, RetainDeletedItemsFor, UseDatabaseRetentionDefaults, UseDatabaseQuotaDefaults
-
+    $UserHolds = $m | select LitigationHoldEnabled, EndDateForRetentionHold, StartDateForRetentionHold, LitigationHoldDate, LitigationHoldOwner, ComplianceTagHoldApplied, DelayHoldApplied, DelayReleaseHoldApplied, LitigationHoldDuration, InPlaceHolds
 
 }
 
@@ -129,14 +143,7 @@ Function Check-LegacyMRM {
     $RetentionPolicyTags | ft Name, Type, RetentionAction, AgeLimitForRetention, Guid, RetentionId
 
 
-    $config = Test-ArchiveConnectivity $u -IncludeArchiveMRMConfiguration
-    ([xml]$config.PrimaryMRMConfiguration).UserConfiguration.Info.Data | fl PolicyTag, ArchiveTag
-
-    Write-Host "`nPolicy Tags:" -ForegroundColor Cyan
-    ([xml]$config.PrimaryMRMConfiguration).UserConfiguration.Info.Data.PolicyTag | ft Name, ObjectGuid, Guid, IsVisible, OptedInto, Type, @{ Label = "Expiry Age"; Expression = { ([xml]$_.InnerXml).ChildNodes.ExpiryAgeLimit } }
-
-    Write-Host "`nArchive Tags:" -ForegroundColor Cyan
-    ([xml]$config.PrimaryMRMConfiguration).UserConfiguration.Info.Data.ArchiveTag | ft Name, ObjectGuid, Guid, IsVisible, OptedInto, Type, @{ Label = "Expiry Age"; Expression = { ([xml]$_.InnerXml).ChildNodes.ExpiryAgeLimit } }
+    # MRMConfiguration - MFCMapi Article
 }
 
 Function Check-FolderStatistics {
